@@ -1,0 +1,113 @@
+{
+    "logger": {
+        "level": "INFO",
+        "console_output": true,
+        "file_output": true,
+        "log_dir": "logs",
+        "max_bytes": 10485760,
+        "backup_count": 5
+    },
+    "las": {
+        "host": "0.0.0.0",
+        "port": 10001,
+        "protocol_version": "0x0330",
+        "instrument_type": "0x0001",
+        "capability_version": "0x0104",
+        "software_version": "0x0100",
+        "instrument_id": "0xFF",
+        "instrument_serial": "ATELLICA",
+        "keep_alive_interval": 30,
+        "ack_timeout": 20,
+        "response_timeout": 20
+    },
+    "lis": {
+        "host": "0.0.0.0",
+        "port": 10002,
+        "result_delay": 1800,
+        "max_connections": 10
+    },
+    "core": {
+        "automation_interface_status": 1,
+        "instrument_process_status": 1,
+        "lis_connection_status": 1,
+        "interface_positions": 2,
+        "remote_control_status": [
+            4,
+            5
+        ],
+        "lock_ownership": [
+            2,
+            2
+        ],
+        "processing_backlog": 0,
+        "sample_acquisition_delay": 0,
+        "on_board_tube_count": 0,
+        "completed_tube_count": 0
+    },
+    "test_inventory": {
+        "threshold": 10,
+        "tests": [
+            {
+                "name": "TEST001",
+                "count": 100,
+                "status": 1
+            },
+            {
+                "name": "TEST002",
+                "count": 50,
+                "status": 1
+            },
+            {
+                "name": "TEST003",
+                "count": 5,
+                "status": 2
+            },
+            {
+                "name": "TEST004",
+                "count": 0,
+                "status": 3
+            }
+        ]
+    },
+    "consumable_inventory": {
+        "modules": [
+            {
+                "id": "MODULE001",
+                "consumables": [
+                    {
+                        "id": 1,
+                        "status": 1
+                    },
+                    {
+                        "id": 2,
+                        "status": 1
+                    },
+                    {
+                        "id": 3,
+                        "status": 1
+                    },
+                    {
+                        "id": 4,
+                        "status": 1
+                    },
+                    {
+                        "id": 5,
+                        "status": 2
+                    },
+                    {
+                        "id": 25,
+                        "status": 1
+                    },
+                    {
+                        "id": 26,
+                        "status": 1
+                    },
+                    {
+                        "id": 27,
+                        "status": 1
+                    }
+                ]
+            }
+        ]
+    }
+}

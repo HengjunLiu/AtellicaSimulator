@@ -1,0 +1,106 @@
+2025-12-23 22:55:10 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2025-12-23 22:55:10 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-23 22:55:10 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10001
+2025-12-23 22:55:11 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10002
+2025-12-23 22:55:11 - AtellicaSimulator - INFO - Running in headless mode
+2025-12-23 22:55:11 - AtellicaSimulator - INFO - LASServer started, listening on 0.0.0.0:10001
+2025-12-23 22:55:11 - AtellicaSimulator - INFO - LISServer started, listening on 0.0.0.0:10002
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - Initializing LASServer...
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10001
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - LASServer initialized successfully
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - Initializing LISServer...
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10002
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - LISServer initialized successfully
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - Running in headless mode
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - Starting LASServer...
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - LASServer started, listening on 0.0.0.0:10001
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - LASServer started successfully
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - Starting LISServer...
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - LISServer started, listening on 0.0.0.0:10002
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - LISServer started successfully
+2025-12-23 23:26:50 - AtellicaSimulator - INFO - AtellicaSimulator is running in headless mode. Press Ctrl+C to exit.
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - Initializing LASServer...
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10001
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - LASServer initialized successfully
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - Initializing LISServer...
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10002
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - LISServer initialized successfully
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - Running in headless mode
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - Starting LASServer...
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - LASServer started, listening on 0.0.0.0:10001
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - LASServer started successfully
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - Starting LISServer...
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - LISServer started, listening on 0.0.0.0:10002
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - LISServer started successfully
+2025-12-23 23:57:55 - AtellicaSimulator - INFO - AtellicaSimulator is running in headless mode. Press Ctrl+C to exit.
+2025-12-24 00:28:55 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-24 00:28:55 - AtellicaSimulator - INFO - Received sample TEST1766507335 with tests ['TEST001', 'TEST002', 'TEST003'], results will be available at Wed Dec 24 00:58:55 2025
+2025-12-24 00:28:55 - AtellicaSimulator - INFO - Updated automation interface status to 3
+2025-12-24 00:28:55 - AtellicaSimulator - INFO - Updated instrument process status to 2
+2025-12-24 00:28:55 - AtellicaSimulator - INFO - Updated test inventory: TEST001 - count: 200, status: 1
+2025-12-24 07:22:18 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2025-12-24 07:22:18 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2025-12-24 07:22:18 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-24 07:22:18 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-24 07:22:18 - AtellicaSimulator - INFO - Initializing LASServer...
+2025-12-24 07:22:18 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10001
+2025-12-24 07:22:18 - AtellicaSimulator - INFO - LASServer initialized successfully
+2025-12-24 07:22:18 - AtellicaSimulator - INFO - Initializing LISServer...
+2025-12-24 07:22:18 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10002
+2025-12-24 07:22:18 - AtellicaSimulator - INFO - LISServer initialized successfully
+2025-12-24 07:22:18 - AtellicaSimulator - INFO - Running with UI
+2025-12-24 07:22:19 - AtellicaSimulator - INFO - LASServer started, listening on 0.0.0.0:10001
+2025-12-24 07:22:19 - AtellicaSimulator - INFO - LISServer started, listening on 0.0.0.0:10002
+2025-12-24 07:30:34 - AtellicaSimulator - INFO - Updated LIS connection status to 2
+2025-12-24 07:31:02 - AtellicaSimulator - INFO - Updated LIS connection status to 1
+2025-12-24 08:55:38 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2025-12-24 08:55:38 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2025-12-24 08:55:38 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-24 08:55:38 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-24 08:55:38 - AtellicaSimulator - INFO - Initializing LASServer...
+2025-12-24 08:55:38 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10001
+2025-12-24 08:55:38 - AtellicaSimulator - INFO - LASServer initialized successfully
+2025-12-24 08:55:38 - AtellicaSimulator - INFO - Initializing LISServer...
+2025-12-24 08:55:38 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10002
+2025-12-24 08:55:38 - AtellicaSimulator - INFO - LISServer initialized successfully
+2025-12-24 08:55:38 - AtellicaSimulator - INFO - Running with UI
+2025-12-24 08:55:40 - AtellicaSimulator - INFO - LASServer started, listening on 0.0.0.0:10001
+2025-12-24 08:55:40 - AtellicaSimulator - INFO - LISServer started, listening on 0.0.0.0:10002
+2025-12-24 08:56:42 - AtellicaSimulator - INFO - LAS connection established from 192.168.3.127:53791
+2025-12-24 08:58:07 - AtellicaSimulator - WARNING - LAS message length mismatch: expected 39, got 19
+2025-12-24 08:58:07 - AtellicaSimulator - ERROR - Error processing LAS message: 'NoneType' object has no attribute 'get'
+2025-12-24 09:34:30 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2025-12-24 09:34:30 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2025-12-24 09:34:30 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-24 09:34:30 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-24 09:34:30 - AtellicaSimulator - INFO - Initializing LASServer...
+2025-12-24 09:34:30 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10001
+2025-12-24 09:34:30 - AtellicaSimulator - INFO - LASServer initialized successfully
+2025-12-24 09:34:30 - AtellicaSimulator - INFO - Initializing LISServer...
+2025-12-24 09:34:30 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10002
+2025-12-24 09:34:30 - AtellicaSimulator - INFO - LISServer initialized successfully
+2025-12-24 09:34:30 - AtellicaSimulator - INFO - Running with UI
+2025-12-24 09:34:32 - AtellicaSimulator - INFO - LASServer started, listening on 0.0.0.0:10001
+2025-12-24 09:34:32 - AtellicaSimulator - INFO - LISServer started, listening on 0.0.0.0:10002
+2025-12-24 09:37:28 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2025-12-24 09:37:28 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2025-12-24 09:37:28 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-24 09:37:28 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2025-12-24 09:37:28 - AtellicaSimulator - INFO - Initializing LASServer...
+2025-12-24 09:37:28 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10001
+2025-12-24 09:37:28 - AtellicaSimulator - INFO - LASServer initialized successfully
+2025-12-24 09:37:28 - AtellicaSimulator - INFO - Initializing LISServer...
+2025-12-24 09:37:28 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10002
+2025-12-24 09:37:28 - AtellicaSimulator - INFO - LISServer initialized successfully
+2025-12-24 09:37:28 - AtellicaSimulator - INFO - Running with UI
+2025-12-24 09:37:29 - AtellicaSimulator - INFO - LASServer started, listening on 0.0.0.0:10001
+2025-12-24 09:37:29 - AtellicaSimulator - INFO - LISServer started, listening on 0.0.0.0:10002
+2025-12-24 09:46:28 - AtellicaSimulator - INFO - Updated instrument process status to 1
