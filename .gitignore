@@ -1,7 +1,8 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
+# Python - 忽略所有编译文件和缓存
+__pycache__/        # Python 3 缓存目录
+*.py[cod]           # 忽略 .pyc, .pyo, .pyd 文件
+*$py.class          # Jython 类文件
+*.pyc               # 显式忽略 .pyc 文件（确保兼容性）
 
 # Virtual Environment
 venv/
@@ -9,9 +10,10 @@ venv/
 env/
 ENV/
 
-# Logs
-logs/
-*.log
+# Logs - 忽略所有日志文件和目录
+logs/               # 忽略整个 logs 目录（包含所有日志文件）
+*.log               # 忽略所有 .log 文件
+*.log.*             # 忽略带日期后缀的日志文件（如 .log.2025-12-30）
 
 # Configuration
 *.local.json
