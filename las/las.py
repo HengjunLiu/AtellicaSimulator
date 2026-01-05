@@ -9,6 +9,7 @@ import threading
 import struct
 import time
 import binascii
+from datetime import datetime
 
 
 class LASServer:
@@ -41,9 +42,16 @@ class LASServer:
         self.sequence_id = 1
         self.sequence_lock = threading.Lock()
         
+        # Keep Alive机制
+        self.keep_alive_interval = self.config.get('keep_alive_interval', 30)  # 30秒
+        self.keep_alive_timeout = self.config.get('keep_alive_timeout', 90)  # 90秒
+        self.keep_alive_timers = {}  # 存储每个连接的Keep Alive定时器
+        self.last_keep_alive_time = {}  # 存储每个连接最后一次Keep Alive时间
+        
         # 消息类型常量
-        self.MSG_TYPE_HANDSHAKE = 0x0001
         self.MSG_TYPE_ACK = 0x0000
+        self.MSG_TYPE_KEEP_ALIVE = 0x0001
+        self.MSG_TYPE_HANDSHAKE = 0x0002
         self.MSG_TYPE_INSTRUMENT_HEALTH_REQUEST = 0x0201
         self.MSG_TYPE_INSTRUMENT_HEALTH_RESPONSE = 0x0202
         self.MSG_TYPE_TEST_INVENTORY_REQUEST = 0x0203
@@ -53,6 +61,10 @@ class LASServer:
         self.MSG_TYPE_CONSUMABLE_INVENTORY_REQUEST = 0x020B
         self.MSG_TYPE_CONSUMABLE_INVENTORY_RESPONSE = 0x020C
         self.MSG_TYPE_INITIALIZATION_COMPLETE = 0x020D
+        self.MSG_TYPE_ADD_QUEUE_COMMAND_REQUEST = 0x0401
+        self.MSG_TYPE_ADD_QUEUE_COMMAND_RESPONSE = 0x0402
+        self.MSG_TYPE_SKIP_QUEUE_COMMAND_REQUEST = 0x0403
+        self.MSG_TYPE_SKIP_QUEUE_COMMAND_RESPONSE = 0x0404
         
         # 状态常量
         self.STATUS_GREEN = 1
@@ -198,16 +210,19 @@ class LASServer:
             message: uRAP消息
         """
         try:
+            # 记录接收到的原始消息（十六进制格式）
+            self.logger.log_las(f"Received Message on Channel 1 :{message.hex(' ')} from {addr[0]}:{addr[1]}")
+            
             # 解析消息
             msg_header, msg_body, msg_footer = self._parse_message(message)
             
             if not msg_header:
                 # 发送NACK
-                self._send_ack(conn, msg_header.get('sequence_id', 0), 0x01)  # 0x01 = Message Not Understood
+                self._send_ack(conn, 0, 0x01)  # 0x01 = Message Not Understood
                 return
             
             # 记录接收到的消息
-            self.logger.log_las(f"Received message from {addr[0]}:{addr[1]}: Type=0x{msg_header['message_type']:04x}, SeqID=0x{msg_header['sequence_id']:04x}")
+            self.logger.log_las(f"Received message from {addr[0]}:{addr[1]}: Type=0x{msg_header['message_type']:04x}, SeqID=0x{msg_header['sequence_id']:04x}, Length={msg_header['message_length']}")
             
             # 发送ACK
             self._send_ack(conn, msg_header['sequence_id'], 0x00)  # 0x00 = ACK
@@ -215,7 +230,11 @@ class LASServer:
             # 根据消息类型处理
             message_type = msg_header['message_type']
             
-            if message_type == self.MSG_TYPE_HANDSHAKE:
+            if message_type == self.MSG_TYPE_KEEP_ALIVE:
+                # 处理Keep Alive消息
+                self.logger.log_las(f"Received Keep Alive message from {addr[0]}:{addr[1]}, SeqID=0x{msg_header['sequence_id']:04x}")
+                self.logger.log_las(f"Sent ACK for Keep Alive message, SeqID=0x{msg_header['sequence_id']:04x}")
+            elif message_type == self.MSG_TYPE_HANDSHAKE:
                 self._handle_handshake(conn, msg_header, msg_body)
             elif message_type == self.MSG_TYPE_INSTRUMENT_HEALTH_REQUEST:
                 self._handle_instrument_health_request(conn, msg_header)
@@ -225,6 +244,10 @@ class LASServer:
                 self._handle_onboard_sample_info_request(conn, msg_header)
             elif message_type == self.MSG_TYPE_CONSUMABLE_INVENTORY_REQUEST:
                 self._handle_consumable_inventory_request(conn, msg_header)
+            elif message_type == self.MSG_TYPE_ADD_QUEUE_COMMAND_REQUEST:
+                self._handle_add_queue_command_request(conn, msg_header, msg_body)
+            elif message_type == self.MSG_TYPE_SKIP_QUEUE_COMMAND_REQUEST:
+                self._handle_skip_queue_command_request(conn, msg_header, msg_body)
             else:
                 self.logger.warning(f"Unknown LAS message type: 0x{message_type:04x}")
                 self.logger.log_las(f"Unknown message type: 0x{message_type:04x}")
@@ -355,19 +378,36 @@ class LASServer:
         return message, sequence_id
     
     def _get_current_timestamp(self):
-        """获取当前时间戳（8字节）
+        """获取当前时间戳（8字节），符合真实日志格式
         
         Returns:
             bytes: 8字节时间戳
         """
-        # 时间戳格式：从2000-01-01 00:00:00开始的时间
-        base_time = time.mktime((2000, 1, 1, 0, 0, 0, 0, 0, 0))
-        current_time = time.time()
-        delta = int(current_time - base_time)
+        # 获取当前时间
+        now = datetime.now()
         
-        # 转换为8字节二进制（年、月、日、时、分、秒、毫秒）
-        # 这里简化处理，只使用秒级精度
-        timestamp = struct.pack('!Q', delta)
+        # 构造符合真实日志格式的时间戳
+        # 格式：[年份高字节][年份低字节][月份][日期][小时][分钟][秒][毫秒]
+        year = now.year % 2000  # 仅使用2000年后的年份部分
+        month = now.month
+        day = now.day
+        hour = now.hour
+        minute = now.minute
+        second = now.second
+        millisecond = now.microsecond // 1000
+        
+        # 组合时间戳（8字节）
+        timestamp = struct.pack(
+            '!BBBBBBBB',
+            (year >> 8) & 0xFF,    # 年份高字节
+            year & 0xFF,           # 年份低字节
+            month,                 # 月份
+            day,                   # 日期
+            hour,                  # 小时
+            minute,                # 分钟
+            second,                # 秒
+            millisecond            # 毫秒
+        )
         return timestamp
     
     def _send_ack(self, conn, sequence_id, return_code):
@@ -699,3 +739,109 @@ class LASServer:
         except Exception as e:
             self.logger.error(f"Error handling LAS consumable inventory request: {str(e)}")
             self.logger.log_las(f"Error handling consumable inventory request: {str(e)}")
+    
+    def _handle_add_queue_command_request(self, conn, header, body):
+        """处理添加队列命令请求
+        
+        Args:
+            conn: 连接 socket
+            header: 消息头
+            body: 消息体
+        """
+        try:
+            # 解析ADD_QUEUE_COMMAND_REQUEST消息体
+            # 消息体格式：[命令长度][命令内容][优先级]
+            cmd_len = body[0]
+            cmd_content = body[1:1+cmd_len].decode('ascii')
+            priority = struct.unpack_from('!B', body, 1+cmd_len)[0]
+            
+            self.logger.info(f"Received ADD_QUEUE_COMMAND_REQUEST: Command={cmd_content}, Priority={priority}")
+            self.logger.log_las(f"ADD_QUEUE_COMMAND_REQUEST received: Command={cmd_content}, Priority={priority}")
+            
+            # 处理队列命令
+            # 调用核心模块处理队列命令
+            success = self.core.process_queue_command(cmd_content, priority)
+            
+            # 构建响应消息体
+            # 响应消息体格式：[命令长度][命令内容][结果代码]
+            response_body = struct.pack(f'!B {cmd_len}s B',
+                                      cmd_len,
+                                      cmd_content.encode('ascii'),
+                                      0x00 if success else 0x01)  # 0x00=成功，0x01=失败
+            
+            # 构建完整消息
+            message, sequence_id = self._build_message(
+                self.MSG_TYPE_ADD_QUEUE_COMMAND_RESPONSE,
+                response_body,
+                return_sequence_id=header['sequence_id']
+            )
+            
+            # 发送消息
+            conn.sendall(message)
+            
+            self.logger.info(f"ADD_QUEUE_COMMAND_RESPONSE sent, SeqID=0x{sequence_id:04x}, Command={cmd_content}, Result={success}")
+            self.logger.log_las(f"ADD_QUEUE_COMMAND_RESPONSE sent, SeqID=0x{sequence_id:04x}, Command={cmd_content}, Result={success}")
+            
+        except Exception as e:
+            self.logger.error(f"Error handling ADD_QUEUE_COMMAND_REQUEST: {str(e)}")
+            self.logger.log_las(f"Error handling ADD_QUEUE_COMMAND_REQUEST: {str(e)}")
+    
+    def _handle_skip_queue_command_request(self, conn, header, body):
+        """处理跳过队列命令请求
+        
+        Args:
+            conn: 连接 socket
+            header: 消息头
+            body: 消息体
+        """
+        try:
+            # 解析SKIP_QUEUE_COMMAND_REQUEST消息体
+            # 消息体格式：
+            # [Interface Position Index] [Carrier Occupancy] [FL] [Sample ID] [In Queue] [Tube Height] [Tube Diameter]
+            interface_pos = body[0]
+            carrier_occupancy = body[1]
+            fl = body[2]  # 字段长度
+            
+            # 解析Sample ID
+            if carrier_occupancy in [0x02, 0x03]:  # Capped Tube或Uncapped Tube，必须有Sample ID
+                sample_id = body[3:3+fl].decode('ascii')
+                in_queue = body[3+fl] if len(body) > 3+fl else 0x00
+            else:  # Empty Carrier，没有Sample ID
+                sample_id = ""
+                in_queue = body[3] if len(body) > 3 else 0x00
+            
+            self.logger.info(f"Received SKIP_QUEUE_COMMAND_REQUEST: InterfacePos={interface_pos}, CarrierOccupancy=0x{carrier_occupancy:02x}, SampleID={sample_id}, InQueue=0x{in_queue:02x}")
+            self.logger.log_las(f"SKIP_QUEUE_COMMAND_REQUEST received: InterfacePos={interface_pos}, CarrierOccupancy=0x{carrier_occupancy:02x}, SampleID={sample_id}, InQueue=0x{in_queue:02x}")
+            
+            # 调用核心模块处理跳过队列命令
+            # 构建SKIP命令字符串
+            skip_command = f"SKIP {sample_id}" if sample_id else "SKIP"
+            success = self.core.process_queue_command(skip_command, 0x00)  # 跳过命令优先级设为0x00
+            
+            # 构建响应消息体
+            # 响应消息体格式：[Interface Position Index] [FL] [Sample ID] [Command Status]
+            sample_id_bytes = sample_id.encode('ascii') if sample_id else b''
+            sample_id_len = len(sample_id_bytes)
+            
+            response_body = struct.pack(f'!BB {sample_id_len}s B',
+                                      interface_pos,
+                                      sample_id_len,
+                                      sample_id_bytes,
+                                      0x01 if success else 0x00)  # 0x01=成功，0x00=失败
+            
+            # 构建完整消息
+            message, sequence_id = self._build_message(
+                self.MSG_TYPE_SKIP_QUEUE_COMMAND_RESPONSE,
+                response_body,
+                return_sequence_id=header['sequence_id']
+            )
+            
+            # 发送消息
+            conn.sendall(message)
+            
+            self.logger.info(f"SKIP_QUEUE_COMMAND_RESPONSE sent, SeqID=0x{sequence_id:04x}, InterfacePos={interface_pos}, SampleID={sample_id}, Status={0x01 if success else 0x00}")
+            self.logger.log_las(f"SKIP_QUEUE_COMMAND_RESPONSE sent, SeqID=0x{sequence_id:04x}, InterfacePos={interface_pos}, SampleID={sample_id}, Status={0x01 if success else 0x00}")
+            
+        except Exception as e:
+            self.logger.error(f"Error handling SKIP_QUEUE_COMMAND_REQUEST: {str(e)}")
+            self.logger.log_las(f"Error handling SKIP_QUEUE_COMMAND_REQUEST: {str(e)}")

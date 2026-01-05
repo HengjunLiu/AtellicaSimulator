@@ -389,3 +389,55 @@ class AtellicaCore:
                 'on_board_tube_count': self.on_board_tube_count,
                 'completed_tube_count': self.completed_tube_count
             }
+    
+    def process_queue_command(self, command, priority):
+        """处理队列命令
+        
+        Args:
+            command: 命令内容
+            priority: 优先级
+            
+        Returns:
+            bool: 是否成功处理
+        """
+        try:
+            # 记录队列命令
+            self.logger.info(f"Processing queue command: {command}, Priority: {priority}")
+            
+            # 根据命令内容执行不同操作
+            if command.startswith("10001"):
+                # 样本处理命令
+                self.logger.info(f"Executing sample processing command: {command}")
+                # 这里可以添加实际的处理逻辑
+                return True
+            elif command.startswith("STOP"):
+                # 停止命令
+                self.logger.info(f"Executing stop command: {command}")
+                # 这里可以添加实际的停止逻辑
+                return True
+            elif command.startswith("SKIP"):
+                # SKIP命令：跳过当前处理的样本或任务
+                self.logger.info(f"Executing SKIP command: {command}")
+                
+                # SKIP命令处理逻辑
+                # 解析SKIP命令参数（如果有）
+                skip_params = command.split()
+                if len(skip_params) > 1:
+                    # 假设SKIP命令格式为 "SKIP [sample_id]" 或 "SKIP [task_id]"
+                    target_id = skip_params[1]
+                    self.logger.info(f"Skipping target: {target_id}")
+                    
+                    # 这里可以添加实际的跳过逻辑，例如：
+                    # 1. 查找并标记对应样本为跳过状态
+                    # 2. 从处理队列中移除对应任务
+                    # 3. 更新相关状态信息
+                
+                self.logger.info(f"SKIP command executed successfully: {command}")
+                return True
+            else:
+                # 未知命令
+                self.logger.warning(f"Unknown queue command: {command}")
+                return True  # 即使未知命令，也返回成功，让客户端继续执行
+        except Exception as e:
+            self.logger.error(f"Error processing queue command: {str(e)}")
+            return False
