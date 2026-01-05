@@ -45,6 +45,18 @@ class AtellicaCore:
         self.samples = {}
         self.pending_results = {}
         
+        # 队列管理
+        self.queues = {
+            0: [],  # IP0队列
+            1: []   # IP1队列
+        }
+        self.locked_carriers = {
+            0: None,  # IP0锁定的carrier
+            1: None   # IP1锁定的carrier
+        }
+        self.ready_to_load = 0
+        self.return_ready_count = 0
+        
         # 线程锁
         self.status_lock = threading.Lock()
         self.sample_lock = threading.Lock()
@@ -389,3 +401,209 @@ class AtellicaCore:
                 'on_board_tube_count': self.on_board_tube_count,
                 'completed_tube_count': self.completed_tube_count
             }
+    
+    def add_to_queue(self, interface_position_index, carrier_occupancy, sample_id, sample_priority, tube_height, tube_diameter):
+        """添加样本到队列
+        
+        Args:
+            interface_position_index: 接口位置索引
+            carrier_occupancy: carrier占用类型
+            sample_id: 样本ID
+            sample_priority: 样本优先级
+            tube_height: 试管高度
+            tube_diameter: 试管直径
+            
+        Returns:
+            bool: 是否成功添加
+        """
+        with self.sample_lock:
+            if interface_position_index not in self.queues:
+                return False
+            
+            carrier_info = {
+                'carrier_occupancy': carrier_occupancy,
+                'sample_id': sample_id,
+                'sample_priority': sample_priority,
+                'tube_height': tube_height,
+                'tube_diameter': tube_diameter
+            }
+            
+            self.queues[interface_position_index].append(carrier_info)
+            
+            # 更新就绪状态
+            if carrier_occupancy in [2, 3]:  # 有样本的carrier
+                self.ready_to_load = 1
+            
+            self.logger.info(f"Added to queue IP{interface_position_index}: SampleID={sample_id}, Occupancy={carrier_occupancy}")
+            return True
+    
+    def skip_from_queue(self, interface_position_index, carrier_occupancy, sample_id, in_queue):
+        """从队列中跳过样本
+        
+        Args:
+            interface_position_index: 接口位置索引
+            carrier_occupancy: carrier占用类型
+            sample_id: 样本ID
+            in_queue: 是否在队列中
+            
+        Returns:
+            bool: 是否成功跳过
+        """
+        with self.sample_lock:
+            if interface_position_index not in self.queues:
+                return False
+            
+            # 查找匹配的carrier并移除
+            for i, carrier in enumerate(self.queues[interface_position_index]):
+                if (carrier['sample_id'] == sample_id and 
+                    carrier['carrier_occupancy'] == carrier_occupancy):
+                    self.queues[interface_position_index].pop(i)
+                    self.logger.info(f"Skipped from queue IP{interface_position_index}: SampleID={sample_id}")
+                    return True
+            
+            return False
+    
+    def clear_queue(self, interface_position_index):
+        """清除队列
+        
+        Args:
+            interface_position_index: 接口位置索引
+            
+        Returns:
+            bool: 是否成功清除
+        """
+        with self.sample_lock:
+            if interface_position_index not in self.queues:
+                return False
+            
+            # 不清除锁定的carrier
+            if self.locked_carriers[interface_position_index] is not None:
+                self.logger.warning(f"Cannot clear queue IP{interface_position_index}: carrier is locked")
+                return False
+            
+            count = len(self.queues[interface_position_index])
+            self.queues[interface_position_index] = []
+            
+            self.logger.info(f"Cleared queue IP{interface_position_index}: {count} carriers removed")
+            return True
+    
+    def get_queue_info(self, interface_position_index):
+        """获取队列信息
+        
+        Args:
+            interface_position_index: 接口位置索引
+            
+        Returns:
+            list: 队列中的carrier列表
+        """
+        with self.sample_lock:
+            return self.queues.get(interface_position_index, []).copy()
+    
+    def get_ready_to_load(self):
+        """获取就绪装载状态
+        
+        Returns:
+            int: 0=未就绪, 1=就绪
+        """
+        with self.sample_lock:
+            return self.ready_to_load
+    
+    def get_return_ready_count(self):
+        """获取可返回样本数量
+        
+        Returns:
+            int: 可返回样本数量
+        """
+        with self.sample_lock:
+            return self.return_ready_count
+    
+    def process_load_unload(self, interface_position_index, carrier_occupancy, sample_id, tube_height, tube_diameter, elapsed_time):
+        """处理装载/卸载请求
+        
+        Args:
+            interface_position_index: 接口位置索引
+            carrier_occupancy: carrier占用类型
+            sample_id: 样本ID
+            tube_height: 试管高度
+            tube_diameter: 试管直径
+            elapsed_time: 经过时间
+            
+        Returns:
+            tuple: (load_result, unload_result, sample_status, onboard_count, completed_count, ready_to_load, return_ready_count)
+        """
+        with self.sample_lock:
+            # 初始化结果
+            load_result = None
+            unload_result = None
+            sample_status = 0x00  # No Tube Unloaded
+            
+            # 检查接口位置状态
+            health_status = self.get_instrument_health()
+            if interface_position_index >= health_status['interface_positions']:
+                # 接口位置不存在
+                load_result = {'sample_id': '', 'status': 5}  # Interface position is offline
+                return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, self.ready_to_load, self.return_ready_count
+            
+            # 检查远程控制状态
+            remote_status = health_status['remote_control_status'][interface_position_index]
+            
+            # 处理Load操作
+            if carrier_occupancy in [2, 3]:  # 有样本
+                if remote_status in [4, 3]:  # Loading Only or Exchange mode
+                    # 执行装载操作
+                    if self.locked_carriers[interface_position_index] is None:
+                        # 锁定carrier
+                        self.locked_carriers[interface_position_index] = {
+                            'sample_id': sample_id,
+                            'carrier_occupancy': carrier_occupancy
+                        }
+                        
+                        # 更新在线试管数量
+                        self.on_board_tube_count += 1
+                        
+                        # 检查样本是否存在
+                        if sample_id in self.samples:
+                            sample = self.samples[sample_id]
+                            if sample['status'] == 'received':
+                                sample['status'] = 'processing'
+                                sample_status = 0x01  # Sample Processed successfully
+                                load_result = {'sample_id': sample_id, 'status': 1}  # Success
+                            else:
+                                load_result = {'sample_id': sample_id, 'status': 7}  # Instrument Skipped Loading
+                        else:
+                            # 样本不存在，可能是新样本
+                            load_result = {'sample_id': sample_id, 'status': 1}  # Success
+                            sample_status = 0x14  # Sample not processed: No LIS orders
+                    else:
+                        # carrier已被锁定
+                        load_result = {'sample_id': sample_id, 'status': 2}  # Error: Lock Carrier in place
+                else:
+                    # 远程控制状态不允许装载
+                    load_result = {'sample_id': sample_id, 'status': 6}  # Load Skipped
+            else:
+                # 空carrier
+                load_result = {'sample_id': '', 'status': 1}  # Success
+                
+                # 检查是否有样本需要卸载到空carrier
+                if self.return_ready_count > 0:
+                    # 查找已完成的样本
+                    for sid, sample in self.samples.items():
+                        if sample['status'] == 'completed' and 'unloaded' not in sample:
+                            sample['unloaded'] = True
+                            self.return_ready_count -= 1
+                            self.completed_tube_count -= 1
+                            unload_result = {'sample_id': sid, 'status': 1}  # Success
+                            sample_status = 0x01  # Sample Processed successfully
+                            break
+            
+            # 释放锁定的carrier
+            if self.locked_carriers[interface_position_index] is not None:
+                self.locked_carriers[interface_position_index] = None
+            
+            # 更新就绪状态
+            if len(self.queues[interface_position_index]) > 0:
+                self.ready_to_load = 1
+            else:
+                self.ready_to_load = 0
+            
+            return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, self.ready_to_load, self.return_ready_count
