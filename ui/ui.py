@@ -119,6 +119,34 @@ class AtellicaUI:
         self.completed_tubes_var = tk.StringVar()
         ttk.Label(status_grid, textvariable=self.completed_tubes_var, width=15).grid(row=1, column=5, padx=5, pady=5)
         
+        # 队列状态（新增）
+        ttk.Label(status_grid, text="就绪装载:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        self.ready_to_load_var = tk.StringVar()
+        self.ready_to_load_label = ttk.Label(status_grid, textvariable=self.ready_to_load_var, width=15)
+        self.ready_to_load_label.grid(row=2, column=1, padx=5, pady=5)
+        
+        ttk.Label(status_grid, text="可返回样本数:").grid(row=2, column=2, sticky=tk.W, padx=5, pady=5)
+        self.return_ready_count_var = tk.StringVar()
+        ttk.Label(status_grid, textvariable=self.return_ready_count_var, width=15).grid(row=2, column=3, padx=5, pady=5)
+        
+        ttk.Label(status_grid, text="IP0队列长度:").grid(row=2, column=4, sticky=tk.W, padx=5, pady=5)
+        self.ip0_queue_len_var = tk.StringVar()
+        ttk.Label(status_grid, textvariable=self.ip0_queue_len_var, width=15).grid(row=2, column=5, padx=5, pady=5)
+        
+        ttk.Label(status_grid, text="IP1队列长度:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+        self.ip1_queue_len_var = tk.StringVar()
+        ttk.Label(status_grid, textvariable=self.ip1_queue_len_var, width=15).grid(row=3, column=1, padx=5, pady=5)
+        
+        ttk.Label(status_grid, text="IP0锁定状态:").grid(row=3, column=2, sticky=tk.W, padx=5, pady=5)
+        self.ip0_locked_var = tk.StringVar()
+        self.ip0_locked_label = ttk.Label(status_grid, textvariable=self.ip0_locked_var, width=15)
+        self.ip0_locked_label.grid(row=3, column=3, padx=5, pady=5)
+        
+        ttk.Label(status_grid, text="IP1锁定状态:").grid(row=3, column=4, sticky=tk.W, padx=5, pady=5)
+        self.ip1_locked_var = tk.StringVar()
+        self.ip1_locked_label = ttk.Label(status_grid, textvariable=self.ip1_locked_var, width=15)
+        self.ip1_locked_label.grid(row=3, column=5, padx=5, pady=5)
+        
         # 中间内容框架（分为左侧参数配置和右侧状态显示）
         content_frame = ttk.Frame(main_frame)
         content_frame.pack(fill=tk.BOTH, expand=True, pady=10)
@@ -243,6 +271,43 @@ class AtellicaUI:
             self.onboard_tubes_var.set(str(health_status['on_board_tube_count']))
             self.completed_tubes_var.set(str(health_status['completed_tube_count']))
             
+            # 更新队列状态信息（新增）
+            ready_to_load = self.core.get_ready_to_load()
+            if ready_to_load == 1:
+                self.ready_to_load_var.set("是")
+                self.ready_to_load_label.configure(foreground="green")
+            else:
+                self.ready_to_load_var.set("否")
+                self.ready_to_load_label.configure(foreground="gray")
+            
+            return_ready_count = self.core.get_return_ready_count()
+            self.return_ready_count_var.set(str(return_ready_count))
+            
+            # 获取队列信息
+            ip0_queue = self.core.get_queue_info(0)
+            ip1_queue = self.core.get_queue_info(1)
+            
+            self.ip0_queue_len_var.set(str(len(ip0_queue)))
+            self.ip1_queue_len_var.set(str(len(ip1_queue)))
+            
+            # 获取锁定状态
+            ip0_locked = 1 if self.core.locked_carriers[0] else 0
+            ip1_locked = 1 if self.core.locked_carriers[1] else 0
+            
+            if ip0_locked:
+                self.ip0_locked_var.set("Locked")
+                self.ip0_locked_label.configure(foreground="red")
+            else:
+                self.ip0_locked_var.set("Unlocked")
+                self.ip0_locked_label.configure(foreground="green")
+            
+            if ip1_locked:
+                self.ip1_locked_var.set("Locked")
+                self.ip1_locked_label.configure(foreground="red")
+            else:
+                self.ip1_locked_var.set("Unlocked")
+                self.ip1_locked_label.configure(foreground="green")
+            
             # 更新详细状态文本
             detail_text = f"设备状态详细信息：\n"
             detail_text += f"自动化接口状态：{'Green' if automation_status == 1 else 'Red'}\n"
@@ -259,6 +324,31 @@ class AtellicaUI:
             detail_text += f"样本获取延迟：{health_status['sample_acquisition_delay']}\n"
             detail_text += f"在线试管数量：{health_status['on_board_tube_count']}\n"
             detail_text += f"已完成试管数量：{health_status['completed_tube_count']}\n"
+            
+            # 获取队列详细信息
+            detail_text += f"\n队列管理详细信息：\n"
+            detail_text += f"就绪装载状态：{'是' if ready_to_load == 1 else '否'}\n"
+            detail_text += f"可返回样本数：{return_ready_count}\n"
+            
+            # IP0队列详细信息
+            detail_text += f"\nIP0队列 (长度: {len(ip0_queue)})：\n"
+            if ip0_queue:
+                for i, item in enumerate(ip0_queue):
+                    detail_text += f"  [{i+1}] 样本ID: {item.get('sample_id', 'N/A')}, 操作类型: {item.get('operation', 'N/A')}, "
+                    detail_text += f"位置: {item.get('position', 'N/A')}, 状态: {item.get('status', 'N/A')}\n"
+            else:
+                detail_text += "  队列为空\n"
+            detail_text += f"IP0锁定状态：{'Locked' if ip0_locked else 'Unlocked'}\n"
+            
+            # IP1队列详细信息
+            detail_text += f"\nIP1队列 (长度: {len(ip1_queue)})：\n"
+            if ip1_queue:
+                for i, item in enumerate(ip1_queue):
+                    detail_text += f"  [{i+1}] 样本ID: {item.get('sample_id', 'N/A')}, 操作类型: {item.get('operation', 'N/A')}, "
+                    detail_text += f"位置: {item.get('position', 'N/A')}, 状态: {item.get('status', 'N/A')}\n"
+            else:
+                detail_text += "  队列为空\n"
+            detail_text += f"IP1锁定状态：{'Locked' if ip1_locked else 'Unlocked'}\n"
             
             # 获取测试库存信息
             test_inventory = self.core.get_test_inventory()
