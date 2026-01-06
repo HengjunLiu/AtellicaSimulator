@@ -469,16 +469,23 @@ class LASServer:
         """获取当前时间戳（8字节）
         
         Returns:
-            bytes: 8字节时间戳
+            bytes: 8字节时间戳，格式：年(2字节)+月(1)+日(1)+时(1)+分(1)+秒(1)+毫秒(2)
         """
-        # 时间戳格式：从2000-01-01 00:00:00开始的时间
-        base_time = time.mktime((2000, 1, 1, 0, 0, 0, 0, 0, 0))
-        current_time = time.time()
-        delta = int(current_time - base_time)
+        # 获取当前时间
+        current = time.localtime()
+        milliseconds = int((time.time() % 1) * 1000)
         
-        # 转换为8字节二进制（年、月、日、时、分、秒、毫秒）
-        # 这里简化处理，只使用秒级精度
-        timestamp = struct.pack('!Q', delta)
+        # 构建时间戳各字段
+        year = current.tm_year - 2000  # 从2000年开始计算
+        month = current.tm_mon
+        day = current.tm_mday
+        hour = current.tm_hour
+        minute = current.tm_min
+        second = current.tm_sec
+        
+        # 按照uRAP协议格式打包：年(2字节)+月(1)+日(1)+时(1)+分(1)+秒(1)+毫秒(2)
+        timestamp = struct.pack('!HBBBBBH', 
+                               year, month, day, hour, minute, second, milliseconds)
         return timestamp
     
     def _send_ack(self, conn, sequence_id, return_code):
