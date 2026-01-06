@@ -306,7 +306,8 @@ class LASServer:
                 return
             
             # 记录接收到的消息
-            self.logger.log_las(f"Received message from {addr[0]}:{addr[1]}: Type=0x{msg_header['message_type']:04x}, SeqID=0x{msg_header['sequence_id']:04x}")
+            msg_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las(f"Received message from {addr[0]}:{addr[1]}: Type=0x{msg_header['message_type']:04x}, SeqID=0x{msg_header['sequence_id']:04x}, Content={msg_hex}")
             
             # 发送ACK
             self._send_ack(conn, msg_header['sequence_id'], 0x00)  # 0x00 = ACK
@@ -445,13 +446,12 @@ class LASServer:
         
         # 构建消息头
         header = struct.pack(
-            '!cH HH HH 8sc',
+            '!cH HHH 8sc',
             b'\x02',  # STX
             msg_len,
             sequence_id,
             return_sequence_id,
             message_type,
-            0x0000,  # 预留
             current_time,
             bytes([instrument_id])
         )
@@ -553,6 +553,9 @@ class LASServer:
             # 发送握手响应
             self._send_handshake_response(conn, header['sequence_id'])
             
+            # 等待短暂时间，确保握手响应已发送
+            time.sleep(0.1)
+            
             # 发送初始化完成消息
             self._send_initialization_complete(conn)
             
@@ -598,8 +601,10 @@ class LASServer:
             # 发送消息
             conn.sendall(message)
             
+            # 记录发送的消息内容
+            msg_hex = binascii.hexlify(message).decode('ascii')
             self.logger.info(f"LAS handshake response sent, SeqID=0x{sequence_id:04x}")
-            self.logger.log_las(f"Handshake response sent, SeqID=0x{sequence_id:04x}")
+            self.logger.log_las(f"Handshake response sent, SeqID=0x{sequence_id:04x}, Content={msg_hex}")
             
         except Exception as e:
             self.logger.error(f"Error sending LAS handshake response: {str(e)}")
@@ -624,8 +629,10 @@ class LASServer:
             # 发送消息
             conn.sendall(message)
             
+            # 记录发送的消息内容
+            msg_hex = binascii.hexlify(message).decode('ascii')
             self.logger.info(f"LAS initialization complete message sent, SeqID=0x{sequence_id:04x}")
-            self.logger.log_las(f"Initialization complete sent, SeqID=0x{sequence_id:04x}")
+            self.logger.log_las(f"Initialization complete sent, SeqID=0x{sequence_id:04x}, Content={msg_hex}")
             
         except Exception as e:
             self.logger.error(f"Error sending LAS initialization complete message: {str(e)}")
