@@ -345,6 +345,51 @@ class AtellicaCore:
             self.logger.error(f"Test {test_name} not found in inventory")
             return False
     
+    def add_test_inventory(self, test_name, count, status):
+        """添加测试项目库存
+        
+        Args:
+            test_name: 测试项目名称
+            count: 可用测试数量
+            status: 状态（1: Green, 2: Yellow, 3: Red）
+            
+        Returns:
+            bool: 是否成功添加
+        """
+        with self.inventory_lock:
+            for test in self.test_inventory['tests']:
+                if test['name'] == test_name:
+                    self.logger.error(f"Test {test_name} already exists in inventory")
+                    return False
+            
+            new_test = {
+                'name': test_name,
+                'count': count,
+                'status': status
+            }
+            self.test_inventory['tests'].append(new_test)
+            self.logger.info(f"Added test inventory: {test_name} - count: {count}, status: {status}")
+            return True
+    
+    def delete_test_inventory(self, test_name):
+        """删除测试项目库存
+        
+        Args:
+            test_name: 测试项目名称
+            
+        Returns:
+            bool: 是否成功删除
+        """
+        with self.inventory_lock:
+            for i, test in enumerate(self.test_inventory['tests']):
+                if test['name'] == test_name:
+                    del self.test_inventory['tests'][i]
+                    self.logger.info(f"Deleted test inventory: {test_name}")
+                    return True
+            
+            self.logger.error(f"Test {test_name} not found in inventory")
+            return False
+    
     def get_test_inventory(self):
         """获取测试项目库存
         
@@ -374,6 +419,67 @@ class AtellicaCore:
                             self.logger.info(f"Updated consumable inventory: Module {module_id}, Consumable {consumable_id} - status: {status}")
                             return True
                     break
+            
+            self.logger.error(f"Consumable {consumable_id} not found in module {module_id}")
+            return False
+    
+    def add_consumable_inventory(self, module_id, consumable_id, status):
+        """添加耗材库存
+        
+        Args:
+            module_id: 模块ID
+            consumable_id: 耗材ID
+            status: 状态（1: Green, 2: Yellow, 3: Red）
+            
+        Returns:
+            bool: 是否成功添加
+        """
+        with self.inventory_lock:
+            for module in self.consumable_inventory['modules']:
+                if module['id'] == module_id:
+                    for cons in module['consumables']:
+                        if cons['id'] == consumable_id:
+                            self.logger.error(f"Consumable {consumable_id} already exists in module {module_id}")
+                            return False
+                    
+                    new_consumable = {
+                        'id': consumable_id,
+                        'status': status
+                    }
+                    module['consumables'].append(new_consumable)
+                    self.logger.info(f"Added consumable inventory: Module {module_id}, Consumable {consumable_id} - status: {status}")
+                    return True
+            
+            new_module = {
+                'id': module_id,
+                'consumables': [{'id': consumable_id, 'status': status}]
+            }
+            self.consumable_inventory['modules'].append(new_module)
+            self.logger.info(f"Added new module with consumable: Module {module_id}, Consumable {consumable_id} - status: {status}")
+            return True
+    
+    def delete_consumable_inventory(self, module_id, consumable_id):
+        """删除耗材库存
+        
+        Args:
+            module_id: 模块ID
+            consumable_id: 耗材ID
+            
+        Returns:
+            bool: 是否成功删除
+        """
+        with self.inventory_lock:
+            for i, module in enumerate(self.consumable_inventory['modules']):
+                if module['id'] == module_id:
+                    for j, cons in enumerate(module['consumables']):
+                        if cons['id'] == consumable_id:
+                            del module['consumables'][j]
+                            self.logger.info(f"Deleted consumable: Module {module_id}, Consumable {consumable_id}")
+                            
+                            if len(module['consumables']) == 0:
+                                del self.consumable_inventory['modules'][i]
+                                self.logger.info(f"Deleted empty module: {module_id}")
+                            return True
             
             self.logger.error(f"Consumable {consumable_id} not found in module {module_id}")
             return False
