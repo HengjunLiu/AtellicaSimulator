@@ -39,6 +39,10 @@ class LISServer:
         self.connections = []
         self.connection_lock = threading.Lock()
         
+        # 查询结果存储
+        self.query_results = {}
+        self.query_results_lock = threading.Lock()
+        
         # ASTM协议常量
         self.RECORD_SEP = '\x0d'  # 记录分隔符（CR）
         self.FIELD_SEP = '|'       # 字段分隔符
@@ -53,6 +57,7 @@ class LISServer:
         self.RECORD_TYPE_RESULT = 'R'
         self.RECORD_TYPE_COMMENT = 'C'
         self.RECORD_TYPE_TERMINATOR = 'L'
+        self.RECORD_TYPE_QUERY = 'Q'  # 查询记录
         
         # 注册结果回调
         self.core.register_result_callback(self._send_result_callback)
@@ -241,12 +246,19 @@ class LISServer:
                         current_sample = order_info['sample_id']
                         test_orders = order_info['tests']
                         
+                elif record_type == self.RECORD_TYPE_QUERY:
+                    # 处理查询记录
+                    query_info = self._parse_query_record(fields)
+                    if query_info:
+                        # 发送查询响应
+                        self._send_query_response(conn, query_info)
+                    
                 elif record_type == self.RECORD_TYPE_TERMINATOR:
                     # 处理终止记录
                     if current_sample and test_orders:
                         # 接收样本
                         self._receive_sample(conn, current_sample, test_orders, patient_info)
-                    
+            
             # 发送确认消息
             self._send_ack(conn)
             
@@ -334,6 +346,11 @@ class LISServer:
             tests: 测试项目列表
             patient_info: 患者信息
         """
+        # 存储查询结果
+        with self.query_results_lock:
+            self.query_results[sample_id] = tests
+            self.logger.log_lis(f"Stored query result for sample {sample_id}: {tests}")
+        
         # 调用核心模块接收样本
         success = self.core.receive_sample(sample_id, tests, patient_info)
         
@@ -475,6 +492,121 @@ class LISServer:
         
         return astm_message
     
+    def _parse_query_record(self, fields):
+        """解析查询记录
+        
+        Args:
+            fields: 查询记录字段列表
+            
+        Returns:
+            dict: 查询信息，包含sample_id
+        """
+        query_info = {
+            'sample_id': ''
+        }
+        
+        if len(fields) >= 2:
+            # 查询类型（例如：1表示查询样本订单）
+            query_info['query_type'] = fields[1] if fields[1] else ''
+        
+        if len(fields) >= 3:
+            # 样本ID
+            query_info['sample_id'] = fields[2] if fields[2] else ''
+        
+        self.logger.log_lis(f"Parsed query record: {query_info}")
+        return query_info
+    
+    def _send_query_response(self, conn, query_info):
+        """发送查询响应
+        
+        Args:
+            conn: 连接 socket
+            query_info: 查询信息
+        """
+        sample_id = query_info.get('sample_id', '')
+        if not sample_id:
+            self.logger.error("No sample ID in query")
+            return
+        
+        # 构建查询响应消息
+        response_msg = self._build_query_response_message(sample_id)
+        
+        try:
+            # 发送响应
+            conn.sendall(response_msg.encode('ascii'))
+            self.logger.log_lis(f"Sent query response for sample {sample_id}")
+        except Exception as e:
+            self.logger.error(f"Error sending query response: {str(e)}")
+    
+    def _build_query_response_message(self, sample_id):
+        """构建ASTM查询响应消息
+        
+        Args:
+            sample_id: 样本ID
+            
+        Returns:
+            str: ASTM查询响应消息
+        """
+        # 获取当前时间
+        now = datetime.now()
+        date_time_str = now.strftime('%Y%m%d%H%M%S')
+        date_str = now.strftime('%Y%m%d')
+        
+        # 构建消息
+        message = []
+        
+        # 添加头记录
+        header_record = [
+            self.RECORD_TYPE_HEADER,
+            'ATELLICA',                 # 发送方ID（ATS）
+            'LIS',                      # 接收方ID
+            date_time_str,              # 消息日期时间
+            '1',                        # 消息控制ID
+            '1',                        # 版本号
+            '1'                         # 字符集
+        ]
+        message.append(self.FIELD_SEP.join(header_record))
+        
+        # 添加订单记录（响应查询）
+        # 从测试库存中随机选择3-5个测试项目作为响应
+        test_items = list(self.core.test_inventory['tests'].keys())[:10]  # 取前10个测试项目
+        selected_tests = random.sample(test_items, random.randint(3, 5))
+        
+        # 将测试项目转换为ASTM格式（重复字段）
+        test_field = self.REPEAT_SEP.join([test for test in selected_tests])
+        
+        order_record = [
+            self.RECORD_TYPE_ORDER,
+            sample_id,                  # 样本ID
+            test_field,                 # 测试订单
+            date_str,                   # 采集日期
+            '',                         # 采集时间
+            '',                         # 采集者ID
+            '',                         # 容器类型
+            '',                         # 容器状态
+            '',                         # 样本状态
+            '',                         # 优先级
+            '',                         # 医生ID
+            ''                          # 科室
+        ]
+        message.append(self.FIELD_SEP.join(order_record))
+        
+        # 添加终止记录
+        terminator_record = [
+            self.RECORD_TYPE_TERMINATOR,
+            '2',  # 消息中的记录数（H + O + L = 3？不，这里是H + O + L = 3，但我们只有H + O，所以是2）
+            '1'   # 校验和（简化处理）
+        ]
+        message.append(self.FIELD_SEP.join(terminator_record))
+        
+        # 组合消息，添加记录分隔符
+        astm_message = self.RECORD_SEP.join(message) + self.RECORD_SEP
+        
+        self.logger.log_lis(f"Built query response for sample {sample_id}")
+        self.logger.log_lis(f"Response message: {repr(astm_message)}")
+        
+        return astm_message
+    
     def _send_result_message(self, conn, astm_message):
         """发送ASTM结果消息
         
@@ -496,3 +628,118 @@ class LISServer:
         except Exception as e:
             self.logger.error(f"Error sending result message: {str(e)}")
             self.logger.log_lis(f"Error sending result message: {str(e)}")
+    
+    def query_worklist(self, sample_id):
+        """查询样本工单
+        
+        Args:
+            sample_id: 样本ID
+            
+        Returns:
+            list: 测试项目列表，或空列表
+        """
+        self.logger.info(f"Querying worklist for sample {sample_id} via ASTM")
+        
+        # 构建查询消息
+        query_msg = self._build_query_message(sample_id)
+        
+        # 向所有连接的LIS客户端发送查询
+        with self.connection_lock:
+            for conn in self.connections:
+                try:
+                    # 发送查询
+                    conn.sendall(query_msg.encode('ascii'))
+                    self.logger.log_lis(f"Sent query for sample {sample_id} to LIS")
+                    
+                    # 等待响应（简单实现，实际可能需要更复杂的处理）
+                    time.sleep(1)  # 等待1秒，实际实现应使用超时机制
+                    
+                except Exception as e:
+                    self.logger.error(f"Error querying worklist: {str(e)}")
+        
+        # 注意：这里只是发送查询，实际响应处理在_handle_connection方法中
+        # 我们将在core模块中使用轮询方式等待结果
+        return []
+    
+    def get_query_result(self, sample_id, timeout=30):
+        """获取查询结果
+        
+        Args:
+            sample_id: 样本ID
+            timeout: 超时时间（秒）
+            
+        Returns:
+            list: 测试项目列表，或空列表
+        """
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            with self.query_results_lock:
+                if sample_id in self.query_results:
+                    # 获取并移除结果
+                    result = self.query_results.pop(sample_id)
+                    self.logger.log_lis(f"Retrieved query result for sample {sample_id}: {result}")
+                    return result
+            
+            # 等待1秒后重试
+            time.sleep(1)
+        
+        self.logger.warning(f"Timeout waiting for query result for sample {sample_id}")
+        return []
+    
+    def _build_query_message(self, sample_id):
+        """构建ASTM查询消息
+        
+        Args:
+            sample_id: 样本ID
+            
+        Returns:
+            str: ASTM查询消息
+        """
+        # 获取当前时间
+        now = datetime.now()
+        date_time_str = now.strftime('%Y%m%d%H%M%S')
+        
+        # 构建消息
+        message = []
+        
+        # 添加头记录
+        header_record = [
+            self.RECORD_TYPE_HEADER,
+            'ATELLICA',                 # 发送方ID（ATS）
+            'LIS',                      # 接收方ID
+            date_time_str,              # 消息日期时间
+            '1',                        # 消息控制ID
+            '1',                        # 版本号
+            '1'                         # 字符集
+        ]
+        message.append(self.FIELD_SEP.join(header_record))
+        
+        # 添加查询记录
+        query_record = [
+            self.RECORD_TYPE_QUERY,
+            '1',                        # 查询类型：1=查询样本订单
+            sample_id,                  # 样本ID
+            '',                         # 可选字段
+            '',                         # 可选字段
+            '',                         # 可选字段
+            '',                         # 可选字段
+            ''                          # 可选字段
+        ]
+        message.append(self.FIELD_SEP.join(query_record))
+        
+        # 添加终止记录
+        terminator_record = [
+            self.RECORD_TYPE_TERMINATOR,
+            '2',                        # 消息中的记录数（H + Q + L = 3）
+            '1'                         # 校验和（简化处理）
+        ]
+        message.append(self.FIELD_SEP.join(terminator_record))
+        
+        # 组合消息，添加记录分隔符
+        astm_message = self.RECORD_SEP.join(message) + self.RECORD_SEP
+        
+        self.logger.log_lis(f"Built query message for sample {sample_id}")
+        self.logger.log_lis(f"Query message: {repr(astm_message)}")
+        
+        return astm_message

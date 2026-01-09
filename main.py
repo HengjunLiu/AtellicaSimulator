@@ -50,6 +50,9 @@ def main():
         lis_server = LISServer(config_manager, logger, core)
         logger.info("LISServer initialized successfully")
         
+        # 将LIS服务器实例设置到核心模块
+        core.set_lis_server(lis_server)
+        
         if args.no_ui:
             # 无UI模式
             logger.info("Running in headless mode")

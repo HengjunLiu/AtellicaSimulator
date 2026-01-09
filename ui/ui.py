@@ -10,7 +10,7 @@ import threading
 import time
 
 
-APP_VERSION = "v1.1.1"
+APP_VERSION = "v1.3.0"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""

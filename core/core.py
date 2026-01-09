@@ -22,6 +22,7 @@ class AtellicaCore:
         """
         self.config_manager = config_manager
         self.logger = logger
+        self.lis_server = None  # LIS服务器实例，稍后设置
         
         # 设备状态
         self.automation_interface_status = config_manager.get_core_config().get('automation_interface_status', 1)
@@ -67,6 +68,15 @@ class AtellicaCore:
         self.result_thread.start()
         
         self.logger.info("AtellicaCore initialized successfully")
+    
+    def set_lis_server(self, lis_server):
+        """设置LIS服务器实例
+        
+        Args:
+            lis_server: LISServer实例
+        """
+        self.lis_server = lis_server
+        self.logger.info("LIS server instance set in core")
     
     def _generate_results_loop(self):
         """结果生成循环，定期检查并生成样本结果"""
@@ -623,6 +633,191 @@ class AtellicaCore:
         with self.sample_lock:
             return self.return_ready_count
     
+    def _process_sample_workflow(self, sample_id):
+        """处理标本完整工作流
+        
+        流程：
+        1. 标本LOAD后5秒，询问LIS工单
+        2. LIS应答工单后，5分钟生成结果
+        3. 结果发送后2分钟，准备UNLOAD
+        
+        Args:
+            sample_id: 样本ID
+        """
+        try:
+            # 步骤1: 等待5秒后询问LIS工单
+            time.sleep(5)
+            
+            self.logger.info(f"Sample {sample_id}: 等待5秒后，开始询问LIS工单")
+            
+            # 使用真实的LIS查询功能
+            with self.sample_lock:
+                if sample_id in self.samples:
+                    selected_tests = []
+                    
+                    # 检查是否有LIS服务器实例
+                    if self.lis_server:
+                        # 调用LIS服务器的query_worklist方法查询工单
+                        self.logger.info(f"Sample {sample_id}: 使用真实ASTM协议询问LIS工单")
+                        
+                        # 发送查询请求
+                        self.lis_server.query_worklist(sample_id)
+                        
+                        # 等待LIS回复，超时30秒
+                        self.logger.info(f"Sample {sample_id}: 等待LIS回复工单")
+                        selected_tests = self.lis_server.get_query_result(sample_id, timeout=30)
+                        
+                        if selected_tests:
+                            self.logger.info(f"Sample {sample_id}: 收到LIS真实工单，测试项目: {selected_tests}")
+                        else:
+                            self.logger.warning(f"Sample {sample_id}: 未收到LIS工单，使用模拟数据")
+                            # 使用模拟数据
+                            test_items = list(self.test_inventory['tests'].keys())[:10]  # 取前10个测试项目
+                            selected_tests = random.sample(test_items, random.randint(3, 5))
+                    else:
+                        # 没有LIS服务器实例，使用模拟数据
+                        self.logger.info(f"Sample {sample_id}: 没有LIS服务器实例，使用模拟工单")
+                        test_items = list(self.test_inventory['tests'].keys())[:10]  # 取前10个测试项目
+                        selected_tests = random.sample(test_items, random.randint(3, 5))
+                    
+                    # 检查测试项目是否可以开展
+                    valid_tests = []
+                    invalid_tests = []
+                    
+                    for test in selected_tests:
+                        # 检查项目是否定义
+                        test_exists = test in self.test_inventory['tests']
+                        if not test_exists:
+                            invalid_tests.append((test, '未定义的测试项目'))
+                            continue
+                        
+                        # 检查试剂是否充足
+                        test_info = self.test_inventory['tests'][test]
+                        if test_info['count'] <= 0:
+                            invalid_tests.append((test, '试剂不足'))
+                            continue
+                        
+                        # 检查项目状态
+                        if test_info['status'] != 1:  # 状态不是Green
+                            invalid_tests.append((test, '项目状态异常'))
+                            continue
+                        
+                        # 项目可以开展
+                        valid_tests.append(test)
+                    
+                    # 更新样本的测试项目
+                    self.samples[sample_id]['tests'] = valid_tests
+                    self.samples[sample_id]['invalid_tests'] = invalid_tests
+                    self.samples[sample_id]['lis_asked'] = True
+                    
+                    if valid_tests:
+                        self.logger.info(f"Sample {sample_id}: 有效测试项目: {valid_tests}")
+                    
+                    if invalid_tests:
+                        self.logger.warning(f"Sample {sample_id}: 无效测试项目: {invalid_tests}")
+                        
+                        # 对于无效项目，立即生成ERROR结果
+                        error_results = {}
+                        for test, reason in invalid_tests:
+                            error_results[test] = {
+                                'value': 'ERROR',
+                                'status': 'error',
+                                'timestamp': time.time(),
+                                'error_reason': reason,
+                                'unit': '',
+                                'flags': 'E'
+                            }
+                        
+                        # 更新样本结果
+                        self.samples[sample_id]['results'] = error_results
+                        self.samples[sample_id]['status'] = 'completed_with_errors'
+                        
+                        # 标记样本为已完成
+                        self.samples[sample_id]['completed_time'] = time.time()
+                        
+                        # 通知LIS结果已生成
+                        if hasattr(self, 'result_callback') and callable(self.result_callback):
+                            try:
+                                self.result_callback(sample_id, error_results)
+                                self.logger.info(f"Sample {sample_id}: 已发送无效项目的ERROR结果给LIS")
+                            except Exception as e:
+                                self.logger.error(f"Error calling result callback: {str(e)}")
+                    
+                    # 记录最终的测试项目
+                    self.logger.info(f"Sample {sample_id}: 最终测试项目: {valid_tests}")
+            
+            # 只有有效测试项目时才需要等待5分钟生成结果
+            with self.sample_lock:
+                if sample_id in self.samples:
+                    if valid_tests:
+                        # 步骤2: 等待5分钟后生成测试结果
+                        self.logger.info(f"Sample {sample_id}: 有效测试项目存在，等待5分钟后生成测试结果")
+                        time.sleep(300)  # 5分钟
+                        
+                        self.logger.info(f"Sample {sample_id}: 等待5分钟后，开始生成测试结果")
+                        
+                        # 生成随机测试结果
+                        results = {}
+                        
+                        for test in valid_tests:
+                            # 为每个测试项目生成随机结果
+                            results[test] = {
+                                'value': round(random.uniform(10, 100), 2),
+                                'status': 'completed',
+                                'timestamp': time.time(),
+                                'unit': self.test_inventory['tests'][test]['unit'],
+                                'flags': ''
+                            }
+                        
+                        # 更新样本结果，合并之前的ERROR结果
+                        if invalid_tests:
+                            # 如果之前有无效项目的ERROR结果，合并它们
+                            existing_results = sample.get('results', {})
+                            results.update(existing_results)
+                            sample['status'] = 'completed_with_errors'
+                        else:
+                            sample['status'] = 'completed'
+                        
+                        sample['results'] = results
+                        
+                        # 增加已完成试管数量
+                        self.completed_tube_count += 1
+                        
+                        # 减少在线试管数量
+                        self.on_board_tube_count -= 1
+                        
+                        # 增加可返回样本数量
+                        self.return_ready_count += 1
+                        
+                        # 标记样本为已完成
+                        sample['completed_time'] = time.time()
+                        
+                        self.logger.info(f"Sample {sample_id}: 生成测试结果成功，结果: {results}")
+                        
+                        # 通知LIS结果已生成
+                        if hasattr(self, 'result_callback') and callable(self.result_callback):
+                            try:
+                                self.result_callback(sample_id, results)
+                                self.logger.info(f"Sample {sample_id}: 已发送有效项目的结果给LIS")
+                            except Exception as e:
+                                self.logger.error(f"Error calling result callback: {str(e)}")
+                    else:
+                        self.logger.info(f"Sample {sample_id}: 没有有效测试项目，跳过5分钟等待")
+            
+            # 步骤3: 等待2分钟后准备UNLOAD
+            time.sleep(120)  # 2分钟
+            
+            self.logger.info(f"Sample {sample_id}: 等待2分钟后，准备UNLOAD流程")
+            
+            # 更新样本状态为准备UNLOAD
+            with self.sample_lock:
+                if sample_id in self.samples:
+                    self.samples[sample_id]['ready_for_unload'] = True
+                    self.logger.info(f"Sample {sample_id}: 已准备好UNLOAD")
+            
+        except Exception as e:
+            self.logger.error(f"Error processing sample workflow for {sample_id}: {str(e)}")
+    
     def process_load_unload(self, interface_position_index, carrier_occupancy, sample_id, tube_height, tube_diameter, elapsed_time):
         """处理装载/卸载请求
         
@@ -677,9 +872,21 @@ class AtellicaCore:
                             else:
                                 load_result = {'sample_id': sample_id, 'status': 7}  # Instrument Skipped Loading
                         else:
-                            # 样本不存在，可能是新样本
+                            # 样本不存在，创建新样本记录
+                            self.samples[sample_id] = {
+                                'sample_id': sample_id,
+                                'status': 'processing',
+                                'tests': [],
+                                'results': {},
+                                'timestamp': time.time(),
+                                'load_time': time.time(),
+                                'interface_position': interface_position_index
+                            }
                             load_result = {'sample_id': sample_id, 'status': 1}  # Success
-                            sample_status = 0x14  # Sample not processed: No LIS orders
+                            sample_status = 0x01  # Sample Processed successfully
+                            
+                            # 启动标本处理流程
+                            threading.Thread(target=self._process_sample_workflow, args=(sample_id,), daemon=True).start()
                     else:
                         # carrier已被锁定
                         load_result = {'sample_id': sample_id, 'status': 2}  # Error: Lock Carrier in place
@@ -692,15 +899,19 @@ class AtellicaCore:
                 
                 # 检查是否有样本需要卸载到空carrier
                 if self.return_ready_count > 0:
-                    # 查找已完成的样本
+                    # 查找已完成且准备好UNLOAD的样本
                     for sid, sample in self.samples.items():
-                        if sample['status'] == 'completed' and 'unloaded' not in sample:
+                        if sample['status'] == 'completed' and 'unloaded' not in sample and sample.get('ready_for_unload', False):
                             sample['unloaded'] = True
                             self.return_ready_count -= 1
                             self.completed_tube_count -= 1
                             unload_result = {'sample_id': sid, 'status': 1}  # Success
                             sample_status = 0x01  # Sample Processed successfully
+                            self.logger.info(f"Sample {sid}: 已成功UNLOAD")
                             break
+                        elif sample['status'] == 'completed' and 'unloaded' not in sample:
+                            # 样本已完成但尚未准备好UNLOAD
+                            self.logger.info(f"Sample {sid}: 已完成但尚未准备好UNLOAD，跳过")
             
             # 释放锁定的carrier
             if self.locked_carriers[interface_position_index] is not None:
