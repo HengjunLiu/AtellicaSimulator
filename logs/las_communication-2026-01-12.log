@@ -1,0 +1,47 @@
+2026-01-12 15:51:24 - LASCommunication - INFO - Connection established: 192.168.3.127:55197
+2026-01-12 15:51:25 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0001
+2026-01-12 15:51:55 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0002
+2026-01-12 15:52:21 - LASCommunication - INFO - Error processing message: 'NoneType' object has no attribute 'get'
+2026-01-12 15:52:25 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0003
+2026-01-12 15:52:55 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0004
+2026-01-12 15:53:25 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0005
+2026-01-12 15:53:55 - LASCommunication - INFO - Keep-Alive timeout, closing connection
+2026-01-12 15:53:55 - LASCommunication - INFO - Connection closed: 192.168.3.127:55197
+2026-01-12 16:06:56 - LASCommunication - INFO - Connection established: 192.168.3.127:60587
+2026-01-12 16:06:57 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0001
+2026-01-12 16:07:27 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0002
+2026-01-12 16:07:57 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0003
+2026-01-12 16:08:03 - LASCommunication - INFO - Error processing message: 'NoneType' object has no attribute 'get'
+2026-01-12 16:08:27 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0004
+2026-01-12 16:08:57 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0005
+2026-01-12 16:14:53 - LASCommunication - INFO - Connection established: 192.168.3.127:50086
+2026-01-12 16:14:54 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0001
+2026-01-12 16:15:04 - LASCommunication - INFO - Error processing message: 'NoneType' object has no attribute 'get'
+2026-01-12 16:15:24 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0002
+2026-01-12 16:15:31 - LASCommunication - INFO - Connection closed: 192.168.3.127:50086
+2026-01-12 16:15:54 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-12 16:16:24 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-12 16:16:54 - LASCommunication - INFO - Keep-Alive timeout, closing connection
+2026-01-12 16:20:21 - LASCommunication - INFO - Connection established: 192.168.3.127:50117
+2026-01-12 16:20:22 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0005
+2026-01-12 16:20:24 - LASCommunication - INFO - Error processing message: 'NoneType' object has no attribute 'get'
+2026-01-12 16:20:52 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0006
+2026-01-12 16:21:22 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0007
+2026-01-12 16:21:53 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0008
+2026-01-12 20:01:38 - LASCommunication - INFO - Connection established: 192.168.3.127:61159
+2026-01-12 20:01:39 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0001
+2026-01-12 20:02:09 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0002
+2026-01-12 20:03:01 - LASCommunication - INFO - Connection established: 192.168.3.127:59911
+2026-01-12 20:03:02 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0001
+2026-01-12 20:03:32 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0002
+2026-01-12 20:04:02 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0003
+2026-01-12 20:04:32 - LASCommunication - INFO - Keep-Alive timeout, closing connection
+2026-01-12 20:04:32 - LASCommunication - INFO - Connection closed: 192.168.3.127:59911
+2026-01-12 20:18:00 - LASCommunication - INFO - Connection established: 127.0.0.1:64995
+2026-01-12 20:18:01 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0001
+2026-01-12 20:18:08 - LASCommunication - INFO - Connection closed: 127.0.0.1:64995
+2026-01-12 22:44:22 - LASCommunication - INFO - Connection established: 192.168.3.127:63010
+2026-01-12 22:44:23 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0001
+2026-01-12 22:44:53 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0002
+2026-01-12 22:45:23 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0003
+2026-01-12 22:45:46 - LASCommunication - INFO - Connection closed: 192.168.3.127:63010

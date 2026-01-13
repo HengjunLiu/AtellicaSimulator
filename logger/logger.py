@@ -7,7 +7,11 @@ Logger模块 - 提供日志记录功能
 import logging
 import os
 import datetime
-from logging.handlers import TimedRotatingFileHandler
+import time
+import threading
+import queue
+import glob
+from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 
 
 class Logger:
@@ -30,6 +34,12 @@ class Logger:
         # 日志回调函数，用于UI实时显示
         self.las_log_callback = None
         self.lis_log_callback = None
+        
+        # 异步日志队列和线程
+        self.log_queue = queue.Queue(maxsize=10000)  # 日志队列，最大10000条
+        self.log_thread = None
+        self.log_thread_running = False
+        self._start_log_thread()  # 启动异步日志线程
         
         # 初始化主日志记录器
         self.logger = logging.getLogger('AtellicaSimulator')
@@ -135,6 +145,169 @@ class Logger:
         lis_file_handler.namer = custom_namer
         lis_file_handler.setFormatter(formatter)
         self.lis_logger.addHandler(lis_file_handler)
+        
+        # 初始化LAS原始数据日志记录器
+        self.las_raw_logger = logging.getLogger('LASRawData')
+        self.las_raw_logger.setLevel(logging.INFO)
+        
+        # 清除已存在的处理器
+        for handler in self.las_raw_logger.handlers[:]:
+            self.las_raw_logger.removeHandler(handler)
+        
+        # 添加LAS原始数据日志文件处理器
+        # 按日轮转，单个文件最大100MB，保留30天
+        las_raw_log_file = os.path.join(log_dir, 'las_module_')
+        # 使用RotatingFileHandler配合TimedRotatingFileHandler的逻辑
+        # 自定义Formatter，支持毫秒
+        class MillisecondFormatter(logging.Formatter):
+            def formatTime(self, record, datefmt=None):
+                """自定义时间格式，支持毫秒"""
+                if datefmt:
+                    # 直接构建完整的时间字符串
+                    dt = datetime.datetime.fromtimestamp(record.created)
+                    milliseconds = f'{dt.microsecond // 1000:03d}'
+                    # 使用strftime处理基本部分，手动添加毫秒
+                    return dt.strftime(datefmt.split('.%3f')[0]) + f'.{milliseconds}'
+                else:
+                    # 使用默认格式
+                    t = time.strftime(self.default_time_format, self.converter(record.created))
+                    return self.default_msec_format % (t, record.msecs)
+        
+        las_raw_formatter = MillisecondFormatter(
+            '%(asctime)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S.%3f'  # 精确到毫秒
+        )
+        
+        # 每日创建新文件，使用自定义文件名格式
+        class LASRawFileHandler(TimedRotatingFileHandler):
+            def __init__(self, base_filename, when='midnight', interval=1, backupCount=30, encoding='utf-8'):
+                self.base_filename = base_filename
+                current_date = datetime.datetime.now().strftime('%Y%m%d')
+                self.current_filename = f"{base_filename}{current_date}.log"
+                super().__init__(
+                    self.current_filename,
+                    when=when,
+                    interval=interval,
+                    backupCount=backupCount,
+                    encoding=encoding
+                )
+            
+            def doRollover(self):
+                """执行日志轮换"""
+                if self.stream:
+                    self.stream.close()
+                    self.stream = None
+                
+                # 获取当前日期
+                current_date = datetime.datetime.now().strftime('%Y%m%d')
+                self.current_filename = f"{self.base_filename}{current_date}.log"
+                
+                # 设置新的文件名
+                self.baseFilename = self.current_filename
+                
+                # 打开新文件
+                self.stream = self._open()
+                
+                # 处理备份文件
+                self.backupCount = self.config.get('las_raw_backup_count', 30)
+                if self.backupCount > 0:
+                    self._removeOldFiles()
+        
+        # 创建LAS原始数据日志处理器
+        # 使用自定义的按日和按大小双重限制处理器
+        class DualRotatingFileHandler(RotatingFileHandler):
+            def __init__(self, base_filename, when='midnight', interval=1, 
+                       backupCount=30, maxBytes=100*1024*1024, encoding='utf-8'):
+                self.base_filename = base_filename
+                self.when = when
+                self.interval = interval
+                self.backupCount = backupCount
+                
+                # 获取当前日期的文件名
+                current_date = datetime.datetime.now().strftime('%Y%m%d')
+                self.current_filename = f"{base_filename}{current_date}.log"
+                
+                super().__init__(
+                    self.current_filename,
+                    maxBytes=maxBytes,
+                    backupCount=1,  # 每个日期只保留一个备份
+                    encoding=encoding
+                )
+                
+                # 设置日期轮转时间
+                self.rolloverAt = self.computeRollover(time.time())
+            
+            def computeRollover(self, currentTime):
+                """计算下一次轮转时间"""
+                # 按日轮转计算
+                now = datetime.datetime.fromtimestamp(currentTime)
+                tomorrow = now.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(days=1)
+                return tomorrow.timestamp()
+            
+            def shouldRollover(self, record):
+                """检查是否需要轮转"""
+                # 检查大小是否超过限制
+                if super().shouldRollover(record):
+                    return True
+                
+                # 检查是否需要按日轮转
+                currentTime = time.time()
+                return currentTime >= self.rolloverAt
+            
+            def doRollover(self):
+                """执行日志轮转"""
+                # 关闭当前文件
+                if self.stream:
+                    self.stream.close()
+                    self.stream = None
+                
+                # 按大小轮转（RotatingFileHandler的默认行为）
+                super().doRollover()
+                
+                # 检查是否需要按日轮转
+                currentTime = time.time()
+                if currentTime >= self.rolloverAt:
+                    # 获取新的日期文件名
+                    current_date = datetime.datetime.now().strftime('%Y%m%d')
+                    self.current_filename = f"{self.base_filename}{current_date}.log"
+                    self.baseFilename = self.current_filename
+                    
+                    # 重新打开新文件
+                    self.stream = self._open()
+                    
+                    # 计算下一次轮转时间
+                    self.rolloverAt = self.computeRollover(currentTime)
+                    
+                    # 清理旧文件
+                    if self.backupCount > 0:
+                        self._removeOldFiles()
+            
+            def _removeOldFiles(self):
+                """移除旧日志文件"""
+                import os
+                import glob
+                
+                # 获取所有日志文件
+                log_files = glob.glob(f"{self.base_filename}*.log")
+                log_files.sort()
+                
+                # 如果文件数量超过备份数量，删除最旧的
+                while len(log_files) > self.backupCount:
+                    os.remove(log_files.pop(0))
+        
+        # 创建双重轮转日志处理器
+        las_raw_file_handler = DualRotatingFileHandler(
+            las_raw_log_file,
+            when='midnight',
+            interval=1,
+            backupCount=30,
+            maxBytes=100 * 1024 * 1024,  # 100MB
+            encoding='utf-8'
+        )
+        las_raw_file_handler.setFormatter(las_raw_formatter)
+        
+        # 只添加一个处理器，避免日志重复
+        self.las_raw_logger.addHandler(las_raw_file_handler)
     
     def debug(self, message):
         """记录调试信息
@@ -253,6 +426,73 @@ class Logger:
         log_dir = self.config.get('log_dir', 'logs')
         lis_log_file = os.path.join(log_dir, 'lis_communication.log')
         return self._get_log_content(lis_log_file, lines)
+    
+    def _start_log_thread(self):
+        """启动异步日志线程"""
+        if not self.log_thread_running:
+            self.log_thread_running = True
+            self.log_thread = threading.Thread(target=self._log_worker, daemon=True)
+            self.log_thread.start()
+    
+    def _log_worker(self):
+        """异步日志处理工作线程"""
+        while self.log_thread_running:
+            try:
+                # 从队列中获取日志记录
+                log_data = self.log_queue.get(block=True, timeout=1)
+                if log_data is None:
+                    break
+                
+                # 处理日志记录
+                logger_name, message = log_data
+                if logger_name == 'las_raw':
+                    self.las_raw_logger.info(message)
+                elif logger_name == 'las':
+                    self.log_las(message)
+                elif logger_name == 'lis':
+                    self.log_lis(message)
+                
+                # 标记任务完成
+                self.log_queue.task_done()
+            except queue.Empty:
+                continue
+            except Exception as e:
+                self.logger.error(f"Error in log worker: {str(e)}")
+                continue
+    
+    def _async_log(self, logger_name, message):
+        """异步记录日志
+        
+        Args:
+            logger_name: 日志记录器名称
+            message: 日志消息
+        """
+        try:
+            self.log_queue.put((logger_name, message), block=False)
+        except queue.Full:
+            # 队列满时，尝试同步写入
+            if logger_name == 'las_raw':
+                self.las_raw_logger.info(message)
+            elif logger_name == 'las':
+                self.log_las(message)
+            elif logger_name == 'lis':
+                self.log_lis(message)
+    
+    def log_las_raw(self, message_type, data):
+        """记录LAS原始数据日志
+        
+        Args:
+            message_type: 消息类型，'RECEIVED'或'SENT'
+            data: 原始数据内容
+        """
+        # 确保message_type是大写
+        message_type = message_type.upper()
+        
+        # 构建日志消息
+        log_message = f"{message_type} - {data}"
+        
+        # 异步记录日志
+        self._async_log('las_raw', log_message)
     
     def _get_log_content(self, log_file, lines=100):
         """获取日志文件内容

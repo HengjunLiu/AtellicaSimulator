@@ -1,0 +1,32 @@
+2026-01-08 22:56:44 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-08 22:56:44 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-08 22:56:44 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-08 22:56:44 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-08 22:56:44 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-08 22:56:44 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-08 22:56:44 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-08 22:56:44 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-08 22:56:44 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-08 22:56:44 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-08 22:56:44 - AtellicaSimulator - INFO - Running with UI
+2026-01-08 22:56:46 - AtellicaSimulator - INFO - LASServer started, listening on 0.0.0.0:10011
+2026-01-08 22:56:46 - AtellicaSimulator - INFO - LISServer started, listening on 0.0.0.0:10012
+2026-01-08 23:05:47 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-08 23:05:47 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-08 23:05:47 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-08 23:05:47 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-08 23:05:47 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-08 23:05:47 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-08 23:05:47 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-08 23:05:47 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-08 23:05:47 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-08 23:05:47 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-08 23:05:47 - AtellicaSimulator - INFO - Running with UI
+2026-01-08 23:05:48 - AtellicaSimulator - INFO - LASServer started, listening on 0.0.0.0:10011
+2026-01-08 23:05:48 - AtellicaSimulator - INFO - LISServer started, listening on 0.0.0.0:10012
+2026-01-08 23:07:57 - AtellicaSimulator - INFO - LAS connection established from 192.168.125.103:54580
+2026-01-08 23:07:58 - AtellicaSimulator - INFO - LAS Keep-Alive message sent, SeqID=0x0001
+2026-01-08 23:08:17 - AtellicaSimulator - INFO - LAS connection closed with 192.168.125.103:54580
+2026-01-08 23:08:28 - AtellicaSimulator - ERROR - Error sending LAS Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-08 23:08:58 - AtellicaSimulator - ERROR - Error sending LAS Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-08 23:09:28 - AtellicaSimulator - WARNING - Keep-Alive timeout, closing connection
