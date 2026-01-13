@@ -47,6 +47,15 @@ class LASServer:
         self.sequence_id = 1
         self.sequence_lock = threading.Lock()
         
+        # 会话状态管理
+        self.CONVERSATION_STATUS_LISTENING = 'listening'
+        self.CONVERSATION_STATUS_INITIALIZATION = 'initialization'
+        self.CONVERSATION_STATUS_CONNECTED = 'connected'
+        self.conversation_status = self.CONVERSATION_STATUS_LISTENING
+        
+        # 初始化阶段已处理的请求类型集合
+        self.initialized_requests = set()
+        
         # 消息类型常量
         self.MSG_TYPE_HANDSHAKE = 0x0001
         self.MSG_TYPE_ACK = 0x0000
@@ -129,6 +138,9 @@ class LASServer:
                 body
             )
             
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
             # 发送消息
             conn.sendall(message)
             
@@ -255,14 +267,34 @@ class LASServer:
                     if stx_pos == -1:
                         break
                     
-                    # 查找消息结束标志 ETX (0x03)
-                    etx_pos = buffer.find(b'\x03', stx_pos)
-                    if etx_pos == -1:
+                    # 检查是否有足够字节读取消息长度 (STX + 2 bytes length)
+                    if len(buffer) < stx_pos + 3:
+                        break
+                    
+                    # 读取消息长度 (2 bytes after STX, total bytes including STX)
+                    message_length = struct.unpack_from('!H', buffer, stx_pos + 1)[0]
+                    print(f"Message length: {message_length}")
+                    
+                    # 检查是否有足够字节读取完整消息
+                    if len(buffer) < stx_pos + message_length:
                         break
                     
                     # 提取完整消息
-                    message = buffer[stx_pos:etx_pos+1]
-                    buffer = buffer[etx_pos+1:]
+                    message = buffer[stx_pos:stx_pos + message_length]
+                    print(f"Received message: {message}")
+                    
+                    # 验证最后一个字节是否为 ETX (0x03)
+                    if message[-1:] != b'\x03':
+                        # 无效消息，跳过
+                        buffer = buffer[stx_pos + 1:]
+                        continue
+                    
+                    # 更新缓冲区，移除已处理的消息
+                    buffer = buffer[stx_pos + message_length:]
+                    # 记录接收的原始数据
+                    message_hex = binascii.hexlify(message).decode('ascii')
+                    print(f"Received message hex: {message_hex}")
+                    self.logger.log_las_raw('RECEIVED', message_hex)
                     
                     # 处理消息
                     self._process_message(conn, addr, message)
@@ -309,41 +341,262 @@ class LASServer:
             msg_hex = binascii.hexlify(message).decode('ascii')
             self.logger.log_las(f"Received message from {addr[0]}:{addr[1]}: Type=0x{msg_header['message_type']:04x}, SeqID=0x{msg_header['sequence_id']:04x}, Content={msg_hex}")
             
-            # 发送ACK
-            self._send_ack(conn, msg_header['sequence_id'], 0x00)  # 0x00 = ACK
-            
-            # 根据消息类型处理
+            # 处理ACK消息（任何状态下都必须能接收）
             message_type = msg_header['message_type']
+            if message_type == self.MSG_TYPE_ACK:
+                self._handle_ack(conn, msg_header, msg_body)
+                return
             
-            if message_type == self.MSG_TYPE_KEEPALIVE:
-                self._handle_keepalive(conn, msg_header)
-            elif message_type == self.MSG_TYPE_HANDSHAKE:
-                self._handle_handshake(conn, msg_header, msg_body)
-            elif message_type == self.MSG_TYPE_INSTRUMENT_HEALTH_REQUEST:
-                self._handle_instrument_health_request(conn, msg_header)
-            elif message_type == self.MSG_TYPE_TEST_INVENTORY_REQUEST:
-                self._handle_test_inventory_request(conn, msg_header)
-            elif message_type == self.MSG_TYPE_ONBOARD_SAMPLE_INFO_REQUEST:
-                self._handle_onboard_sample_info_request(conn, msg_header)
-            elif message_type == self.MSG_TYPE_CONSUMABLE_INVENTORY_REQUEST:
-                self._handle_consumable_inventory_request(conn, msg_header)
-            elif message_type == self.MSG_TYPE_TRANSFER_STATUS_REQUEST:
-                self._handle_transfer_status_request(conn, msg_header)
-            elif message_type == self.MSG_TYPE_LOAD_UNLOAD_REQUEST:
-                self._handle_load_unload_request(conn, msg_header, msg_body)
-            elif message_type == self.MSG_TYPE_ADD_QUEUE_REQUEST:
-                self._handle_add_queue_request(conn, msg_header, msg_body)
-            elif message_type == self.MSG_TYPE_SKIP_QUEUE_REQUEST:
-                self._handle_skip_queue_request(conn, msg_header, msg_body)
-            elif message_type == self.MSG_TYPE_CLEAR_QUEUE_REQUEST:
-                self._handle_clear_queue_request(conn, msg_header)
-            else:
-                self.logger.warning(f"Unknown LAS message type: 0x{message_type:04x}")
-                self.logger.log_las(f"Unknown message type: 0x{message_type:04x}")
+            # 根据会话状态处理消息
+            if self.conversation_status == self.CONVERSATION_STATUS_LISTENING:
+                self._process_listening_state(conn, msg_header, msg_body, addr)
+            elif self.conversation_status == self.CONVERSATION_STATUS_INITIALIZATION:
+                self._process_initialization_state(conn, msg_header, msg_body, addr)
+            elif self.conversation_status == self.CONVERSATION_STATUS_CONNECTED:
+                self._process_connected_state(conn, msg_header, msg_body, addr)
                 
         except Exception as e:
             self.logger.error(f"Error processing LAS message: {str(e)}")
             self.logger.log_las(f"Error processing message: {str(e)}")
+    
+    def _handle_ack(self, conn, header, body):
+        """处理ACK消息
+        
+        Args:
+            conn: 连接 socket
+            header: 消息头
+            body: 消息体
+        """
+        try:
+            return_code = body[0] if body else 0x00
+            self.logger.log_las(f"Received ACK for SeqID=0x{header['return_sequence_id']:04x}, ReturnCode=0x{return_code:02x}")
+            
+            if return_code == 0x00:
+                # 检查是否是对主动发送的握手消息的ACK
+                if hasattr(self, '_awaiting_handshake_ack') and self._awaiting_handshake_ack:
+                    # 收到对主动握手消息的ACK，切换到initialization状态
+                    self.conversation_status = self.CONVERSATION_STATUS_INITIALIZATION
+                    self._awaiting_handshake_ack = False
+                    self.logger.info(f"Handshake completed, switching to {self.CONVERSATION_STATUS_INITIALIZATION} state")
+                    self.logger.log_las(f"Handshake completed, switching to {self.CONVERSATION_STATUS_INITIALIZATION} state")
+                    # 重置初始化请求集合
+                    self.initialized_requests.clear()
+                
+                # 检查是否是对初始化完成消息的ACK
+                # 这里需要通过sequence_id来判断，暂时简化处理
+                # 假设收到ACK后就切换到connected状态
+                elif self.conversation_status == self.CONVERSATION_STATUS_INITIALIZATION:
+                    # 收到初始化完成消息的ACK，切换到connected状态
+                    self.conversation_status = self.CONVERSATION_STATUS_CONNECTED
+                    self.logger.info(f"Initialization completed, switching to {self.CONVERSATION_STATUS_CONNECTED} state")
+                    self.logger.log_las(f"Initialization completed, switching to {self.CONVERSATION_STATUS_CONNECTED} state")
+                
+        except Exception as e:
+            self.logger.error(f"Error handling LAS ACK: {str(e)}")
+            self.logger.log_las(f"Error handling ACK: {str(e)}")
+    
+    def _process_listening_state(self, conn, header, body, addr):
+        """处理监听状态下的消息
+        
+        Args:
+            conn: 连接 socket
+            header: 消息头
+            body: 消息体
+            addr: 客户端地址
+        """
+        message_type = header['message_type']
+        
+        # 只有握手消息是合法的
+        if message_type == self.MSG_TYPE_HANDSHAKE:
+            # 发送ACK
+            self._send_ack(conn, header['sequence_id'], 0x00)  # 0x00 = ACK
+            # 处理握手
+            self._handle_handshake(conn, header, body)
+        else:
+            # 发送0x03 ACK，不处理其他消息
+            self.logger.warning(f"Invalid message type {message_type} in listening state")
+            self.logger.log_las(f"Invalid message type {message_type} in listening state")
+            self._send_ack(conn, header['sequence_id'], 0x03)  # 0x03 = Message Type Not Supported
+    
+    def _process_initialization_state(self, conn, header, body, addr):
+        """处理初始化状态下的消息
+        
+        Args:
+            conn: 连接 socket
+            header: 消息头
+            body: 消息体
+            addr: 客户端地址
+        """
+        message_type = header['message_type']
+        
+        # 检查是否为合法的初始化请求消息
+        valid_init_messages = {
+            self.MSG_TYPE_CLEAR_QUEUE_REQUEST,
+            self.MSG_TYPE_INSTRUMENT_HEALTH_REQUEST,
+            self.MSG_TYPE_TEST_INVENTORY_REQUEST,
+            self.MSG_TYPE_ONBOARD_SAMPLE_INFO_REQUEST,
+            self.MSG_TYPE_TRANSFER_STATUS_REQUEST,
+            self.MSG_TYPE_CONSUMABLE_INVENTORY_REQUEST
+        }
+        
+        if message_type in valid_init_messages:
+            # 发送ACK
+            self._send_ack(conn, header['sequence_id'], 0x00)  # 0x00 = ACK
+            
+            # 处理消息
+            if message_type == self.MSG_TYPE_INSTRUMENT_HEALTH_REQUEST:
+                self._handle_instrument_health_request(conn, header)
+            elif message_type == self.MSG_TYPE_TEST_INVENTORY_REQUEST:
+                self._handle_test_inventory_request(conn, header)
+            elif message_type == self.MSG_TYPE_ONBOARD_SAMPLE_INFO_REQUEST:
+                self._handle_onboard_sample_info_request(conn, header)
+            elif message_type == self.MSG_TYPE_CONSUMABLE_INVENTORY_REQUEST:
+                self._handle_consumable_inventory_request(conn, header)
+            elif message_type == self.MSG_TYPE_TRANSFER_STATUS_REQUEST:
+                self._handle_transfer_status_request(conn, header)
+            elif message_type == self.MSG_TYPE_CLEAR_QUEUE_REQUEST:
+                self._handle_clear_queue_request(conn, header)
+            
+            # 记录已处理的请求类型
+            self.initialized_requests.add(message_type)
+            
+            # 检查是否所有初始化请求都已处理完成
+            if self.initialized_requests.issuperset(valid_init_messages):
+                self._handle_initialization_complete(conn)
+        else:
+            # 发送0x03 ACK，不处理其他消息
+            self.logger.warning(f"Invalid message type {message_type} in initialization state")
+            self.logger.log_las(f"Invalid message type {message_type} in initialization state")
+            self._send_ack(conn, header['sequence_id'], 0x03)  # 0x03 = Message Type Not Supported
+    
+    def _process_connected_state(self, conn, header, body, addr):
+        """处理连接状态下的消息
+        
+        Args:
+            conn: 连接 socket
+            header: 消息头
+            body: 消息体
+            addr: 客户端地址
+        """
+        message_type = header['message_type']
+        
+        # 检查是否为合法的连接状态消息
+        valid_connected_messages = {
+            self.MSG_TYPE_KEEPALIVE,
+            self.MSG_TYPE_ADD_QUEUE_REQUEST,
+            self.MSG_TYPE_SKIP_QUEUE_REQUEST,
+            self.MSG_TYPE_CLEAR_QUEUE_REQUEST,
+            self.MSG_TYPE_LOAD_UNLOAD_REQUEST
+        }
+        
+        if message_type in valid_connected_messages:
+            # 发送ACK
+            self._send_ack(conn, header['sequence_id'], 0x00)  # 0x00 = ACK
+            
+            # 处理消息
+            if message_type == self.MSG_TYPE_KEEPALIVE:
+                self._handle_keepalive(conn, header)
+            elif message_type == self.MSG_TYPE_LOAD_UNLOAD_REQUEST:
+                self._handle_load_unload_request(conn, header, body)
+            elif message_type == self.MSG_TYPE_ADD_QUEUE_REQUEST:
+                self._handle_add_queue_request(conn, header, body)
+            elif message_type == self.MSG_TYPE_SKIP_QUEUE_REQUEST:
+                self._handle_skip_queue_request(conn, header, body)
+            elif message_type == self.MSG_TYPE_CLEAR_QUEUE_REQUEST:
+                self._handle_clear_queue_request(conn, header)
+        else:
+            # 发送0x03 ACK，不处理其他消息
+            self.logger.warning(f"Invalid message type {message_type} in connected state")
+            self.logger.log_las(f"Invalid message type {message_type} in connected state")
+            self._send_ack(conn, header['sequence_id'], 0x03)  # 0x03 = Message Type Not Supported
+    
+    def _handle_initialization_complete(self, conn):
+        """处理初始化完成逻辑
+        
+        Args:
+            conn: 连接 socket
+        """
+        try:
+            # 检查IP0和IP1的锁定状态
+            health_status = self.core.get_instrument_health()
+            # 默认IP0和IP1都是unlocked状态
+            ip0_locked = False
+            ip1_locked = False
+            
+            # 检查是否有IP处于locked状态
+            if health_status['lock_ownership']:
+                # lock_ownership[0] 是 IP0 的状态，2表示locked
+                ip0_locked = len(health_status['lock_ownership']) > 0 and health_status['lock_ownership'][0] == 2
+                ip1_locked = len(health_status['lock_ownership']) > 1 and health_status['lock_ownership'][1] == 2
+            
+            # 如果有任意一个IP为locked状态，先发送LOAD_UNLOAD_RESPONSE
+            if ip0_locked or ip1_locked:
+                self._send_load_unload_response(conn)
+            
+            # 发送初始化完成消息
+            self._send_initialization_complete(conn)
+            
+            # 收到ACK后会切换到connected状态
+            
+        except Exception as e:
+            self.logger.error(f"Error handling initialization complete: {str(e)}")
+            self.logger.log_las(f"Error handling initialization complete: {str(e)}")
+    
+    def _send_load_unload_response(self, conn):
+        """发送LOAD_UNLOAD_RESPONSE消息
+        
+        Args:
+            conn: 连接 socket
+        """
+        try:
+            # 获取相关状态
+            health_status = self.core.get_instrument_health()
+            ready_to_load = self.core.get_ready_to_load()
+            return_ready_count = self.core.get_return_ready_count()
+            
+            # 构建空的响应消息体
+            interface_position_index = 0  # 默认IP0
+            load_sample_id_len = 0
+            load_sample_id_bytes = b''
+            load_status = 1  # 1=成功
+            unload_sample_id_len = 0
+            unload_sample_id_bytes = b''
+            unload_status = 1  # 1=成功
+            sample_status = 0  # 0=无样本
+            onboard_count = health_status['on_board_tube_count']
+            completed_count = health_status['completed_tube_count']
+            
+            body = struct.pack(
+                f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B B B H H B H',
+                interface_position_index,
+                load_sample_id_len,
+                load_sample_id_bytes,
+                load_status,
+                unload_sample_id_len,
+                unload_sample_id_bytes,
+                unload_status,
+                sample_status,
+                onboard_count,
+                completed_count,
+                ready_to_load,
+                return_ready_count
+            )
+            
+            # 构建完整消息
+            message, sequence_id = self._build_message(
+                self.MSG_TYPE_LOAD_UNLOAD_RESPONSE,
+                body
+            )
+            
+            # 发送消息
+            conn.sendall(message)
+            
+            self.logger.info(f"LAS load/unload response sent, SeqID=0x{sequence_id:04x}")
+            self.logger.log_las(f"Load/Unload response sent, SeqID=0x{sequence_id:04x}")
+            
+        except Exception as e:
+            self.logger.error(f"Error sending LAS load/unload response: {str(e)}")
+            self.logger.log_las(f"Error sending load/unload response: {str(e)}")
     
     def _parse_message(self, message):
         """解析uRAP消息
@@ -395,7 +648,7 @@ class LASServer:
                 return None, None, None
             
             # 验证校验和
-            calculated_checksum = self._calculate_checksum(message[1:body_end])
+            calculated_checksum = self._calculate_checksum(message[0:body_end])
             if checksum != calculated_checksum:
                 self.logger.warning(f"LAS message checksum mismatch: expected {checksum.hex()}, got {calculated_checksum.hex()}")
                 return None, None, None
@@ -550,14 +803,16 @@ class LASServer:
             self.logger.log_las(f"Handshake received: Protocol=0x{protocol_version:04x}, "
                                f"Type=0x{instrument_type:04x}, Serial={instrument_serial}")
             
-            # 发送握手响应
-            self._send_handshake_response(conn, header['sequence_id'])
+            # 发送握手响应（注意：这里是响应LAS的握手请求，不是主动发送）
+            # 第一步：向LAS回复正常的ACK应答消息
+            # 注意：ACK已经在_process_listening_state中发送了
             
-            # 等待短暂时间，确保握手响应已发送
-            time.sleep(0.1)
+            # 第二步：模拟器主动向LAS发送一条HANDSHAKE消息
+            self._send_handshake_response(conn, 0)  # return_sequence_id=0表示主动发送
             
-            # 发送初始化完成消息
-            self._send_initialization_complete(conn)
+            # 等待LAS的ACK，收到后会在_handle_ack中切换到initialization状态
+            # 这里设置一个标志，用于在收到ACK时识别这是对我们主动发送的握手消息的响应
+            self._awaiting_handshake_ack = True
             
         except Exception as e:
             self.logger.error(f"Error handling LAS handshake: {str(e)}")
@@ -1126,3 +1381,275 @@ class LASServer:
         except Exception as e:
             self.logger.error(f"Error handling LAS load/unload request: {str(e)}")
             self.logger.log_las(f"Error handling load/unload request: {str(e)}")
+    
+    # ========== 主动消息发送方法（供core模块调用） ==========
+    
+    def send_transfer_status_response(self, interface_position_index=0, ready_to_load=0, return_ready_count=0):
+        """发送传输状态响应消息
+        
+        Args:
+            interface_position_index: 接口位置索引
+            ready_to_load: 准备装载数量
+            return_ready_count: 返回准备数量
+        """
+        try:
+            # 只在connected状态下发送
+            if self.conversation_status != self.CONVERSATION_STATUS_CONNECTED:
+                self.logger.warning(f"Cannot send transfer status response in {self.conversation_status} state")
+                return False
+            
+            # 构建消息体
+            body = struct.pack(
+                '!BBH',
+                interface_position_index,
+                ready_to_load,
+                return_ready_count
+            )
+            
+            # 遍历所有连接并发送消息
+            with self.connection_lock:
+                for conn in self.connections:
+                    # 构建完整消息
+                    message, sequence_id = self._build_message(
+                        self.MSG_TYPE_TRANSFER_STATUS_RESPONSE,
+                        body
+                    )
+                    
+                    # 记录发送的原始数据
+                    message_hex = binascii.hexlify(message).decode('ascii')
+                    self.logger.log_las_raw('SENT', message_hex)
+                    # 发送消息
+                    conn.sendall(message)
+                    
+                    self.logger.info(f"LAS transfer status response sent, SeqID=0x{sequence_id:04x}, ReadyToLoad={ready_to_load}, ReturnReady={return_ready_count}")
+                    self.logger.log_las(f"Transfer status response sent, SeqID=0x{sequence_id:04x}")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error sending transfer status response: {str(e)}")
+            self.logger.log_las(f"Error sending transfer status response: {str(e)}")
+            return False
+    
+    def send_onboard_sample_info_response(self):
+        """发送在线样本信息响应消息
+        """
+        try:
+            # 只在connected状态下发送
+            if self.conversation_status != self.CONVERSATION_STATUS_CONNECTED:
+                self.logger.warning(f"Cannot send onboard sample info response in {self.conversation_status} state")
+                return False
+            
+            # 获取所有样本
+            samples = self.core.get_all_samples()
+            onboard_samples = [sample for sample in samples.values() if sample['status'] != 'completed']
+            onboard_count = len(onboard_samples)
+            
+            # 构建响应消息体
+            body = struct.pack('!H', onboard_count)
+            
+            # 添加每个在线样本
+            for sample in onboard_samples:
+                sample_id = sample['sample_id'].encode('ascii')
+                body += struct.pack(f'!B {len(sample_id)}s',
+                                  len(sample_id),
+                                  sample_id)
+            
+            # 添加已移除样本数量（这里简化处理，返回0）
+            body += struct.pack('!H', 0)
+            
+            # 遍历所有连接并发送消息
+            with self.connection_lock:
+                for conn in self.connections:
+                    # 构建完整消息
+                    message, sequence_id = self._build_message(
+                        self.MSG_TYPE_ONBOARD_SAMPLE_INFO_RESPONSE,
+                        body
+                    )
+                    
+                    # 记录发送的原始数据
+                    message_hex = binascii.hexlify(message).decode('ascii')
+                    self.logger.log_las_raw('SENT', message_hex)
+                    # 发送消息
+                    conn.sendall(message)
+                    
+                    self.logger.info(f"LAS onboard sample info response sent, SeqID=0x{sequence_id:04x}, Samples={onboard_count}")
+                    self.logger.log_las(f"Onboard sample info response sent, SeqID=0x{sequence_id:04x}, Samples={onboard_count}")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error sending onboard sample info response: {str(e)}")
+            self.logger.log_las(f"Error sending onboard sample info response: {str(e)}")
+            return False
+    
+    def send_instrument_health_response(self):
+        """发送仪器健康响应消息
+        """
+        try:
+            # 只在connected状态下发送
+            if self.conversation_status != self.CONVERSATION_STATUS_CONNECTED:
+                self.logger.warning(f"Cannot send instrument health response in {self.conversation_status} state")
+                return False
+            
+            # 获取仪器健康状态
+            health_status = self.core.get_instrument_health()
+            
+            # 构建响应消息体
+            body = struct.pack(
+                '!BBB B',
+                health_status['automation_interface_status'],
+                health_status['instrument_process_status'],
+                health_status['lis_connection_status'],
+                health_status['interface_positions']
+            )
+            
+            # 添加接口位置状态
+            for i in range(health_status['interface_positions']):
+                remote_status = health_status['remote_control_status'][i] if i < len(health_status['remote_control_status']) else 1
+                lock_ownership = health_status['lock_ownership'][i] if i < len(health_status['lock_ownership']) else 2
+                body += struct.pack('!BB', remote_status, lock_ownership)
+            
+            # 添加处理积压、样本获取延迟、在线试管数量、已完成试管数量
+            body += struct.pack(
+                '!HHHH',
+                health_status['processing_backlog'],
+                health_status['sample_acquisition_delay'],
+                health_status['on_board_tube_count'],
+                health_status['completed_tube_count']
+            )
+            
+            # 遍历所有连接并发送消息
+            with self.connection_lock:
+                for conn in self.connections:
+                    # 构建完整消息
+                    message, sequence_id = self._build_message(
+                        self.MSG_TYPE_INSTRUMENT_HEALTH_RESPONSE,
+                        body
+                    )
+                    
+                    # 记录发送的原始数据
+                    message_hex = binascii.hexlify(message).decode('ascii')
+                    self.logger.log_las_raw('SENT', message_hex)
+                    # 发送消息
+                    conn.sendall(message)
+                    
+                    self.logger.info(f"LAS instrument health response sent, SeqID=0x{sequence_id:04x}")
+                    self.logger.log_las(f"Instrument health response sent, SeqID=0x{sequence_id:04x}")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error sending instrument health response: {str(e)}")
+            self.logger.log_las(f"Error sending instrument health response: {str(e)}")
+            return False
+    
+    def send_test_inventory_response(self):
+        """发送测试库存响应消息
+        """
+        try:
+            # 只在connected状态下发送
+            if self.conversation_status != self.CONVERSATION_STATUS_CONNECTED:
+                self.logger.warning(f"Cannot send test inventory response in {self.conversation_status} state")
+                return False
+            
+            # 获取测试库存
+            test_inventory = self.core.get_test_inventory()
+            tests = test_inventory['tests']
+            test_count = len(tests)
+            
+            # 构建响应消息体
+            body = struct.pack('!H', test_count)
+            
+            # 添加每个测试项目
+            for test in tests:
+                test_name = test['name'].encode('ascii')
+                body += struct.pack(f'!B {len(test_name)}s HH',
+                                  len(test_name),
+                                  test_name,
+                                  test['count'],
+                                  test['status'])
+            
+            # 遍历所有连接并发送消息
+            with self.connection_lock:
+                for conn in self.connections:
+                    # 构建完整消息
+                    message, sequence_id = self._build_message(
+                        self.MSG_TYPE_TEST_INVENTORY_RESPONSE,
+                        body
+                    )
+                    
+                    # 记录发送的原始数据
+                    message_hex = binascii.hexlify(message).decode('ascii')
+                    self.logger.log_las_raw('SENT', message_hex)
+                    # 发送消息
+                    conn.sendall(message)
+                    
+                    self.logger.info(f"LAS test inventory response sent, SeqID=0x{sequence_id:04x}, Tests={test_count}")
+                    self.logger.log_las(f"Test inventory response sent, SeqID=0x{sequence_id:04x}, Tests={test_count}")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error sending test inventory response: {str(e)}")
+            self.logger.log_las(f"Error sending test inventory response: {str(e)}")
+            return False
+    
+    def send_consumable_inventory_response(self):
+        """发送耗材库存响应消息
+        """
+        try:
+            # 只在connected状态下发送
+            if self.conversation_status != self.CONVERSATION_STATUS_CONNECTED:
+                self.logger.warning(f"Cannot send consumable inventory response in {self.conversation_status} state")
+                return False
+            
+            # 获取耗材库存
+            consumable_inventory = self.core.get_consumable_inventory()
+            modules = consumable_inventory['modules']
+            module_count = len(modules)
+            
+            # 构建响应消息体
+            body = struct.pack('!B', module_count)
+            
+            # 添加每个模块的耗材信息
+            for module in modules:
+                module_id = module['id'].encode('ascii')
+                consumables = module['consumables']
+                consumable_count = len(consumables)
+                
+                body += struct.pack(f'!B {len(module_id)}s B',
+                                  len(module_id),
+                                  module_id,
+                                  consumable_count)
+                
+                # 添加每个耗材
+                for consumable in consumables:
+                    body += struct.pack('!BB',
+                                      consumable['id'],
+                                      consumable['status'])
+            
+            # 遍历所有连接并发送消息
+            with self.connection_lock:
+                for conn in self.connections:
+                    # 构建完整消息
+                    message, sequence_id = self._build_message(
+                        self.MSG_TYPE_CONSUMABLE_INVENTORY_RESPONSE,
+                        body
+                    )
+                    
+                    # 记录发送的原始数据
+                    message_hex = binascii.hexlify(message).decode('ascii')
+                    self.logger.log_las_raw('SENT', message_hex)
+                    # 发送消息
+                    conn.sendall(message)
+                    
+                    self.logger.info(f"LAS consumable inventory response sent, SeqID=0x{sequence_id:04x}, Modules={module_count}")
+                    self.logger.log_las(f"Consumable inventory response sent, SeqID=0x{sequence_id:04x}, Modules={module_count}")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error sending consumable inventory response: {str(e)}")
+            self.logger.log_las(f"Error sending consumable inventory response: {str(e)}")
+            return False
