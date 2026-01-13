@@ -1,6 +1,0 @@
-2026-01-08 23:07:57 - LASCommunication - INFO - Connection established: 192.168.125.103:54580
-2026-01-08 23:07:58 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0001
-2026-01-08 23:08:17 - LASCommunication - INFO - Connection closed: 192.168.125.103:54580
-2026-01-08 23:08:28 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
-2026-01-08 23:08:58 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
-2026-01-08 23:09:28 - LASCommunication - INFO - Keep-Alive timeout, closing connection
