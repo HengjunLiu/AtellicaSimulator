@@ -101,18 +101,8 @@ class LASServer:
                 time_since_last_msg = current_time - self.last_message_time
                 time_since_keepalive = current_time - self.last_keep_alive_time
                 
-                # 如果超过keep_alive_interval没有发送Keep-Alive消息，则发送一个
-                if time_since_keepalive >= self.keep_alive_interval:
-                    # 检查连接是否仍然活跃（超过3倍keep_alive_interval没有消息则断开）
-                    if time_since_last_msg >= self.keep_alive_interval * 3:
-                        self.logger.warning("Keep-Alive timeout, closing connection")
-                        self.logger.log_las("Keep-Alive timeout, closing connection")
-                        try:
-                            conn.close()
-                        except:
-                            pass
-                        break
-                    
+                # 只有当conversation_status为"connected"且距离上次收到消息超过keep_alive_interval时，才发送Keep-Alive消息
+                if self.conversation_status == self.CONVERSATION_STATUS_CONNECTED and time_since_last_msg >= self.keep_alive_interval:
                     # 发送Keep-Alive消息
                     self._send_keepalive(conn)
                     self.last_keep_alive_time = current_time
@@ -141,6 +131,7 @@ class LASServer:
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
             self.logger.log_las_raw('SENT', message_hex)
+        
             # 发送消息
             conn.sendall(message)
             
@@ -258,6 +249,9 @@ class LASServer:
                 if not data:
                     break
                 
+                # 重置最后消息时间
+                self.last_message_time = time.time()
+                
                 buffer += data
                 
                 # 处理缓冲区中的消息
@@ -272,17 +266,13 @@ class LASServer:
                         break
                     
                     # 读取消息长度 (2 bytes after STX, total bytes including STX)
-                    message_length = struct.unpack_from('!H', buffer, stx_pos + 1)[0]
-                    print(f"Message length: {message_length}")
-                    
+                    message_length = struct.unpack_from('!H', buffer, stx_pos + 1)[0]                    
                     # 检查是否有足够字节读取完整消息
                     if len(buffer) < stx_pos + message_length:
                         break
                     
                     # 提取完整消息
-                    message = buffer[stx_pos:stx_pos + message_length]
-                    print(f"Received message: {message}")
-                    
+                    message = buffer[stx_pos:stx_pos + message_length]                    
                     # 验证最后一个字节是否为 ETX (0x03)
                     if message[-1:] != b'\x03':
                         # 无效消息，跳过
@@ -293,7 +283,6 @@ class LASServer:
                     buffer = buffer[stx_pos + message_length:]
                     # 记录接收的原始数据
                     message_hex = binascii.hexlify(message).decode('ascii')
-                    print(f"Received message hex: {message_hex}")
                     self.logger.log_las_raw('RECEIVED', message_hex)
                     
                     # 处理消息
@@ -588,6 +577,10 @@ class LASServer:
                 body
             )
             
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
+            
             # 发送消息
             conn.sendall(message)
             
@@ -760,6 +753,10 @@ class LASServer:
                 return_sequence_id=sequence_id
             )
             
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
+            
             # 发送消息
             conn.sendall(message)
             
@@ -853,6 +850,10 @@ class LASServer:
                 return_sequence_id=return_sequence_id
             )
             
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
+            
             # 发送消息
             conn.sendall(message)
             
@@ -880,6 +881,10 @@ class LASServer:
                 self.MSG_TYPE_INITIALIZATION_COMPLETE,
                 body
             )
+            
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
             
             # 发送消息
             conn.sendall(message)
@@ -935,6 +940,10 @@ class LASServer:
                 return_sequence_id=header['sequence_id']
             )
             
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
+            
             # 发送消息
             conn.sendall(message)
             
@@ -976,6 +985,10 @@ class LASServer:
                 body,
                 return_sequence_id=header['sequence_id']
             )
+            
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
             
             # 发送消息
             conn.sendall(message)
@@ -1019,6 +1032,10 @@ class LASServer:
                 body,
                 return_sequence_id=header['sequence_id']
             )
+            
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
             
             # 发送消息
             conn.sendall(message)
@@ -1070,6 +1087,10 @@ class LASServer:
                 return_sequence_id=header['sequence_id']
             )
             
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
+            
             # 发送消息
             conn.sendall(message)
             
@@ -1112,6 +1133,10 @@ class LASServer:
                 body,
                 return_sequence_id=header['sequence_id']
             )
+            
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
             
             # 发送消息
             conn.sendall(message)
@@ -1182,6 +1207,10 @@ class LASServer:
                 return_sequence_id=header['sequence_id']
             )
             
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
+            
             # 发送消息
             conn.sendall(message)
             
@@ -1248,6 +1277,10 @@ class LASServer:
                 response_body,
                 return_sequence_id=header['sequence_id']
             )
+            
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
             
             # 发送消息
             conn.sendall(message)
@@ -1581,7 +1614,7 @@ class LASServer:
                     
                     # 记录发送的原始数据
                     message_hex = binascii.hexlify(message).decode('ascii')
-                    self.logger.log_las_raw('SENT', message_hex)
+                    self.logger.log_las_raw('S', message_hex)
                     # 发送消息
                     conn.sendall(message)
                     
