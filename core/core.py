@@ -633,6 +633,20 @@ class AtellicaCore:
         with self.sample_lock:
             return self.return_ready_count
     
+    def get_next_sample_to_unload(self):
+        """获取下一个要卸载的样本
+        
+        Returns:
+            str: 样本ID，如果没有则返回空字符串
+        """
+        with self.sample_lock:
+            if self.return_ready_count > 0:
+                # 查找已完成且准备好UNLOAD的样本
+                for sid, sample in self.samples.items():
+                    if sample['status'] == 'completed' and 'unloaded' not in sample and sample.get('ready_for_unload', False):
+                        return sid
+            return ""
+    
     def _process_sample_workflow(self, sample_id):
         """处理标本完整工作流
         
