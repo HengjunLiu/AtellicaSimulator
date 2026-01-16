@@ -78,6 +78,8 @@ def main():
             # 有UI模式
             logger.info("Running with UI")
             ui = AtellicaUI(config_manager, logger, core, las_server, lis_server)
+            # 设置UI引用到LAS服务器
+            las_server.set_ui(ui)
             ui.run()
     except Exception as e:
         if logger:

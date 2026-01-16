@@ -56,6 +56,13 @@ class LASServer:
         # 初始化阶段已处理的请求类型集合
         self.initialized_requests = set()
         
+        # 手动操作相关
+        self.pending_requests = []
+        self.ui = None
+        
+        # 核心模块引用
+        self.core = core
+        
         # 消息类型常量
         self.MSG_TYPE_HANDSHAKE = 0x0001
         self.MSG_TYPE_ACK = 0x0000
@@ -1297,13 +1304,14 @@ class LASServer:
             self.logger.error(f"Error handling LAS clear queue request: {str(e)}")
             self.logger.log_las(f"Error handling clear queue request: {str(e)}")
     
-    def _handle_load_unload_request(self, conn, header, body):
+    def _handle_load_unload_request(self, conn, header, body, manual_complete=False):
         """处理装载/卸载请求
         
         Args:
             conn: 连接 socket
             header: 消息头
             body: 消息体
+            manual_complete: 是否已通过手动操作完成
         """
         try:
             # 解析请求消息体
@@ -1329,6 +1337,32 @@ class LASServer:
             offset += 1
             
             elapsed_time = struct.unpack_from('!H', body, offset)[0]
+            
+            # 确定请求类型
+            # 0x01表示有样本需要卸载 (LOAD request)
+            # 0x00表示需要装载样本 (UNLOAD request)
+            request_type = 'load' if carrier_occupancy == 0x01 else 'unload'
+            
+            # 获取要显示的样本ID
+            display_sample_id = sample_id
+            if request_type == 'unload':
+                # 对于UNLOAD请求，获取下一个要卸载的样本ID
+                display_sample_id = self.core.get_next_sample_to_unload()
+            
+            if not manual_complete and self.ui:
+                # 显示UI提示，等待用户操作
+                self.ui._show_manual_prompt(request_type, interface_position_index, display_sample_id)
+                
+                # 保存请求信息，等待手动完成
+                self.pending_requests.append({
+                    'conn': conn,
+                    'header': header,
+                    'body': body
+                })
+                
+                self.logger.info(f"LAS manual operation requested: {request_type} for IP{interface_position_index}, SampleID={display_sample_id}")
+                self.logger.log_las(f"Manual operation requested: {request_type} for IP{interface_position_index}, SampleID={display_sample_id}")
+                return
             
             # 处理装载/卸载请求
             load_result, unload_result, sample_status, onboard_count, completed_count, ready_to_load, return_ready_count = self.core.process_load_unload(
@@ -1383,6 +1417,30 @@ class LASServer:
             self.logger.log_las(f"Error handling load/unload request: {str(e)}")
     
     # ========== 主动消息发送方法（供core模块调用） ==========
+    
+    def set_ui(self, ui):
+        """设置UI引用
+        
+        Args:
+            ui: UI实例
+        """
+        self.ui = ui
+    
+    def on_manual_operation_complete(self, request):
+        """手动操作完成回调
+        
+        Args:
+            request: 请求信息，包含type、interface_position、sample_id
+        """
+        if self.pending_requests:
+            # 获取第一个待处理请求
+            pending_request = self.pending_requests.pop(0)
+            conn = pending_request['conn']
+            header = pending_request['header']
+            body = pending_request['body']
+            
+            # 继续处理原始请求
+            self._process_load_unload_request(conn, header, body, manual_complete=True)
     
     def send_transfer_status_response(self, interface_position_index=0, ready_to_load=0, return_ready_count=0):
         """发送传输状态响应消息

@@ -10,7 +10,7 @@ import threading
 import time
 
 
-APP_VERSION = "v1.3.0"
+APP_VERSION = "v1.3.1"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""
@@ -154,7 +154,7 @@ class AtellicaUI:
         self.ip1_locked_label = ttk.Label(status_grid, textvariable=self.ip1_locked_var, width=15)
         self.ip1_locked_label.grid(row=3, column=5, padx=5, pady=5)
         
-        # 中间内容框架（分为左侧参数配置和右侧状态显示）
+        # 中间内容框架（分为左侧参数配置、中间手动处理和右侧状态显示）
         content_frame = ttk.Frame(main_frame)
         content_frame.pack(fill=tk.X, pady=10)
         
@@ -190,6 +190,26 @@ class AtellicaUI:
         self.lis_connection_combobox.set("Connected")
         self.lis_connection_combobox.grid(row=2, column=1, padx=5, pady=5)
         ttk.Button(device_config_frame, text="应用", command=self._update_lis_status).grid(row=2, column=2, padx=5, pady=5)
+        
+        # 中间：手动样本处理
+        manual_frame = ttk.LabelFrame(content_frame, text="手动样本处理", padding="10")
+        manual_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+        
+        # 样本处理提示区域
+        self.manual_prompt_frame = ttk.Frame(manual_frame, padding="10")
+        self.manual_prompt_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 创建画布用于绘制提示圆圈
+        self.prompt_canvas = tk.Canvas(self.manual_prompt_frame, width=300, height=200, bg="white")
+        self.prompt_canvas.pack(pady=10)
+        
+        # 提示文本
+        self.prompt_text = ttk.Label(self.manual_prompt_frame, text="等待样本处理请求...", font=("Arial", 12))
+        self.prompt_text.pack(pady=10)
+        
+        # 完成按钮
+        self.complete_button = ttk.Button(self.manual_prompt_frame, text="完成", command=self._on_complete_button_click, state=tk.DISABLED)
+        self.complete_button.pack(pady=10)
         
         # 右侧：详细状态显示
         detail_frame = ttk.LabelFrame(content_frame, text="详细状态", padding="10")
@@ -807,6 +827,53 @@ class AtellicaUI:
         """清空日志"""
         self.las_log_text.delete(1.0, tk.END)
         self.lis_log_text.delete(1.0, tk.END)
+    
+    def _show_manual_prompt(self, request_type, interface_position, sample_id):
+        """显示手动处理提示
+        
+        Args:
+            request_type: 请求类型 ('load' 或 'unload')
+            interface_position: 接口位置 (0=IP0, 1=IP1)
+            sample_id: 样本ID
+        """
+        self.prompt_canvas.delete("all")
+        
+        if request_type == 'load':
+            # 绘制绿色圆圈
+            self.prompt_canvas.create_oval(50, 50, 250, 150, fill="lightgreen", outline="green", width=3)
+            prompt_text = f"请手工卸载IP{interface_position}的标本"
+            if sample_id:
+                prompt_text += f" (样本ID: {sample_id})"
+            self.prompt_text.configure(text=prompt_text, foreground="green")
+        else:
+            # 绘制黄色圆圈
+            self.prompt_canvas.create_oval(50, 50, 250, 150, fill="lightyellow", outline="yellow", width=3)
+            prompt_text = f"请手工装载IP{interface_position}的标本"
+            if sample_id:
+                prompt_text += f" (样本ID: {sample_id})"
+            self.prompt_text.configure(text=prompt_text, foreground="orange")
+        
+        # 启用完成按钮
+        self.complete_button.configure(state=tk.NORMAL)
+        
+        # 保存当前请求信息
+        self.current_request = {
+            'type': request_type,
+            'interface_position': interface_position,
+            'sample_id': sample_id
+        }
+    
+    def _on_complete_button_click(self):
+        """完成按钮点击事件"""
+        if hasattr(self, 'current_request'):
+            # 通知LAS服务器完成处理
+            self.las_server.on_manual_operation_complete(self.current_request)
+            
+            # 重置UI
+            self.prompt_canvas.delete("all")
+            self.prompt_text.configure(text="等待样本处理请求...", foreground="black")
+            self.complete_button.configure(state=tk.DISABLED)
+            delattr(self, 'current_request')
     
     def _quit(self):
         """退出应用"""
