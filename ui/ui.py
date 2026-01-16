@@ -10,7 +10,7 @@ import threading
 import time
 
 
-APP_VERSION = "v1.3.1"
+APP_VERSION = "v1.3.2"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""
@@ -838,20 +838,29 @@ class AtellicaUI:
         """
         self.prompt_canvas.delete("all")
         
+        # 保存请求类型和颜色信息
         if request_type == 'load':
-            # 绘制绿色圆圈
-            self.prompt_canvas.create_oval(50, 50, 250, 150, fill="lightgreen", outline="green", width=3)
+            self.circle_color = "lightgreen"
+            self.circle_outline = "green"
+            self.text_color = "green"
             prompt_text = f"请手工卸载IP{interface_position}的标本"
             if sample_id:
                 prompt_text += f" (样本ID: {sample_id})"
-            self.prompt_text.configure(text=prompt_text, foreground="green")
         else:
-            # 绘制黄色圆圈
-            self.prompt_canvas.create_oval(50, 50, 250, 150, fill="lightyellow", outline="yellow", width=3)
+            self.circle_color = "lightyellow"
+            self.circle_outline = "yellow"
+            self.text_color = "orange"
             prompt_text = f"请手工装载IP{interface_position}的标本"
             if sample_id:
                 prompt_text += f" (样本ID: {sample_id})"
-            self.prompt_text.configure(text=prompt_text, foreground="orange")
+        
+        self.prompt_text.configure(text=prompt_text, foreground=self.text_color)
+        
+        # 绘制初始圆圈
+        self.circle = self.prompt_canvas.create_oval(50, 50, 250, 150, 
+                                                   fill=self.circle_color, 
+                                                   outline=self.circle_outline, 
+                                                   width=3)
         
         # 启用完成按钮
         self.complete_button.configure(state=tk.NORMAL)
@@ -862,10 +871,46 @@ class AtellicaUI:
             'interface_position': interface_position,
             'sample_id': sample_id
         }
+        
+        # 启动闪烁效果
+        self.flash_state = True
+        self._start_flash()
+    
+    def _start_flash(self):
+        """启动闪烁效果"""
+        if hasattr(self, 'flash_job'):
+            self.root.after_cancel(self.flash_job)
+        
+        # 开始闪烁
+        self._toggle_flash()
+    
+    def _toggle_flash(self):
+        """切换闪烁状态"""
+        if not hasattr(self, 'current_request'):
+            return
+        
+        self.flash_state = not self.flash_state
+        
+        if self.flash_state:
+            # 显示圆圈和文字
+            self.prompt_canvas.itemconfig(self.circle, fill=self.circle_color, outline=self.circle_outline)
+            self.prompt_text.configure(foreground=self.text_color)
+        else:
+            # 隐藏圆圈（变透明）和文字（变浅色）
+            self.prompt_canvas.itemconfig(self.circle, fill="", outline="")
+            self.prompt_text.configure(foreground="lightgray")
+        
+        # 继续闪烁，每500毫秒切换一次
+        self.flash_job = self.root.after(500, self._toggle_flash)
     
     def _on_complete_button_click(self):
         """完成按钮点击事件"""
         if hasattr(self, 'current_request'):
+            # 停止闪烁效果
+            if hasattr(self, 'flash_job'):
+                self.root.after_cancel(self.flash_job)
+                delattr(self, 'flash_job')
+            
             # 通知LAS服务器完成处理
             self.las_server.on_manual_operation_complete(self.current_request)
             
@@ -874,6 +919,10 @@ class AtellicaUI:
             self.prompt_text.configure(text="等待样本处理请求...", foreground="black")
             self.complete_button.configure(state=tk.DISABLED)
             delattr(self, 'current_request')
+            if hasattr(self, 'circle_color'):
+                delattr(self, 'circle_color')
+                delattr(self, 'circle_outline')
+                delattr(self, 'text_color')
     
     def _quit(self):
         """退出应用"""
