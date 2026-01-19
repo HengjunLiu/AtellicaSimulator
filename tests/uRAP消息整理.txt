@@ -1,0 +1,77 @@
+# 各消息状态值：
+## Instrument Health Response message
+### Automation Interface Status：0x01 – Green， 0x03 – Red，0x04 – Critical
+### Instrument Process Status：0x01 – Green，0x02 – Yellow，0x03 – Red  yellow和Red状态，对应很多种情况，模拟器直接固定成Green即可
+### LIS Connection Status：0x01 – Connected，0x02 – Disconnected
+### Interface Positions：SHC uses value 2
+### Remote Control Status
+	First Remote Control Status：0x01,0x04(IP0：0x01=Offline or Local/04=Online Loading Only Mode)
+	First Lock Ownership：0x01，0x02(01=Locked by Instrument/02=Not Locked by Instrument)
+	Last Remote Control Status：0x01，0x05(IP1: 0x01=Offline or Local/05=Online Unloading Only Mode)
+	Last Lock Ownership：0x01，0x02(01=Locked by Instrument/02=Not Locked by Instrument)
+### On Board Tube Count：
+### Completed Tube Count：
+
+## Test inventory request message
+### Test inventory count：
+### Assay name：
+### Usable Test Count ：
+### Assay status：0x01 – Green，0x02 – Yellow，0x03 – Red
+
+## Onboard sample info response message
+### Onboard Sample Count
+### Onboard Sample ID
+### Removed Sample Count
+### Removed Sample ID
+
+## Consumable Inventory Response
+
+
+## Add queue command request message
+### Interface Position Index：IP0，IP1
+### Carrier Occupancy：0x01: Empty Carrier，0x02: Uncapped Tube，0x03: Capped Tube
+### Sample ID
+### Sample Priority：0x00 – Undefined，0x01 – Routine，0x02 – STAT
+
+
+## Add queue command response message 
+### Interface Position Index：IP0，IP1
+### Sample ID
+### Command Status ：0x01 – The Atellica Solution performs Add Queue Command successfully  （固定值）
+
+## Skip queue command request message
+### Interface Position Index：IP0，IP1
+### Carrier Occupancy：0x01: Empty Carrier，0x02: Uncapped Tube，0x03: Capped Tube
+### Sample ID
+
+## Skip queue command response message
+### Interface Position Index：IP0，IP1
+### Sample ID
+### Command Status ：0x01 – The Atellica Solution performs SkipQueue Command successfully（固定值）
+
+## Clear queue command response message
+### Interface Position Index：IP0，IP1
+### Command Status：0x01: The Atellica Solution performs ClearQueue Command successfully（固定值）
+
+## Transfer status response message
+### Interface Position Index：IP0，IP1
+### Ready to Load：0x00: Not Ready to Load，0x01: Ready to Load
+### Return Ready Tube Count：
+
+## Load_Unload Command request message
+### Interface Position Index：IP0，IP1
+### Carrier Occupancy：0x01: Empty Carrier，0x02: Uncapped Tube，0x03: Capped Tube
+### Sample ID
+### Tube Height
+
+## Load_Unload Command response message
+### Interface Position Index：IP0，IP1
+### Load Sample ID 
+### Load Command Status：0x01，0x02。。。。。0x08
+### Unload Sample ID
+### Unload Command Status：0x01，0x02。。。。。0x07
+### Sample Processing Status：0x01，0x02.。。。。。。。。。
+### On Board Tube Count
+### Completed Tube Count
+### Ready to Load：0x00: Not Ready to Load，0x01: Ready to Load
+### Return Ready Tube Count
