@@ -238,6 +238,38 @@ class AtellicaCore:
         with self.sample_lock:
             return self.samples.get(sample_id)
     
+    def manual_eject_sample(self, sample_id):
+        """手动弹出样本
+        
+        Args:
+            sample_id: 要弹出的样本ID
+            
+        Returns:
+            bool: 是否成功弹出
+        """
+        with self.sample_lock:
+            if sample_id not in self.samples:
+                return False
+            
+            sample = self.samples[sample_id]
+            
+            # 检查样本状态
+            if sample['status'] in ['completed', 'unloaded']:
+                return False
+            
+            # 更新样本状态
+            sample['status'] = 'completed'
+            sample['completed_time'] = time.time()
+            sample['unloaded'] = True
+            
+            with self.status_lock:
+                # 更新计数器
+                self.on_board_tube_count -= 1
+                self.completed_tube_count += 1
+                self.return_ready_count += 1
+            
+            return True
+    
     def get_all_samples(self):
         """获取所有样本信息
         

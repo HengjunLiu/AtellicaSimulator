@@ -1477,6 +1477,75 @@ class LASServer:
             # 继续处理原始请求
             self._process_load_unload_request(conn, header, body, manual_complete=True)
     
+    def manual_eject_sample(self, sample_id, interface_position=0):
+        """手动弹出样本并通知LAS
+        
+        Args:
+            sample_id: 要弹出的样本ID
+            interface_position: 接口位置（默认为IP0）
+            
+        Returns:
+            bool: 是否成功
+        """
+        try:
+            # 1. 更新核心样本状态
+            success = self.core.manual_eject_sample(sample_id)
+            if not success:
+                self.logger.error(f"Failed to manually eject sample {sample_id}: Sample not found or already completed")
+                return False
+            
+            # 2. 发送LOAD_UNLOAD_RESPONSE消息到所有连接的客户端
+            with self.connection_lock:
+                for conn in self.connections:
+                    # 构建响应消息体
+                    load_sample_id_bytes = b''
+                    load_sample_id_len = 0
+                    load_status = 0x01  # Success
+                    
+                    unload_sample_id_bytes = sample_id.encode('ascii')
+                    unload_sample_id_len = len(unload_sample_id_bytes)
+                    unload_status = 0x01  # Success
+                    
+                    sample_status = 0x01  # Sample Processed successfully
+                    onboard_count = self.core.get_instrument_health()['on_board_tube_count']
+                    completed_count = self.core.get_instrument_health()['completed_tube_count']
+                    ready_to_load = self.core.get_ready_to_load()
+                    return_ready_count = self.core.get_return_ready_count()
+                    
+                    body = struct.pack(
+                        f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B B B H H B H',
+                        interface_position,
+                        load_sample_id_len,
+                        load_sample_id_bytes,
+                        load_status,
+                        unload_sample_id_len,
+                        unload_sample_id_bytes,
+                        unload_status,
+                        sample_status,
+                        onboard_count,
+                        completed_count,
+                        ready_to_load,
+                        return_ready_count
+                    )
+                    
+                    # 构建完整消息
+                    message, sequence_id = self._build_message(
+                        self.MSG_TYPE_LOAD_UNLOAD_RESPONSE,
+                        body
+                    )
+                    
+                    # 发送消息
+                    conn.sendall(message)
+                    
+                    self.logger.info(f"LAS manual eject response sent, SeqID=0x{sequence_id:04x}, SampleID={sample_id}")
+                    self.logger.log_las(f"Manual eject response sent: SampleID={sample_id}, SeqID=0x{sequence_id:04x}")
+            
+            return True
+        except Exception as e:
+            self.logger.error(f"Error in manual_eject_sample: {str(e)}")
+            self.logger.log_las(f"Error in manual eject: {str(e)}")
+            return False
+    
     def send_transfer_status_response(self, interface_position_index=0, ready_to_load=0, return_ready_count=0):
         """发送传输状态响应消息
         

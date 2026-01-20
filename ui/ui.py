@@ -10,7 +10,7 @@ import threading
 import time
 
 
-APP_VERSION = "v1.3.3"
+APP_VERSION = "v1.3.4"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""
@@ -260,6 +260,7 @@ class AtellicaUI:
         left_button_frame = ttk.Frame(button_frame)
         left_button_frame.pack(side=tk.LEFT)
         ttk.Button(left_button_frame, text="刷新状态", command=self._update_status).pack(side=tk.LEFT, padx=5)
+        ttk.Button(left_button_frame, text="在机标本", command=self._show_onboard_samples).pack(side=tk.LEFT, padx=5)
         ttk.Button(left_button_frame, text="编辑库存", command=self._show_inventory_editor).pack(side=tk.LEFT, padx=5)
         ttk.Button(left_button_frame, text="清空日志", command=self._clear_logs).pack(side=tk.LEFT, padx=5)
         
@@ -957,6 +958,90 @@ class AtellicaUI:
                 delattr(self, 'circle_outline')
                 delattr(self, 'text_color')
     
+    def _show_onboard_samples(self):
+        """显示在机标本列表"""
+        # 创建弹窗窗口
+        onboard_window = tk.Toplevel(self.root)
+        onboard_window.title("在机标本列表")
+        onboard_window.geometry("800x400")
+        onboard_window.transient(self.root)
+        onboard_window.grab_set()
+        
+        # 创建主框架
+        main_frame = ttk.Frame(onboard_window, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 获取在机标本列表
+        samples = self.core.get_all_samples()
+        onboard_samples = [sample for sample_id, sample in samples.items() 
+                          if sample['status'] not in ['completed', 'unloaded']]
+        
+        # 创建树视图
+        columns = ('sample_id', 'status', 'load_time')
+        tree = ttk.Treeview(main_frame, columns=columns, show='headings', selectmode='browse')
+        tree.heading('sample_id', text='样本ID')
+        tree.heading('status', text='状态')
+        tree.heading('load_time', text='装载时间')
+        tree.column('sample_id', width=200)
+        tree.column('status', width=150)
+        tree.column('load_time', width=200)
+        
+        # 添加滚动条
+        scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        
+        # 填充数据
+        for sample in onboard_samples:
+            load_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(sample['load_time']))
+            tree.insert('', tk.END, values=(sample['sample_id'], sample['status'], load_time), 
+                      tags=('sample',), sample_id=sample['sample_id'])
+        
+        # 布局
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # 按钮框架
+        button_frame = ttk.Frame(main_frame, padding="10")
+        button_frame.pack(fill=tk.X, pady=10)
+        
+        # 手工弹出按钮
+        def on_eject_sample():
+            selection = tree.selection()
+            if selection:
+                item = tree.item(selection[0])
+                sample_id = item['tags'][1] if len(item['tags']) > 1 else item['values'][0]
+                
+                # 执行手工弹出
+                self._manual_eject_sample(sample_id)
+                onboard_window.destroy()
+        
+        ttk.Button(button_frame, text="手工弹出", command=on_eject_sample, state=tk.NORMAL if onboard_samples else tk.DISABLED)
+        .pack(side=tk.RIGHT, padx=5)
+        ttk.Button(button_frame, text="关闭", command=onboard_window.destroy).pack(side=tk.RIGHT, padx=5)
+    
+    def _manual_eject_sample(self, sample_id):
+        """手工弹出样本
+        
+        Args:
+            sample_id: 要弹出的样本ID
+        """
+        self.logger.info(f"手动弹出样本: {sample_id}")
+        
+        # 调用LAS服务器的手工弹出方法，该方法会：
+        # 1. 更新核心样本状态
+        # 2. 发送LOAD_UNLOAD_RESPONSE消息到LAS客户端
+        success = self.las_server.manual_eject_sample(sample_id)
+        
+        if success:
+            self.logger.info(f"样本 {sample_id} 已手动弹出，已通知LAS服务器")
+            self.logger.log_las(f"Manual ejection: Sample {sample_id} ejected, LAS notified")
+        else:
+            self.logger.error(f"手动弹出样本 {sample_id} 失败")
+            self.logger.log_las(f"Manual ejection failed: Sample {sample_id}")
+        
+        # 更新UI状态
+        self._update_status()
+        
     def _quit(self):
         """退出应用"""
         self.running = False
