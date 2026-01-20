@@ -1472,6 +1472,8 @@ class LASServer:
             header = pending_request['header']
             body = pending_request['body']
             
+            # 对于UNLOAD请求，可能需要更新body中的样本ID
+            # 但由于body是二进制数据，我们直接继续处理，因为核心处理已经能处理样本ID
             # 继续处理原始请求
             self._process_load_unload_request(conn, header, body, manual_complete=True)
     

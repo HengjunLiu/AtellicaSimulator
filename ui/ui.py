@@ -10,7 +10,7 @@ import threading
 import time
 
 
-APP_VERSION = "v1.3.2"
+APP_VERSION = "v1.3.3"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""
@@ -206,6 +206,19 @@ class AtellicaUI:
         # 提示文本
         self.prompt_text = ttk.Label(self.manual_prompt_frame, text="等待样本处理请求...", font=("Arial", 12))
         self.prompt_text.pack(pady=10)
+        
+        # 样本ID输入框（用于UNLOAD请求）
+        self.sample_id_frame = ttk.Frame(self.manual_prompt_frame)
+        self.sample_id_frame.pack(pady=10)
+        
+        self.sample_id_label = ttk.Label(self.sample_id_frame, text="样本ID:")
+        self.sample_id_label.pack(side=tk.LEFT, padx=5)
+        
+        self.sample_id_entry = ttk.Entry(self.sample_id_frame, width=20)
+        self.sample_id_entry.pack(side=tk.LEFT, padx=5)
+        
+        # 隐藏输入框初始状态
+        self.sample_id_frame.pack_forget()
         
         # 完成按钮
         self.complete_button = ttk.Button(self.manual_prompt_frame, text="完成", command=self._on_complete_button_click, state=tk.DISABLED)
@@ -862,6 +875,17 @@ class AtellicaUI:
                                                    outline=self.circle_outline, 
                                                    width=3)
         
+        # 处理样本ID输入框
+        if request_type == 'unload':
+            # 显示输入框并预填样本ID
+            self.sample_id_entry.delete(0, tk.END)
+            if sample_id:
+                self.sample_id_entry.insert(0, sample_id)
+            self.sample_id_frame.pack(pady=10)
+        else:
+            # 隐藏输入框
+            self.sample_id_frame.pack_forget()
+        
         # 启用完成按钮
         self.complete_button.configure(state=tk.NORMAL)
         
@@ -911,12 +935,21 @@ class AtellicaUI:
                 self.root.after_cancel(self.flash_job)
                 delattr(self, 'flash_job')
             
+            # 获取实际使用的样本ID（对于UNLOAD请求，允许手动修改）
+            request = self.current_request.copy()
+            if request['type'] == 'unload':
+                # 从输入框获取样本ID
+                actual_sample_id = self.sample_id_entry.get().strip()
+                if actual_sample_id:
+                    request['sample_id'] = actual_sample_id
+            
             # 通知LAS服务器完成处理
-            self.las_server.on_manual_operation_complete(self.current_request)
+            self.las_server.on_manual_operation_complete(request)
             
             # 重置UI
             self.prompt_canvas.delete("all")
             self.prompt_text.configure(text="等待样本处理请求...", foreground="black")
+            self.sample_id_frame.pack_forget()  # 隐藏输入框
             self.complete_button.configure(state=tk.DISABLED)
             delattr(self, 'current_request')
             if hasattr(self, 'circle_color'):
