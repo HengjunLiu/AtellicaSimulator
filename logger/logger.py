@@ -173,10 +173,8 @@ class Logger:
                     t = time.strftime(self.default_time_format, self.converter(record.created))
                     return self.default_msec_format % (t, record.msecs)
         
-        las_raw_formatter = MillisecondFormatter(
-            '%(asctime)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S.%3f'  # 精确到毫秒
-        )
+        # 使用简单的格式器，只输出消息内容，因为我们已经在log_las_raw中构建了完整的日志格式
+        las_raw_formatter = logging.Formatter('%(message)s')
         
         # 每日创建新文件，使用自定义文件名格式
         class LASRawFileHandler(TimedRotatingFileHandler):
@@ -485,11 +483,69 @@ class Logger:
             message_type: 消息类型，'RECEIVED'或'SENT'
             data: 原始数据内容
         """
-        # 确保message_type是大写
-        message_type = message_type.upper()
+        import struct
         
-        # 构建日志消息
-        log_message = f"{message_type} - {data}"
+        # 消息类型映射字典，包含所有指定的消息类型及其描述
+        MESSAGE_TYPE_MAP = {
+            0x0000: "ACK/NAK",
+            0x0001: "Handshake message",
+            0x0005: "Keep alive message",
+            0x0201: "Instrument Health Request message",
+            0x0202: "Instrument Health Response message",
+            0x0203: "Test inventory request message",
+            0x0204: "Reagent inventory response message",
+            0x0207: "Onboard sample info request message",
+            0x0208: "Onboard sample info response message",
+            0x0209: "Transfer status request message",
+            0x020A: "Transfer status response message",
+            0x020B: "Consumable Inventory Request Message",
+            0x020C: "Consumable Inventory response Message",
+            0x020D: "Initialization Completed Message",
+            0x0303: "Load_Unload Command request message",
+            0x0304: "Load_Unload Command response message",
+            0x0401: "Add queue request message",
+            0x0402: "Add queue command response message",
+            0x0403: "Skip queue command request message",
+            0x0404: "Skip queue command response message",
+            0x0405: "Clear queue request message",
+            0x0406: "Clear queue response message"
+        }
+        
+        # 将消息类型从完整的'SENT'/'RECEIVED'改为'S'/'R'
+        msg_type_short = 'S' if message_type.upper() == 'SENT' else 'R'
+        
+        # 解析消息，提取消息类型和其他重要信息
+        try:
+            # 将十六进制字符串转换为二进制数据
+            binary_data = bytes.fromhex(data)
+            
+            # 检查消息长度是否足够
+            if len(binary_data) < 18:  # 最小消息长度
+                message_desc = "Invalid message format - too short"
+            else:
+                # 解析消息头，提取消息类型
+                message_type_hex = struct.unpack_from('!H', binary_data, 7)[0]
+                message_type_str = f"0x{message_type_hex:04X}"
+                
+                # 获取消息类型描述
+                message_description = MESSAGE_TYPE_MAP.get(message_type_hex, "Unknown message type")
+                
+                # 根据消息类型构建描述，包含十六进制值和描述
+                message_desc = f"[{message_type_str}-{message_description}]"
+        except Exception as e:
+            # 如果解析失败，使用基本描述
+            message_desc = "[Invalid message format]"
+        
+        # 直接构建完整的日志消息，包括时间戳格式
+        import datetime
+        now = datetime.datetime.now()
+        timestamp = now.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # 精确到毫秒
+        
+        # 将连续的十六进制原始数据转换为带空格分隔的字节格式
+        formatted_data = ' '.join(data[i:i+2] for i in range(0, len(data), 2))
+        
+        # 构建符合LOG.txt格式的日志消息：[S/R]:时间戳\t[消息类型-描述]\t格式化数据
+        log_message = f"[{msg_type_short}]:{timestamp}\t{message_desc}\t{formatted_data}"
         
         # 异步记录日志
         self._async_log('las_raw', log_message)

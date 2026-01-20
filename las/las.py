@@ -1417,7 +1417,7 @@ class LASServer:
             unload_sample_id_len = len(unload_sample_id_bytes)
             
             body = struct.pack(
-                f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B B B H H B H',
+                f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B B H H B H',
                 interface_position_index,
                 load_sample_id_len,
                 load_sample_id_bytes,
@@ -1743,7 +1743,7 @@ class LASServer:
                     
                     # 记录发送的原始数据
                     message_hex = binascii.hexlify(message).decode('ascii')
-                    self.logger.log_las_raw('S', message_hex)
+                    self.logger.log_las_raw('SENT', message_hex)
                     # 发送消息
                     conn.sendall(message)
                     

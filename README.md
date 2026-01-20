@@ -36,6 +36,7 @@ Atellica Solution Simulator 是一个精确模拟西门子医疗检验设备 Ate
 - **ui**：用户界面模块，提供图形化操作和监控
 - **config**：配置管理模块，处理参数配置和持久化
 - **logger**：日志模块，记录系统运行和通信日志
+- **tests**：测试模块，包含所有测试文件和测试工具
 
 ## 安装
 
@@ -143,17 +144,50 @@ python main.py --config my_config.json
 
 ## 测试
 
+### 测试文件组织
+所有测试文件统一存放在 `tests` 目录下，便于管理和维护。
+
 ### 运行测试脚本
+
+#### 运行所有测试
 ```bash
-python test_simulator.py
+python -m pytest tests/ -v
 ```
 
-测试脚本会验证核心功能，包括：
-- 仪器健康状态获取
+#### 运行特定测试文件
+```bash
+python -m pytest tests/test_las.py -v
+```
+
+#### 运行特定测试类或方法
+```bash
+python -m pytest tests/test_las.py::TestLASModule -v
+python -m pytest tests/test_las.py::TestLASModule::test_initialization -v
+```
+
+### 测试内容
+测试脚本验证系统核心功能，包括：
+- 仪器健康状态获取和响应
 - 测试项目库存管理
 - 耗材库存管理
 - 样本接收和处理
 - 设备状态更新
+- LAS 和 LIS 通信协议实现
+- 系统初始化和配置加载
+
+### 测试文件说明
+- `test_las.py`：LAS 模块测试，验证 uRAP 协议实现和 LAS 通信功能
+- `test_lis.py`：LIS 模块测试，验证 ASTM 协议实现和 LIS 通信功能
+- `test_core.py`：核心模块测试，验证设备状态管理和样本处理逻辑
+- `test_simulator.py`：模拟器集成测试，验证系统整体功能
+- `test_urap_commands.py`：uRAP 命令测试，验证各种 uRAP 命令的处理逻辑
+
+### 测试开发
+- 新增测试文件时，应按照功能模块分类，命名格式为 `test_<module_name>.py`
+- 测试类命名格式为 `Test<ModuleName>`
+- 测试方法命名格式为 `test_<functionality_description>`
+- 确保测试覆盖率，重点测试核心功能和边界情况
+- 测试应具有独立性，避免测试之间相互依赖
 
 ## 开发扩展
 
