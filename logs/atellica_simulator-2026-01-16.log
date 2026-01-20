@@ -1,0 +1,30 @@
+2026-01-16 11:13:20 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-16 11:13:20 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-16 11:13:20 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-16 11:13:20 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-16 11:13:20 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-16 11:13:20 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-16 11:13:20 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-16 11:13:20 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-16 11:13:20 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-16 11:13:20 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-16 11:13:20 - AtellicaSimulator - INFO - LIS server instance set in core
+2026-01-16 11:13:20 - AtellicaSimulator - INFO - Running with UI
+2026-01-16 11:13:22 - AtellicaSimulator - INFO - LASServer started, listening on 0.0.0.0:10011
+2026-01-16 11:13:22 - AtellicaSimulator - INFO - LISServer started, listening on 0.0.0.0:10012
+2026-01-16 11:23:20 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-16 11:23:20 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-16 11:23:20 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-16 11:23:20 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-16 11:23:20 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-16 11:23:20 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-16 11:23:20 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-16 11:23:20 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-16 11:23:20 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-16 11:23:20 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-16 11:23:20 - AtellicaSimulator - INFO - LIS server instance set in core
+2026-01-16 11:23:20 - AtellicaSimulator - INFO - Running with UI
+2026-01-16 11:23:21 - AtellicaSimulator - INFO - LASServer started, listening on 0.0.0.0:10011
+2026-01-16 11:23:21 - AtellicaSimulator - INFO - LISServer started, listening on 0.0.0.0:10012
+2026-01-16 11:24:04 - AtellicaSimulator - INFO - LASServer stopped
+2026-01-16 11:24:04 - AtellicaSimulator - INFO - LISServer stopped

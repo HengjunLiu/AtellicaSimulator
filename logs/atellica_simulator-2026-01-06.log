@@ -1,0 +1,166 @@
+2026-01-06 15:21:14 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-06 15:21:14 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-06 15:21:14 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 15:21:14 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 15:21:14 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-06 15:21:14 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-06 15:21:14 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-06 15:21:14 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-06 15:21:14 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-06 15:21:14 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-06 15:21:14 - AtellicaSimulator - INFO - Running with UI
+2026-01-06 15:21:16 - AtellicaSimulator - ERROR - Failed to start LASServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 15:21:16 - AtellicaSimulator - ERROR - Failed to start LISServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - Added to queue IP0: SampleID=QUEUE_TEST_001, Occupancy=2
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - Added to queue IP0: SampleID=QUEUE_TEST_002, Occupancy=2
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - Added to queue IP0: SampleID=QUEUE_TEST_003, Occupancy=3
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - Skipped from queue IP0: SampleID=QUEUE_TEST_001
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - Cleared queue IP0: 2 carriers removed
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - Received sample LU_TEST_001 with tests ['TEST001'], results will be available at Tue Jan  6 15:51:26 2026
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - Received sample LU_TEST_002 with tests ['TEST002'], results will be available at Tue Jan  6 15:51:26 2026
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 15:21:26 - AtellicaSimulator - INFO - Added to queue IP0: SampleID=TS_TEST_001, Occupancy=2
+2026-01-06 17:24:05 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-06 17:24:05 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-06 17:24:05 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:24:05 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:24:05 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-06 17:24:05 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-06 17:24:05 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-06 17:24:05 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-06 17:24:05 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-06 17:24:05 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-06 17:24:05 - AtellicaSimulator - INFO - Running with UI
+2026-01-06 17:24:05 - AtellicaSimulator - ERROR - Failed to start LASServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:24:05 - AtellicaSimulator - ERROR - Failed to start LISServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:26:05 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-06 17:26:05 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-06 17:26:05 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:26:05 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:26:05 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-06 17:26:05 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-06 17:26:05 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-06 17:26:05 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-06 17:26:05 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-06 17:26:05 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-06 17:26:05 - AtellicaSimulator - INFO - Running with UI
+2026-01-06 17:26:05 - AtellicaSimulator - ERROR - Failed to start LASServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:26:05 - AtellicaSimulator - ERROR - Failed to start LISServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:26:26 - AtellicaSimulator - INFO - Updated automation interface status to 1
+2026-01-06 17:26:27 - AtellicaSimulator - INFO - Updated instrument process status to 1
+2026-01-06 17:26:28 - AtellicaSimulator - INFO - Updated LIS connection status to 1
+2026-01-06 17:26:33 - AtellicaSimulator - INFO - Updated instrument process status to 2
+2026-01-06 17:26:46 - AtellicaSimulator - INFO - Updated instrument process status to 1
+2026-01-06 17:26:55 - AtellicaSimulator - INFO - Updated LIS connection status to 2
+2026-01-06 17:27:00 - AtellicaSimulator - INFO - Updated LIS connection status to 1
+2026-01-06 17:28:41 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-06 17:28:41 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-06 17:28:41 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:28:41 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:28:41 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-06 17:28:41 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-06 17:28:41 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-06 17:28:41 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-06 17:28:41 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-06 17:28:41 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-06 17:28:41 - AtellicaSimulator - INFO - Running with UI
+2026-01-06 17:28:41 - AtellicaSimulator - ERROR - Failed to start LASServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:28:41 - AtellicaSimulator - ERROR - Failed to start LISServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:29:53 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-06 17:29:53 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-06 17:29:53 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:29:53 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:29:53 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-06 17:29:53 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-06 17:29:53 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-06 17:29:53 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-06 17:29:53 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-06 17:29:53 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-06 17:29:53 - AtellicaSimulator - INFO - Running with UI
+2026-01-06 17:29:53 - AtellicaSimulator - ERROR - Failed to start LASServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:29:53 - AtellicaSimulator - ERROR - Failed to start LISServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:30:59 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-06 17:30:59 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-06 17:30:59 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:30:59 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:30:59 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-06 17:30:59 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-06 17:30:59 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-06 17:30:59 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-06 17:30:59 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-06 17:30:59 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-06 17:30:59 - AtellicaSimulator - INFO - Running with UI
+2026-01-06 17:30:59 - AtellicaSimulator - ERROR - Failed to start LASServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:30:59 - AtellicaSimulator - ERROR - Failed to start LISServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:32:45 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-06 17:32:45 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-06 17:32:45 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:32:45 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:32:45 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-06 17:32:45 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-06 17:32:45 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-06 17:32:45 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-06 17:32:45 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-06 17:32:45 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-06 17:32:45 - AtellicaSimulator - INFO - Running with UI
+2026-01-06 17:32:45 - AtellicaSimulator - ERROR - Failed to start LASServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:32:45 - AtellicaSimulator - ERROR - Failed to start LISServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:36:03 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-06 17:36:03 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-06 17:36:03 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:36:03 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:36:03 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-06 17:36:03 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-06 17:36:03 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-06 17:36:03 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-06 17:36:03 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-06 17:36:03 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-06 17:36:03 - AtellicaSimulator - INFO - Running with UI
+2026-01-06 17:36:03 - AtellicaSimulator - ERROR - Failed to start LASServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:36:03 - AtellicaSimulator - ERROR - Failed to start LISServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:37:00 - AtellicaSimulator - INFO - Updated consumable inventory: Module MODULE001, Consumable 3 - status: 2
+2026-01-06 17:37:00 - AtellicaSimulator - INFO - Updated consumable inventory: MODULE001, consumable=3, status=Yellow
+2026-01-06 17:37:01 - AtellicaSimulator - INFO - Updated consumable inventory: Module MODULE001, Consumable 3 - status: 2
+2026-01-06 17:37:01 - AtellicaSimulator - INFO - Updated consumable inventory: MODULE001, consumable=3, status=Yellow
+2026-01-06 17:37:01 - AtellicaSimulator - INFO - Updated consumable inventory: Module MODULE001, Consumable 3 - status: 2
+2026-01-06 17:37:01 - AtellicaSimulator - INFO - Updated consumable inventory: MODULE001, consumable=3, status=Yellow
+2026-01-06 17:37:15 - AtellicaSimulator - INFO - Updated test inventory: TEST002 - count: 52, status: 2
+2026-01-06 17:37:15 - AtellicaSimulator - INFO - Updated test inventory: TEST002, count=52, status=Yellow
+2026-01-06 17:41:49 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-06 17:41:49 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-06 17:41:49 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:41:49 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:41:49 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-06 17:41:49 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-06 17:41:49 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-06 17:41:49 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-06 17:41:49 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-06 17:41:49 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-06 17:41:49 - AtellicaSimulator - INFO - Running with UI
+2026-01-06 17:41:49 - AtellicaSimulator - ERROR - Failed to start LASServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:41:49 - AtellicaSimulator - ERROR - Failed to start LISServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:42:17 - AtellicaSimulator - INFO - Added test inventory: K - count: 20, status: 1
+2026-01-06 17:42:17 - AtellicaSimulator - INFO - Added test inventory: K, count=20, status=Green
+2026-01-06 17:42:34 - AtellicaSimulator - ERROR - Consumable 5 already exists in module MODULE001
+2026-01-06 17:42:34 - AtellicaSimulator - INFO - Added consumable inventory: module=MODULE001, consumable=5, status=Yellow
+2026-01-06 17:42:50 - AtellicaSimulator - INFO - Added new module with consumable: Module CH1, Consumable 2 - status: 2
+2026-01-06 17:42:50 - AtellicaSimulator - INFO - Added consumable inventory: module=CH1, consumable=2, status=Yellow
+2026-01-06 17:44:28 - AtellicaSimulator - INFO - AtellicaSimulator starting...
+2026-01-06 17:44:28 - AtellicaSimulator - INFO - Initializing AtellicaCore...
+2026-01-06 17:44:28 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:44:28 - AtellicaSimulator - INFO - AtellicaCore initialized successfully
+2026-01-06 17:44:28 - AtellicaSimulator - INFO - Initializing LASServer...
+2026-01-06 17:44:28 - AtellicaSimulator - INFO - LASServer initialized, listening on 0.0.0.0:10011
+2026-01-06 17:44:28 - AtellicaSimulator - INFO - LASServer initialized successfully
+2026-01-06 17:44:28 - AtellicaSimulator - INFO - Initializing LISServer...
+2026-01-06 17:44:28 - AtellicaSimulator - INFO - LISServer initialized, listening on 0.0.0.0:10012
+2026-01-06 17:44:28 - AtellicaSimulator - INFO - LISServer initialized successfully
+2026-01-06 17:44:28 - AtellicaSimulator - INFO - Running with UI
+2026-01-06 17:44:28 - AtellicaSimulator - ERROR - Failed to start LASServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。
+2026-01-06 17:44:28 - AtellicaSimulator - ERROR - Failed to start LISServer: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。

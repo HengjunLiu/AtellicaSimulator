@@ -1,0 +1,14 @@
+2026-01-09 18:41:40 - LASCommunication - INFO - Connection established: 127.0.0.1:12953
+2026-01-09 18:41:41 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0001
+2026-01-09 18:41:41 - LASCommunication - INFO - Connection closed: 127.0.0.1:12953
+2026-01-09 18:41:44 - LASCommunication - INFO - Connection established: 127.0.0.1:12958
+2026-01-09 18:41:44 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] 在一个非套接字上尝试了一个操作。
+2026-01-09 18:42:14 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] 在一个非套接字上尝试了一个操作。
+2026-01-09 18:42:44 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] 在一个非套接字上尝试了一个操作。
+2026-01-09 18:43:15 - LASCommunication - INFO - Keep-Alive timeout, closing connection
+2026-01-09 18:43:15 - LASCommunication - INFO - Keep-Alive timeout, closing connection
+2026-01-09 18:43:15 - LASCommunication - INFO - Connection closed: 127.0.0.1:12958
+2026-01-09 18:43:18 - LASCommunication - INFO - Connection established: 127.0.0.1:12972
+2026-01-09 18:43:19 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0005
+2026-01-09 18:43:19 - LASCommunication - INFO - Connection closed: 127.0.0.1:12972
+2026-01-09 18:43:49 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] 在一个非套接字上尝试了一个操作。

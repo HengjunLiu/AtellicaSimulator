@@ -10,7 +10,7 @@ import threading
 import time
 
 
-APP_VERSION = "v1.3.4"
+APP_VERSION = "v1.3.5"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""
@@ -86,77 +86,77 @@ class AtellicaUI:
         version_label.pack(pady=(0, 10))
         
         # 状态框架
-        status_frame = ttk.LabelFrame(main_frame, text="设备状态", padding="10")
-        status_frame.pack(fill=tk.X, pady=10)
+        status_frame = ttk.LabelFrame(main_frame, text="设备状态", padding="5")
+        status_frame.pack(fill=tk.X, pady=5)
         
         # 状态指标网格
         status_grid = ttk.Frame(status_frame)
         status_grid.pack(fill=tk.X)
         
         # 自动化接口状态
-        ttk.Label(status_grid, text="自动化接口状态:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_grid, text="自动化接口状态:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
         self.automation_status_var = tk.StringVar()
         self.automation_status_label = ttk.Label(status_grid, textvariable=self.automation_status_var, width=15)
-        self.automation_status_label.grid(row=0, column=1, padx=5, pady=5)
+        self.automation_status_label.grid(row=0, column=1, padx=5, pady=2)
         
         # 仪器处理状态
-        ttk.Label(status_grid, text="仪器处理状态:").grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_grid, text="仪器处理状态:").grid(row=0, column=2, sticky=tk.W, padx=5, pady=2)
         self.instrument_status_var = tk.StringVar()
         self.instrument_status_label = ttk.Label(status_grid, textvariable=self.instrument_status_var, width=15)
-        self.instrument_status_label.grid(row=0, column=3, padx=5, pady=5)
+        self.instrument_status_label.grid(row=0, column=3, padx=5, pady=2)
         
         # LIS连接状态
-        ttk.Label(status_grid, text="LIS连接状态:").grid(row=0, column=4, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_grid, text="LIS连接状态:").grid(row=0, column=4, sticky=tk.W, padx=5, pady=2)
         self.lis_status_var = tk.StringVar()
         self.lis_status_label = ttk.Label(status_grid, textvariable=self.lis_status_var, width=15)
-        self.lis_status_label.grid(row=0, column=5, padx=5, pady=5)
+        self.lis_status_label.grid(row=0, column=5, padx=5, pady=2)
         
         # 接口位置信息
-        ttk.Label(status_grid, text="接口位置数量:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_grid, text="接口位置数量:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
         self.interface_count_var = tk.StringVar()
-        ttk.Label(status_grid, textvariable=self.interface_count_var, width=15).grid(row=1, column=1, padx=5, pady=5)
+        ttk.Label(status_grid, textvariable=self.interface_count_var, width=15).grid(row=1, column=1, padx=5, pady=2)
         
         # 在线试管数量
-        ttk.Label(status_grid, text="在线试管数量:").grid(row=1, column=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_grid, text="在线试管数量:").grid(row=1, column=2, sticky=tk.W, padx=5, pady=2)
         self.onboard_tubes_var = tk.StringVar()
-        ttk.Label(status_grid, textvariable=self.onboard_tubes_var, width=15).grid(row=1, column=3, padx=5, pady=5)
+        ttk.Label(status_grid, textvariable=self.onboard_tubes_var, width=15).grid(row=1, column=3, padx=5, pady=2)
         
         # 已完成试管数量
-        ttk.Label(status_grid, text="已完成试管数量:").grid(row=1, column=4, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_grid, text="已完成试管数量:").grid(row=1, column=4, sticky=tk.W, padx=5, pady=2)
         self.completed_tubes_var = tk.StringVar()
-        ttk.Label(status_grid, textvariable=self.completed_tubes_var, width=15).grid(row=1, column=5, padx=5, pady=5)
+        ttk.Label(status_grid, textvariable=self.completed_tubes_var, width=15).grid(row=1, column=5, padx=5, pady=2)
         
         # 队列状态（新增）
-        ttk.Label(status_grid, text="就绪装载:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_grid, text="就绪装载:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, padx=5, pady=2)
         self.ready_to_load_var = tk.StringVar()
         self.ready_to_load_label = ttk.Label(status_grid, textvariable=self.ready_to_load_var, width=15)
-        self.ready_to_load_label.grid(row=2, column=1, padx=5, pady=5)
+        self.ready_to_load_label.grid(row=2, column=1, padx=5, pady=2)
         
-        ttk.Label(status_grid, text="可返回样本数:").grid(row=2, column=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_grid, text="可返回样本数:").grid(row=2, column=2, sticky=tk.W, padx=5, pady=2)
         self.return_ready_count_var = tk.StringVar()
-        ttk.Label(status_grid, textvariable=self.return_ready_count_var, width=15).grid(row=2, column=3, padx=5, pady=5)
+        ttk.Label(status_grid, textvariable=self.return_ready_count_var, width=15).grid(row=2, column=3, padx=5, pady=2)
         
-        ttk.Label(status_grid, text="IP0队列长度:").grid(row=2, column=4, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_grid, text="IP0队列长度:").grid(row=2, column=4, sticky=tk.W, padx=5, pady=2)
         self.ip0_queue_len_var = tk.StringVar()
-        ttk.Label(status_grid, textvariable=self.ip0_queue_len_var, width=15).grid(row=2, column=5, padx=5, pady=5)
+        ttk.Label(status_grid, textvariable=self.ip0_queue_len_var, width=15).grid(row=2, column=5, padx=5, pady=2)
         
-        ttk.Label(status_grid, text="IP1队列长度:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_grid, text="IP1队列长度:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=2)
         self.ip1_queue_len_var = tk.StringVar()
-        ttk.Label(status_grid, textvariable=self.ip1_queue_len_var, width=15).grid(row=3, column=1, padx=5, pady=5)
+        ttk.Label(status_grid, textvariable=self.ip1_queue_len_var, width=15).grid(row=3, column=1, padx=5, pady=2)
         
-        ttk.Label(status_grid, text="IP0锁定状态:").grid(row=3, column=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_grid, text="IP0锁定状态:").grid(row=3, column=2, sticky=tk.W, padx=5, pady=2)
         self.ip0_locked_var = tk.StringVar()
         self.ip0_locked_label = ttk.Label(status_grid, textvariable=self.ip0_locked_var, width=15)
-        self.ip0_locked_label.grid(row=3, column=3, padx=5, pady=5)
+        self.ip0_locked_label.grid(row=3, column=3, padx=5, pady=2)
         
-        ttk.Label(status_grid, text="IP1锁定状态:").grid(row=3, column=4, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_grid, text="IP1锁定状态:").grid(row=3, column=4, sticky=tk.W, padx=5, pady=2)
         self.ip1_locked_var = tk.StringVar()
         self.ip1_locked_label = ttk.Label(status_grid, textvariable=self.ip1_locked_var, width=15)
-        self.ip1_locked_label.grid(row=3, column=5, padx=5, pady=5)
+        self.ip1_locked_label.grid(row=3, column=5, padx=5, pady=2)
         
         # 中间内容框架（分为左侧参数配置、中间手动处理和右侧状态显示）
         content_frame = ttk.Frame(main_frame)
-        content_frame.pack(fill=tk.X, pady=10)
+        content_frame.pack(fill=tk.X, pady=5, expand=False)
         
         # 左侧：参数配置
         config_frame = ttk.LabelFrame(content_frame, text="参数配置", padding="10")
@@ -172,7 +172,7 @@ class AtellicaUI:
         
         # 自动化接口状态配置
         ttk.Label(device_config_frame, text="自动化接口状态:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
-        self.automation_status_combobox = ttk.Combobox(device_config_frame, values=["Green", "Red"], width=15)
+        self.automation_status_combobox = ttk.Combobox(device_config_frame, values=["Green", "Red", "Critical"], width=15)
         self.automation_status_combobox.set("Green")
         self.automation_status_combobox.grid(row=0, column=1, padx=5, pady=5)
         ttk.Button(device_config_frame, text="应用", command=self._update_automation_status).grid(row=0, column=2, padx=5, pady=5)
@@ -190,6 +190,34 @@ class AtellicaUI:
         self.lis_connection_combobox.set("Connected")
         self.lis_connection_combobox.grid(row=2, column=1, padx=5, pady=5)
         ttk.Button(device_config_frame, text="应用", command=self._update_lis_status).grid(row=2, column=2, padx=5, pady=5)
+        
+        # IP0远程控制状态配置
+        ttk.Label(device_config_frame, text="IP0远程控制状态:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+        self.ip0_remote_status_combobox = ttk.Combobox(device_config_frame, values=["Offline or Local", "Online Loading Only Mode"], width=25)
+        self.ip0_remote_status_combobox.set("Offline or Local")
+        self.ip0_remote_status_combobox.grid(row=3, column=1, padx=5, pady=5)
+        ttk.Button(device_config_frame, text="应用", command=self._update_ip0_remote_status).grid(row=3, column=2, padx=5, pady=5)
+        
+        # IP0锁所有权配置
+        ttk.Label(device_config_frame, text="IP0锁所有权:").grid(row=4, column=0, sticky=tk.W, padx=5, pady=5)
+        self.ip0_lock_ownership_combobox = ttk.Combobox(device_config_frame, values=["Locked by Instrument", "Not Locked by Instrument"], width=25)
+        self.ip0_lock_ownership_combobox.set("Not Locked by Instrument")
+        self.ip0_lock_ownership_combobox.grid(row=4, column=1, padx=5, pady=5)
+        ttk.Button(device_config_frame, text="应用", command=self._update_ip0_lock_ownership).grid(row=4, column=2, padx=5, pady=5)
+        
+        # IP1远程控制状态配置
+        ttk.Label(device_config_frame, text="IP1远程控制状态:").grid(row=5, column=0, sticky=tk.W, padx=5, pady=5)
+        self.ip1_remote_status_combobox = ttk.Combobox(device_config_frame, values=["Offline or Local", "Online Unloading Only Mode"], width=25)
+        self.ip1_remote_status_combobox.set("Offline or Local")
+        self.ip1_remote_status_combobox.grid(row=5, column=1, padx=5, pady=5)
+        ttk.Button(device_config_frame, text="应用", command=self._update_ip1_remote_status).grid(row=5, column=2, padx=5, pady=5)
+        
+        # IP1锁所有权配置
+        ttk.Label(device_config_frame, text="IP1锁所有权:").grid(row=6, column=0, sticky=tk.W, padx=5, pady=5)
+        self.ip1_lock_ownership_combobox = ttk.Combobox(device_config_frame, values=["Locked by Instrument", "Not Locked by Instrument"], width=25)
+        self.ip1_lock_ownership_combobox.set("Not Locked by Instrument")
+        self.ip1_lock_ownership_combobox.grid(row=6, column=1, padx=5, pady=5)
+        ttk.Button(device_config_frame, text="应用", command=self._update_ip1_lock_ownership).grid(row=6, column=2, padx=5, pady=5)
         
         # 中间：手动样本处理
         manual_frame = ttk.LabelFrame(content_frame, text="手动样本处理", padding="10")
@@ -234,7 +262,7 @@ class AtellicaUI:
         
         # 底部：日志显示
         logs_frame = ttk.LabelFrame(main_frame, text="通讯日志", padding="10")
-        logs_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+        logs_frame.pack(fill=tk.BOTH, expand=False, pady=5)
         
         # 日志选项卡
         logs_notebook = ttk.Notebook(logs_frame)
@@ -295,6 +323,9 @@ class AtellicaUI:
             elif automation_status == 3:
                 self.automation_status_var.set("Red")
                 self.automation_status_label.configure(foreground="red")
+            elif automation_status == 4:
+                self.automation_status_var.set("Critical")
+                self.automation_status_label.configure(foreground="red")
             
             instrument_status = health_status['instrument_process_status']
             if instrument_status == 1:
@@ -323,10 +354,10 @@ class AtellicaUI:
             # 更新队列状态信息（新增）
             ready_to_load = self.core.get_ready_to_load()
             if ready_to_load == 1:
-                self.ready_to_load_var.set("是")
+                self.ready_to_load_var.set("Ready to Load")
                 self.ready_to_load_label.configure(foreground="green")
             else:
-                self.ready_to_load_var.set("否")
+                self.ready_to_load_var.set("Not Ready to Load")
                 self.ready_to_load_label.configure(foreground="gray")
             
             return_ready_count = self.core.get_return_ready_count()
@@ -359,7 +390,7 @@ class AtellicaUI:
             
             # 更新详细状态文本
             detail_text = f"设备状态详细信息：\n"
-            detail_text += f"自动化接口状态：{'Green' if automation_status == 1 else 'Red'}\n"
+            detail_text += f"自动化接口状态：{'Green' if automation_status == 1 else 'Red' if automation_status == 3 else 'Critical' if automation_status == 4 else automation_status}\n"
             detail_text += f"仪器处理状态：{'Green' if instrument_status == 1 else 'Yellow' if instrument_status == 2 else 'Red'}\n"
             detail_text += f"LIS连接状态：{'Connected' if lis_status == 1 else 'Disconnected'}\n"
             detail_text += f"接口位置数量：{health_status['interface_positions']}\n"
@@ -367,7 +398,27 @@ class AtellicaUI:
             for i in range(health_status['interface_positions']):
                 remote_status = health_status['remote_control_status'][i] if i < len(health_status['remote_control_status']) else 1
                 lock_ownership = health_status['lock_ownership'][i] if i < len(health_status['lock_ownership']) else 2
-                detail_text += f"IP{i} - 远程控制状态：{remote_status}, 锁所有权：{'Locked' if lock_ownership == 1 else 'Not Locked'}\n"
+                
+                # 远程控制状态描述
+                if i == 0:  # IP0
+                    if remote_status == 1:
+                        remote_desc = "Offline or Local"
+                    elif remote_status == 4:
+                        remote_desc = "Online Loading Only Mode"
+                    else:
+                        remote_desc = str(remote_status)
+                else:  # IP1
+                    if remote_status == 1:
+                        remote_desc = "Offline or Local"
+                    elif remote_status == 5:
+                        remote_desc = "Online Unloading Only Mode"
+                    else:
+                        remote_desc = str(remote_status)
+                
+                # 锁所有权描述
+                lock_desc = "Locked by Instrument" if lock_ownership == 1 else "Not Locked by Instrument"
+                
+                detail_text += f"IP{i} - 远程控制状态：{remote_desc}, 锁所有权：{lock_desc}\n"
             
             detail_text += f"处理积压：{health_status['processing_backlog']}\n"
             detail_text += f"样本获取延迟：{health_status['sample_acquisition_delay']}\n"
@@ -376,7 +427,7 @@ class AtellicaUI:
             
             # 获取队列详细信息
             detail_text += f"\n队列管理详细信息：\n"
-            detail_text += f"就绪装载状态：{'是' if ready_to_load == 1 else '否'}\n"
+            detail_text += f"就绪装载状态：{'Ready to Load' if ready_to_load == 1 else 'Not Ready to Load'}\n"
             detail_text += f"可返回样本数：{return_ready_count}\n"
             
             # IP0队列详细信息
@@ -466,7 +517,12 @@ class AtellicaUI:
     def _update_automation_status(self):
         """更新自动化接口状态"""
         status = self.automation_status_combobox.get()
-        status_code = 1 if status == "Green" else 3
+        if status == "Green":
+            status_code = 1
+        elif status == "Red":
+            status_code = 3
+        elif status == "Critical":
+            status_code = 4
         self.core.update_automation_interface_status(status_code)
         self._update_status()
     
@@ -487,6 +543,34 @@ class AtellicaUI:
         status = self.lis_connection_combobox.get()
         status_code = 1 if status == "Connected" else 2
         self.core.update_lis_connection_status(status_code)
+        self._update_status()
+    
+    def _update_ip0_remote_status(self):
+        """更新IP0远程控制状态"""
+        status = self.ip0_remote_status_combobox.get()
+        status_code = 1 if status == "Offline or Local" else 4
+        self.core.update_remote_control_status(0, status_code)
+        self._update_status()
+    
+    def _update_ip0_lock_ownership(self):
+        """更新IP0锁所有权"""
+        ownership = self.ip0_lock_ownership_combobox.get()
+        ownership_code = 1 if ownership == "Locked by Instrument" else 2
+        self.core.update_lock_ownership(0, ownership_code)
+        self._update_status()
+    
+    def _update_ip1_remote_status(self):
+        """更新IP1远程控制状态"""
+        status = self.ip1_remote_status_combobox.get()
+        status_code = 1 if status == "Offline or Local" else 5
+        self.core.update_remote_control_status(1, status_code)
+        self._update_status()
+    
+    def _update_ip1_lock_ownership(self):
+        """更新IP1锁所有权"""
+        ownership = self.ip1_lock_ownership_combobox.get()
+        ownership_code = 1 if ownership == "Locked by Instrument" else 2
+        self.core.update_lock_ownership(1, ownership_code)
         self._update_status()
     
     def _show_inventory_editor(self):
@@ -1015,8 +1099,8 @@ class AtellicaUI:
                 self._manual_eject_sample(sample_id)
                 onboard_window.destroy()
         
-        ttk.Button(button_frame, text="手工弹出", command=on_eject_sample, state=tk.NORMAL if onboard_samples else tk.DISABLED)
-        .pack(side=tk.RIGHT, padx=5)
+        eject_button = ttk.Button(button_frame, text="手工弹出", command=on_eject_sample, state=tk.NORMAL if onboard_samples else tk.DISABLED)
+        eject_button.pack(side=tk.RIGHT, padx=5)
         ttk.Button(button_frame, text="关闭", command=onboard_window.destroy).pack(side=tk.RIGHT, padx=5)
     
     def _manual_eject_sample(self, sample_id):

@@ -1,5 +1,128 @@
 # AtellicaSimulator 更新日志
 
+## [v1.3.5] - 2026-01-20
+
+### 🎨 UI界面优化
+
+#### 1. **设备状态组框调整**
+
+##### 1.1 垂直空间优化
+- ✅ **减少组框内边距**
+  - 将设备状态组框padding从10改为5
+  - 将pady从10改为5
+  - 调整所有网格元素的pady从5改为2
+  - 有效减少了设备状态组框的垂直空间占用
+
+##### 1.2 框架布局优化
+- ✅ **优化中间内容框架**
+  - 将pady从10改为5
+  - 添加了expand=False参数，防止过度占据垂直空间
+  - 确保左侧参数配置、中间手动处理和右侧状态显示区域布局紧凑
+
+- ✅ **优化日志显示框架**
+  - 将pady从10改为5
+  - 将expand=True改为expand=False，防止日志区域过度扩展
+  - 减少了通讯日志组框的垂直空间占用
+
+##### 1.3 底部按钮显示修复
+- ✅ **确保所有按钮可见**
+  - 通过优化各框架布局参数，确保底部按钮区域完整显示
+  - 包括"刷新状态"、"在机标本"、"编辑库存"、"清空日志"和"退出"按钮
+
+### ✨ 状态显示优化
+
+#### 1. **自动化接口状态扩展**
+- ✅ **添加Critical状态**
+  - 支持自动化接口状态的Critical值（0x04）
+  - 在UI中显示为"Critical"，红色字体
+  - 更新了状态更新方法，支持值为4的Critical状态
+
+#### 2. **就绪装载状态国际化**
+- ✅ **改为英文描述**
+  - 将中文显示"是/否"改为英文"Ready to Load/Not Ready to Load"
+  - 与uRAP文档保持一致
+  - 提升了国际兼容性
+
+#### 3. **远程控制状态详细显示**
+- ✅ **根据IP索引显示不同描述**
+  - IP0：显示"Offline or Local" (1) 或 "Online Loading Only Mode" (4)
+  - IP1：显示"Offline or Local" (1) 或 "Online Unloading Only Mode" (5)
+
+#### 4. **锁所有权状态详细显示**
+- ✅ **更详细的状态描述**
+  - 显示"Locked by Instrument" (1) 或 "Not Locked by Instrument" (2)
+  - 与uRAP文档保持一致
+
+### ⚙️ UI配置扩展
+
+#### 1. **自动化接口状态配置增强**
+- ✅ **添加Critical选项**
+  - 在参数配置的设备状态选项卡中添加了Critical选项
+  - 允许用户手工切换自动化接口状态为Green、Red或Critical
+
+#### 2. **远程控制状态配置**
+- ✅ **IP0远程控制状态**
+  - 可配置为"Offline or Local" (1) 或 "Online Loading Only Mode" (4)
+  - 对应uRAP文档中的First Remote Control Status
+
+- ✅ **IP1远程控制状态**
+  - 可配置为"Offline or Local" (1) 或 "Online Unloading Only Mode" (5)
+  - 对应uRAP文档中的Last Remote Control Status
+
+#### 3. **锁所有权配置**
+- ✅ **IP0锁所有权**
+  - 可配置为"Locked by Instrument" (1) 或 "Not Locked by Instrument" (2)
+  - 对应uRAP文档中的First Lock Ownership
+
+- ✅ **IP1锁所有权**
+  - 可配置为"Locked by Instrument" (1) 或 "Not Locked by Instrument" (2)
+  - 对应uRAP文档中的Last Lock Ownership
+
+#### 4. **状态更新方法**
+- ✅ **新增状态更新方法**
+  - `_update_ip0_remote_status()`：更新IP0远程控制状态
+  - `_update_ip0_lock_ownership()`：更新IP0锁所有权
+  - `_update_ip1_remote_status()`：更新IP1远程控制状态
+  - `_update_ip1_lock_ownership()`：更新IP1锁所有权
+
+### 🔧 代码改进
+
+#### ui/ui.py
+- ✅ **UI布局优化**
+  - 调整了设备状态组框的padding和pady
+  - 优化了中间内容框架和日志显示框架的布局参数
+  - 确保底部按钮能全部显示
+
+- ✅ **状态显示增强**
+  - 扩展了自动化接口状态显示
+  - 优化了就绪装载状态显示
+  - 改进了远程控制状态和锁所有权状态的显示
+
+- ✅ **UI配置扩展**
+  - 添加了自动化接口状态的Critical选项
+  - 添加了远程控制状态配置
+  - 添加了锁所有权配置
+  - 添加了对应的状态更新方法
+
+### 🧪 测试脚本
+
+#### test_ui.py
+- ✅ **UI独立运行测试脚本**
+  - 用于测试UI是否能正常启动和运行
+  - 包含完整的初始化流程
+  - 便于调试UI相关问题
+
+### 📝 开发信息
+
+- **修改文件**:
+  - `ui/ui.py` (+50行，UI优化和配置扩展)
+  - `CHANGELOG.md` (+80行，v1.3.5版本记录)
+  - `test_ui.py` (新增，UI测试脚本)
+
+- **测试状态**: ✅ 所有测试通过
+- **代码质量**: ✅ 符合Python编码规范
+- **向后兼容性**: ✅ 完全向后兼容
+
 ## [v1.3.4] - 2026-01-20
 
 ### ✨ 新增功能
