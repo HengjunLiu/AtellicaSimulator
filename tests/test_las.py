@@ -231,14 +231,17 @@ class TestLASModule(unittest.TestCase):
         # 设置为initialization状态
         self.las_server.conversation_status = self.las_server.CONVERSATION_STATUS_INITIALIZATION
         
+        # 设置等待初始化完成ACK标志
+        self.las_server._awaiting_init_complete_ack = True
+
         # 创建模拟消息
         mock_header = {'return_sequence_id': 1}
         mock_body = b'\x00'
         mock_conn = MagicMock()
-        
+
         # 调用方法
         self.las_server._handle_ack(mock_conn, mock_header, mock_body)
-        
+
         # 验证结果
         self.assertEqual(self.las_server.conversation_status, self.las_server.CONVERSATION_STATUS_CONNECTED)
 
@@ -354,7 +357,7 @@ class TestLASIntegration(unittest.TestCase):
         header = struct.pack('!cHHHH8sc', 
                           b'\x02', msg_len, sequence_id, return_sequence_id, message_type, timestamp, instrument_id_byte)
         
-        checksum_data = header[1:] + body
+        checksum_data = header + body
         checksum = sum(checksum_data) % 256
         checksum_bytes = f"{checksum:02X}".encode('ascii')
         
@@ -479,7 +482,7 @@ class TestLASFunctional(unittest.TestCase):
             header = struct.pack('!cHHHH8sc', 
                               b'\x02', msg_len, sequence_id, return_sequence_id, message_type, timestamp, instrument_id_byte)
             
-            checksum_data = header[1:] + body
+            checksum_data = header + body
             checksum = sum(checksum_data) % 256
             checksum_bytes = f"{checksum:02X}".encode('ascii')
             

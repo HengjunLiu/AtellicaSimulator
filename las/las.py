@@ -54,7 +54,18 @@ class LASServer:
         self.conversation_status = self.CONVERSATION_STATUS_LISTENING
         
         # 初始化阶段已处理的请求类型集合
-        self.initialized_requests = set()
+        self.initialized_requests = {
+            'clear_queue': set(),  # 存储已处理的Interface Position Index
+            'transfer_status': set(),  # 存储已处理的Interface Position Index
+            'instrument_health': False,
+            'test_inventory': False,
+            'onboard_sample_info': False,
+            'consumable_inventory': False
+        }
+        
+        # 等待ACK标志
+        self._awaiting_handshake_ack = False
+        self._awaiting_init_complete_ack = False
         
         # 手动操作相关
         self.pending_requests = []
@@ -376,14 +387,21 @@ class LASServer:
                     self.logger.info(f"Handshake completed, switching to {self.CONVERSATION_STATUS_INITIALIZATION} state")
                     self.logger.log_las(f"Handshake completed, switching to {self.CONVERSATION_STATUS_INITIALIZATION} state")
                     # 重置初始化请求集合
-                    self.initialized_requests.clear()
+                    self.initialized_requests = {
+                    'clear_queue': set(),
+                    'transfer_status': set(),
+                    'instrument_health': False,
+                    'test_inventory': False,
+                    'onboard_sample_info': False,
+                    'consumable_inventory': False
+                }
                 
                 # 检查是否是对初始化完成消息的ACK
-                # 这里需要通过sequence_id来判断，暂时简化处理
-                # 假设收到ACK后就切换到connected状态
-                elif self.conversation_status == self.CONVERSATION_STATUS_INITIALIZATION:
+                # 只有当我们发送了Initialization Completed Message后，收到的ACK才会切换到connected状态
+                elif self.conversation_status == self.CONVERSATION_STATUS_INITIALIZATION and hasattr(self, '_awaiting_init_complete_ack') and self._awaiting_init_complete_ack:
                     # 收到初始化完成消息的ACK，切换到connected状态
                     self.conversation_status = self.CONVERSATION_STATUS_CONNECTED
+                    self._awaiting_init_complete_ack = False
                     self.logger.info(f"Initialization completed, switching to {self.CONVERSATION_STATUS_CONNECTED} state")
                     self.logger.log_las(f"Initialization completed, switching to {self.CONVERSATION_STATUS_CONNECTED} state")
                 
@@ -449,15 +467,35 @@ class LASServer:
             elif message_type == self.MSG_TYPE_CONSUMABLE_INVENTORY_REQUEST:
                 self._handle_consumable_inventory_request(conn, header)
             elif message_type == self.MSG_TYPE_TRANSFER_STATUS_REQUEST:
-                self._handle_transfer_status_request(conn, header)
+                self._handle_transfer_status_request(conn, header, body)
             elif message_type == self.MSG_TYPE_CLEAR_QUEUE_REQUEST:
-                self._handle_clear_queue_request(conn, header)
+                self._handle_clear_queue_request(conn, header, body)
             
-            # 记录已处理的请求类型
-            self.initialized_requests.add(message_type)
+            # 记录已处理的请求
+            if message_type == self.MSG_TYPE_CLEAR_QUEUE_REQUEST:
+                # 解析Interface Position Index
+                ip_index = body[0] if body else 0
+                self.initialized_requests['clear_queue'].add(ip_index)
+            elif message_type == self.MSG_TYPE_TRANSFER_STATUS_REQUEST:
+                # 解析Interface Position Index
+                ip_index = body[0] if body else 0
+                self.initialized_requests['transfer_status'].add(ip_index)
+            elif message_type == self.MSG_TYPE_INSTRUMENT_HEALTH_REQUEST:
+                self.initialized_requests['instrument_health'] = True
+            elif message_type == self.MSG_TYPE_TEST_INVENTORY_REQUEST:
+                self.initialized_requests['test_inventory'] = True
+            elif message_type == self.MSG_TYPE_ONBOARD_SAMPLE_INFO_REQUEST:
+                self.initialized_requests['onboard_sample_info'] = True
+            elif message_type == self.MSG_TYPE_CONSUMABLE_INVENTORY_REQUEST:
+                self.initialized_requests['consumable_inventory'] = True
             
             # 检查是否所有初始化请求都已处理完成
-            if self.initialized_requests.issuperset(valid_init_messages):
+            if (len(self.initialized_requests['clear_queue']) >= 2 and 
+                len(self.initialized_requests['transfer_status']) >= 2 and 
+                self.initialized_requests['instrument_health'] and 
+                self.initialized_requests['test_inventory'] and 
+                self.initialized_requests['onboard_sample_info'] and 
+                self.initialized_requests['consumable_inventory']):
                 self._handle_initialization_complete(conn)
         else:
             # 发送0x03 ACK，不处理其他消息
@@ -499,7 +537,7 @@ class LASServer:
             elif message_type == self.MSG_TYPE_SKIP_QUEUE_REQUEST:
                 self._handle_skip_queue_request(conn, header, body)
             elif message_type == self.MSG_TYPE_CLEAR_QUEUE_REQUEST:
-                self._handle_clear_queue_request(conn, header)
+                self._handle_clear_queue_request(conn, header, body)
         else:
             # 发送0x03 ACK，不处理其他消息
             self.logger.warning(f"Invalid message type {message_type} in connected state")
@@ -710,7 +748,7 @@ class LASServer:
         )
         
         # 计算校验和（包含头和体，不包含尾）
-        checksum_data = header[1:] + body  # 去掉STX
+        checksum_data = header + body  # 包含STX
         checksum = self._calculate_checksum(checksum_data)
         
         # 构建完整消息
@@ -892,6 +930,9 @@ class LASServer:
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
             self.logger.log_las_raw('SENT', message_hex)
+            
+            # 设置等待ACK标志
+            self._awaiting_init_complete_ack = True
             
             # 发送消息
             conn.sendall(message)
@@ -1108,12 +1149,13 @@ class LASServer:
             self.logger.error(f"Error handling LAS consumable inventory request: {str(e)}")
             self.logger.log_las(f"Error handling consumable inventory request: {str(e)}")
     
-    def _handle_transfer_status_request(self, conn, header):
+    def _handle_transfer_status_request(self, conn, header, body):
         """处理传输状态请求
         
         Args:
             conn: 连接 socket
             header: 消息头
+            body: 消息体
         """
         try:
             # 获取传输状态
@@ -1123,10 +1165,10 @@ class LASServer:
             ready_to_load = self.core.get_ready_to_load()
             return_ready_count = self.core.get_return_ready_count()
             
-            # 构建响应消息体（针对指定接口位置）
-            # 简化处理：只支持IP0
-            interface_position_index = 0
+            # 从请求消息体中获取Interface Position Index字段
+            interface_position_index = body[0] if body else 0
             
+            # 构建响应消息体（针对请求中的接口位置）
             body = struct.pack(
                 '!BBH',
                 interface_position_index,
@@ -1299,16 +1341,17 @@ class LASServer:
             self.logger.error(f"Error handling LAS skip queue request: {str(e)}")
             self.logger.log_las(f"Error handling skip queue request: {str(e)}")
     
-    def _handle_clear_queue_request(self, conn, header):
+    def _handle_clear_queue_request(self, conn, header, body):
         """处理清除队列请求
         
         Args:
             conn: 连接 socket
             header: 消息头
+            body: 消息体
         """
         try:
-            # 解析请求消息体
-            interface_position_index = header.get('message_body', b'\x00')[0] if header.get('message_body') else 0
+            # 解析请求消息体中的Interface Position Index
+            interface_position_index = body[0] if body else 0
             
             # 清除队列
             success = self.core.clear_queue(interface_position_index)

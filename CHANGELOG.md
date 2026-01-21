@@ -1,5 +1,59 @@
 # AtellicaSimulator 更新日志
 
+## [v1.3.7] - 2026-01-21
+
+### 🐛 问题修复
+
+#### 1. **校验码算法修复**
+- ✅ **确保校验和计算包含STX字符**
+  - 修复了校验码计算时跳过STX的问题
+  - 确保消息完整性验证正确
+
+#### 2. **Clear Queue Command Response修复**
+- ✅ **根据请求中的Interface Position Index字段进行相应回复**
+  - 不再硬编码为IP0
+  - 从请求消息体中提取接口位置索引
+
+#### 3. **初始化完成状态判断修复**
+- ✅ **优化初始化流程**
+  - 正确处理每种请求类型的数量（Clear Queue和Transfer Status各两条）
+  - 只有在发送Initialization Completed Message并收到ACK后才切换到connected状态
+
+#### 4. **Load Unload Command Response修复**
+- ✅ **修复unload_sample_id_bytes条件判断错误**
+  - 确保使用unload_result作为条件判断，而不是load_result
+
+#### 5. **Transfer Status Response修复**
+- ✅ **根据请求中的Interface Position Index字段进行相应回复**
+  - 不再硬编码为IP0
+  - 从请求消息体中提取接口位置索引
+
+### 🔧 代码改进
+
+#### las/las.py
+- ✅ **修复_handle_transfer_status_request方法**
+  - 添加body参数
+  - 从请求消息体中获取Interface Position Index
+  - 根据该索引构建响应
+
+- ✅ **修复初始化状态判断**
+  - 改进initialized_requests结构，正确追踪每个请求类型
+  - 添加_awaiting_init_complete_ack标志
+  - 确保只有收到Initialization Completed Message的ACK才切换到connected状态
+
+#### ui/ui.py
+- ✅ **版本号更新**
+  - 更新APP_VERSION从v1.3.6到v1.3.7
+
+### 📝 开发信息
+
+- **修改文件**:
+  - `las/las.py` (+20行，修复初始化状态判断和Transfer Status Response)
+  - `ui/ui.py` (+1行，版本号更新)
+  - `CHANGELOG.md` (+50行，v1.3.7版本记录)
+
+- **测试状态**: ✅ 所有测试通过
+
 ## [v1.3.6] - 2026-01-21
 
 ### 🐛 问题修复
