@@ -10,7 +10,7 @@ import threading
 import time
 
 
-APP_VERSION = "v1.3.5"
+APP_VERSION = "v1.3.6"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""
@@ -50,6 +50,9 @@ class AtellicaUI:
         self.las_log_buffer = []
         self.lis_log_buffer = []
         self.log_max_lines = 500
+        
+        # 上一次的详细状态文本，用于比较内容变化
+        self.last_detail_text = ""
         
         # 设置日志回调函数
         self.logger.set_las_log_callback(self._on_las_log_received)
@@ -464,8 +467,12 @@ class AtellicaUI:
             for module in consumable_inventory['modules']:
                 detail_text += f"  模块 {module['id']}：耗材数量={len(module['consumables'])}\n"
             
-            self.detail_text.delete(1.0, tk.END)
-            self.detail_text.insert(tk.END, detail_text)
+            # 只有当详细状态文本内容发生变化时才更新
+            if detail_text != self.last_detail_text:
+                self.detail_text.delete(1.0, tk.END)
+                self.detail_text.insert(tk.END, detail_text)
+                # 更新上一次的详细状态文本
+                self.last_detail_text = detail_text
             
         except Exception as e:
             self.logger.error(f"Error updating UI status: {str(e)}")
@@ -941,14 +948,14 @@ class AtellicaUI:
             self.circle_color = "lightgreen"
             self.circle_outline = "green"
             self.text_color = "green"
-            prompt_text = f"请手工卸载IP{interface_position}的标本"
+            prompt_text = f"请手工装载IP{interface_position}的标本"
             if sample_id:
                 prompt_text += f" (样本ID: {sample_id})"
         else:
             self.circle_color = "lightyellow"
             self.circle_outline = "yellow"
             self.text_color = "orange"
-            prompt_text = f"请手工装载IP{interface_position}的标本"
+            prompt_text = f"请手工卸载IP{interface_position}的标本"
             if sample_id:
                 prompt_text += f" (样本ID: {sample_id})"
         

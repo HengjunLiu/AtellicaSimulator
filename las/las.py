@@ -1382,6 +1382,12 @@ class LASServer:
                 # 对于UNLOAD请求，获取下一个要卸载的样本ID
                 display_sample_id = self.core.get_next_sample_to_unload()
             
+            # 打印调试日志
+            self.logger.info(f"DEBUG - manual_complete: {manual_complete}, self.ui: {self.ui is not None}")
+            self.logger.info(f"DEBUG - Request type: {request_type}, IP: {interface_position_index}, SampleID: {display_sample_id}")
+            
+            # 对于LOAD请求，总是等待手动操作完成
+            # 对于UNLOAD请求，总是等待手动操作完成
             if not manual_complete and self.ui:
                 # 显示UI提示，等待用户操作
                 self.ui._show_manual_prompt(request_type, interface_position_index, display_sample_id)
@@ -1472,10 +1478,50 @@ class LASServer:
             header = pending_request['header']
             body = pending_request['body']
             
-            # 对于UNLOAD请求，可能需要更新body中的样本ID
-            # 但由于body是二进制数据，我们直接继续处理，因为核心处理已经能处理样本ID
+            # 对于UNLOAD请求，更新pending_request的body中的样本ID
+            # 解析原始body
+            offset = 0
+            interface_position_index = body[offset]
+            offset += 1
+            
+            carrier_occupancy = body[offset]
+            offset += 1
+            
+            sample_id_len = body[offset]
+            offset += 1
+            
+            original_sample_id = ''
+            if sample_id_len > 0:
+                original_sample_id = body[offset:offset+sample_id_len].decode('ascii')
+                offset += sample_id_len
+            
+            tube_height = body[offset]
+            offset += 1
+            
+            tube_diameter = body[offset]
+            offset += 1
+            
+            elapsed_time = struct.unpack_from('!H', body, offset)[0]
+            
+            # 构建新的body，使用UI传递的样本ID
+            new_sample_id = request['sample_id']
+            new_sample_id_bytes = new_sample_id.encode('ascii')
+            new_sample_id_len = len(new_sample_id_bytes)
+            
+            # 重新构建body
+            body = struct.pack(
+                f'!BBB{new_sample_id_len}sBBH',
+                interface_position_index,
+                carrier_occupancy,
+                new_sample_id_len,
+                new_sample_id_bytes,
+                tube_height,
+                tube_diameter,
+                elapsed_time
+            )
+            
             # 继续处理原始请求
-            self._process_load_unload_request(conn, header, body, manual_complete=True)
+            self._handle_load_unload_request(conn, header, body, manual_complete=True)
     
     def manual_eject_sample(self, sample_id, interface_position=0):
         """手动弹出样本并通知LAS
