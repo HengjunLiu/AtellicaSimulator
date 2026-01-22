@@ -1370,6 +1370,10 @@ class LASServer:
                 return_sequence_id=header['sequence_id']
             )
             
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
+            
             # 发送消息
             conn.sendall(message)
             
@@ -1487,6 +1491,10 @@ class LASServer:
                 body,
                 return_sequence_id=header['sequence_id']
             )
+            
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            self.logger.log_las_raw('SENT', message_hex)
             
             # 发送消息
             conn.sendall(message)

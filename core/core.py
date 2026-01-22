@@ -8,6 +8,8 @@ import threading
 import time
 import random
 from collections import defaultdict
+import sqlite3
+import os
 
 
 class AtellicaCore:
@@ -67,7 +69,48 @@ class AtellicaCore:
         self.result_thread = threading.Thread(target=self._generate_results_loop, daemon=True)
         self.result_thread.start()
         
+        # 初始化SQLite数据库
+        self._init_database()
+        
         self.logger.info("AtellicaCore initialized successfully")
+    
+    def _init_database(self):
+        """初始化SQLite数据库，创建on_board_samples表
+        """
+        try:
+            # 创建数据库目录（如果不存在）
+            db_dir = 'data'
+            if not os.path.exists(db_dir):
+                os.makedirs(db_dir)
+            
+            # 数据库文件路径
+            db_path = os.path.join(db_dir, 'atellica.db')
+            
+            # 创建数据库连接
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # 创建on_board_samples表
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS on_board_samples (
+                    sample_id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL,
+                    test TEXT NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    load_time DATETIME NOT NULL
+                )
+            ''')
+            
+            # 提交事务并关闭连接
+            conn.commit()
+            conn.close()
+            
+            self.logger.info(f"Database initialized successfully at {db_path}")
+            
+        except sqlite3.Error as e:
+            self.logger.error(f"Error initializing database: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error initializing database: {str(e)}")
     
     def set_lis_server(self, lis_server):
         """设置LIS服务器实例
@@ -864,6 +907,75 @@ class AtellicaCore:
         except Exception as e:
             self.logger.error(f"Error processing sample workflow for {sample_id}: {str(e)}")
     
+    def _get_db_connection(self):
+        """获取数据库连接
+        
+        Returns:
+            sqlite3.Connection: 数据库连接对象
+        """
+        db_dir = 'data'
+        db_path = os.path.join(db_dir, 'atellica.db')
+        return sqlite3.connect(db_path)
+    
+    def _insert_sample_to_db(self, sample_id, status, test, load_time):
+        """将样本插入数据库
+        
+        Args:
+            sample_id: 样本ID
+            status: 样本状态
+            test: 测试项目
+            load_time: 装载时间
+        """
+        try:
+            conn = self._get_db_connection()
+            cursor = conn.cursor()
+            
+            # 转换load_time为ISO格式
+            load_time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(load_time))
+            
+            # 插入样本记录
+            cursor.execute('''
+                INSERT OR REPLACE INTO on_board_samples 
+                (sample_id, status, test, load_time)
+                VALUES (?, ?, ?, ?)
+            ''', (sample_id, status, test, load_time_str))
+            
+            conn.commit()
+            conn.close()
+            
+            self.logger.info(f"Inserted sample {sample_id} into database")
+            
+        except sqlite3.Error as e:
+            self.logger.error(f"Error inserting sample {sample_id} into database: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error inserting sample {sample_id} into database: {str(e)}")
+    
+    def _delete_sample_from_db(self, sample_id):
+        """从数据库中删除样本
+        
+        Args:
+            sample_id: 样本ID
+        """
+        try:
+            conn = self._get_db_connection()
+            cursor = conn.cursor()
+            
+            # 删除样本记录
+            cursor.execute('''
+                DELETE FROM on_board_samples WHERE sample_id = ?
+            ''', (sample_id,))
+            
+            if cursor.rowcount > 0:
+                self.logger.info(f"Deleted sample {sample_id} from database")
+            
+            conn.commit()
+            conn.close()
+            
+        except sqlite3.Error as e:
+            self.logger.error(f"Error deleting sample {sample_id} from database: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error deleting sample {sample_id} from database: {str(e)}")
+    
     def process_load_unload(self, interface_position_index, carrier_occupancy, sample_id, tube_height, tube_diameter, elapsed_time):
         """处理装载/卸载请求
         
@@ -915,21 +1027,30 @@ class AtellicaCore:
                                 sample['status'] = 'processing'
                                 sample_status = 0x01  # Sample Processed successfully
                                 load_result = {'sample_id': sample_id, 'status': 1}  # Success
+                                
+                                # 将样本信息插入数据库
+                                load_time = sample.get('load_time', time.time())
+                                test = ','.join(sample.get('tests', []))
+                                self._insert_sample_to_db(sample_id, 'processing', test, load_time)
                             else:
                                 load_result = {'sample_id': sample_id, 'status': 7}  # Instrument Skipped Loading
                         else:
                             # 样本不存在，创建新样本记录
+                            current_time = time.time()
                             self.samples[sample_id] = {
                                 'sample_id': sample_id,
                                 'status': 'processing',
                                 'tests': [],
                                 'results': {},
-                                'timestamp': time.time(),
-                                'load_time': time.time(),
+                                'timestamp': current_time,
+                                'load_time': current_time,
                                 'interface_position': interface_position_index
                             }
                             load_result = {'sample_id': sample_id, 'status': 1}  # Success
                             sample_status = 0x01  # Sample Processed successfully
+                            
+                            # 将样本信息插入数据库
+                            self._insert_sample_to_db(sample_id, 'processing', '', current_time)
                             
                             # 启动标本处理流程
                             threading.Thread(target=self._process_sample_workflow, args=(sample_id,), daemon=True).start()
@@ -953,6 +1074,10 @@ class AtellicaCore:
                             self.completed_tube_count -= 1
                             unload_result = {'sample_id': sid, 'status': 1}  # Success
                             sample_status = 0x01  # Sample Processed successfully
+                            
+                            # 从数据库中删除样本
+                            self._delete_sample_from_db(sid)
+                            
                             self.logger.info(f"Sample {sid}: 已成功UNLOAD")
                             break
                         elif sample['status'] == 'completed' and 'unloaded' not in sample:

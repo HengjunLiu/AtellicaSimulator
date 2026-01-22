@@ -88,8 +88,8 @@ class Logger:
         
         # 添加文件处理器
         if self.config.get('file_output', True):
-            # 主日志文件处理器
-            main_log_file = os.path.join(log_dir, 'atellica_simulator.log')
+            # 主日志文件处理器 - 统一命名：atellica-simulator.log
+            main_log_file = os.path.join(log_dir, 'atellica-simulator.log')
             file_handler = TimedRotatingFileHandler(
                 main_log_file,
                 when='midnight',  # 每天午夜轮换
@@ -110,8 +110,8 @@ class Logger:
         for handler in self.las_logger.handlers[:]:
             self.las_logger.removeHandler(handler)
         
-        # 添加LAS日志文件处理器
-        las_log_file = os.path.join(log_dir, 'las_communication.log')
+        # 添加LAS日志文件处理器 - 统一命名：las-communication.log
+        las_log_file = os.path.join(log_dir, 'las-communication.log')
         las_file_handler = TimedRotatingFileHandler(
             las_log_file,
             when='midnight',
@@ -132,8 +132,8 @@ class Logger:
         for handler in self.lis_logger.handlers[:]:
             self.lis_logger.removeHandler(handler)
         
-        # 添加LIS日志文件处理器
-        lis_log_file = os.path.join(log_dir, 'lis_communication.log')
+        # 添加LIS日志文件处理器 - 统一命名：lis-communication.log
+        lis_log_file = os.path.join(log_dir, 'lis-communication.log')
         lis_file_handler = TimedRotatingFileHandler(
             lis_log_file,
             when='midnight',
@@ -156,7 +156,7 @@ class Logger:
         
         # 添加LAS原始数据日志文件处理器
         # 按日轮转，单个文件最大100MB，保留30天
-        las_raw_log_file = os.path.join(log_dir, 'las_module_')
+        las_raw_log_file = os.path.join(log_dir, 'las-rawdata')
         # 使用RotatingFileHandler配合TimedRotatingFileHandler的逻辑
         # 自定义Formatter，支持毫秒
         class MillisecondFormatter(logging.Formatter):
@@ -407,9 +407,9 @@ class Logger:
             
         Returns:
             str: LAS日志内容
-        """
+        """# 获取LAS日志内容 - 使用新的统一命名
         log_dir = self.config.get('log_dir', 'logs')
-        las_log_file = os.path.join(log_dir, 'las_communication.log')
+        las_log_file = os.path.join(log_dir, 'las-communication.log')
         return self._get_log_content(las_log_file, lines)
     
     def get_lis_log_content(self, lines=100):
@@ -420,9 +420,9 @@ class Logger:
             
         Returns:
             str: LIS日志内容
-        """
+        """# 获取LIS日志内容 - 使用新的统一命名
         log_dir = self.config.get('log_dir', 'logs')
-        lis_log_file = os.path.join(log_dir, 'lis_communication.log')
+        lis_log_file = os.path.join(log_dir, 'lis-communication.log')
         return self._get_log_content(lis_log_file, lines)
     
     def _start_log_thread(self):
@@ -530,8 +530,37 @@ class Logger:
                 # 获取消息类型描述
                 message_description = MESSAGE_TYPE_MAP.get(message_type_hex, "Unknown message type")
                 
-                # 根据消息类型构建描述，包含十六进制值和描述
-                message_desc = f"[{message_type_str}-{message_description}]"
+                # 提取interface_position_index（如果需要）
+                interface_position_index = None
+                # 检查是否为需要提取IP索引的消息类型
+                ip_required_msg_types = [
+                    0x0209,  # Transfer Status Request
+                    0x020A,  # Transfer Status Response
+                    0x0303,  # Load/Unload Request
+                    0x0304,  # Load/Unload Response
+                    0x0401,  # Add Queue Request
+                    0x0402,  # Add Queue Response
+                    0x0403,  # Skip Queue Request
+                    0x0404,  # Skip Queue Response
+                    0x0405,  # Clear Queue Request
+                    0x0406   # Clear Queue Response
+                ]
+                
+                if message_type_hex in ip_required_msg_types:
+                    # 消息体从第18字节开始
+                    message_body = binary_data[18:]
+                    if message_body:
+                        # interface_position_index是消息体的第一个字节
+                        interface_position_index = message_body[0]
+                    else:
+                        # 如果没有消息体，默认IP0
+                        interface_position_index = 0
+                
+                # 根据消息类型构建描述，包含十六进制值、描述和IP索引（如果需要）
+                if interface_position_index is not None:
+                    message_desc = f"[{message_type_str}-{message_description}-IP{interface_position_index}]"
+                else:
+                    message_desc = f"[{message_type_str}-{message_description}]"
         except Exception as e:
             # 如果解析失败，使用基本描述
             message_desc = "[Invalid message format]"
