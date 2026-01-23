@@ -476,12 +476,13 @@ class Logger:
             elif logger_name == 'lis':
                 self.log_lis(message)
     
-    def log_las_raw(self, message_type, data):
+    def log_las_raw(self, message_type, data, extra_info=None):
         """记录LAS原始数据日志
         
         Args:
             message_type: 消息类型，'RECEIVED'或'SENT'
             data: 原始数据内容
+            extra_info: 额外信息字典，包含解析后的信息或封装前的原始信息
         """
         import struct
         
@@ -574,7 +575,33 @@ class Logger:
         formatted_data = ' '.join(data[i:i+2] for i in range(0, len(data), 2))
         
         # 构建符合LOG.txt格式的日志消息：[S/R]:时间戳\t[消息类型-描述]\t格式化数据
-        log_message = f"[{msg_type_short}]:{timestamp}\t{message_desc}\t{formatted_data}"
+        # 格式化额外信息（如果提供）
+        formatted_extra_info = ""
+        if extra_info is not None and isinstance(extra_info, dict):
+            try:
+                # 构建额外信息字符串，格式：[key1=value1, key2=value2, ...]
+                extra_info_parts = []
+                for key, value in extra_info.items():
+                    # 安全格式化值，处理不同数据类型
+                    if isinstance(value, (list, dict)):
+                        # 对于复杂类型，使用简单字符串表示
+                        value_str = f"{type(value).__name__}({len(value)})"
+                    else:
+                        # 对于基本类型，直接转换为字符串
+                        value_str = str(value)
+                    extra_info_parts.append(f"{key}={value_str}")
+                
+                if extra_info_parts:
+                    formatted_extra_info = f"[{', '.join(extra_info_parts)}]"
+            except Exception as e:
+                # 如果格式化失败，记录错误但不影响日志记录
+                self.logger.error(f"Error formatting extra_info: {str(e)}")
+        
+        # 构建符合LOG.txt格式的日志消息：[S/R]:时间戳	[消息类型-描述]	[额外信息]	格式化数据
+        if formatted_extra_info:
+            log_message = f"[{msg_type_short}]:{timestamp}\t{message_desc}\t{formatted_extra_info}\t{formatted_data}"
+        else:
+            log_message = f"[{msg_type_short}]:{timestamp}\t{message_desc}\t{formatted_data}"
         
         # 异步记录日志
         self._async_log('las_raw', log_message)

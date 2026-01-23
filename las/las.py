@@ -71,8 +71,6 @@ class LASServer:
         self.pending_requests = []
         self.ui = None
         
-        # 核心模块引用
-        self.core = core
         
         # 消息类型常量
         self.MSG_TYPE_HANDSHAKE = 0x0001
@@ -148,7 +146,9 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}"}
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
         
             # 发送消息
             conn.sendall(message)
@@ -301,10 +301,9 @@ class LASServer:
                     buffer = buffer[stx_pos + message_length:]
                     # 记录接收的原始数据
                     message_hex = binascii.hexlify(message).decode('ascii')
-                    self.logger.log_las_raw('RECEIVED', message_hex)
                     
-                    # 处理消息
-                    self._process_message(conn, addr, message)
+                    # 处理消息，传递原始十六进制数据用于日志记录
+                    self._process_message(conn, addr, message, message_hex)
                     
         except socket.error as e:
             self.logger.error(f"LAS connection error with {addr[0]}:{addr[1]}: {str(e)}")
@@ -324,13 +323,14 @@ class LASServer:
             self.logger.info(f"LAS connection closed with {addr[0]}:{addr[1]}")
             self.logger.log_las(f"Connection closed: {addr[0]}:{addr[1]}")
     
-    def _process_message(self, conn, addr, message):
+    def _process_message(self, conn, addr, message, message_hex):
         """处理uRAP消息
         
         Args:
             conn: 连接 socket
             addr: 客户端地址
             message: uRAP消息
+            message_hex: 消息的十六进制字符串表示
         """
         try:
             # 更新最后消息时间
@@ -341,12 +341,18 @@ class LASServer:
             
             if not msg_header:
                 # 发送NACK
-                self._send_ack(conn, msg_header.get('sequence_id', 0), 0x01)  # 0x01 = Message Not Understood
+                self._send_ack(conn, 0, 0x01)  # 0x01 = Message Not Understood
                 return
             
+            # 记录接收到的原始消息
+            extra_info = {
+                'sequence_id': f"0x{msg_header['sequence_id']:04x}",
+                'return_sequence_id': f"0x{msg_header['return_sequence_id']:04x}",
+            }
+            self.logger.log_las_raw('RECEIVED', message_hex, extra_info)
+            
             # 记录接收到的消息
-            msg_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las(f"Received message from {addr[0]}:{addr[1]}: Type=0x{msg_header['message_type']:04x}, SeqID=0x{msg_header['sequence_id']:04x}, Content={msg_hex}")
+            self.logger.log_las(f"Received message from {addr[0]}:{addr[1]}: Type=0x{msg_header['message_type']:04x}, SeqID=0x{msg_header['sequence_id']:04x}, Content={message_hex}")
             
             # 处理ACK消息（任何状态下都必须能接收）
             message_type = msg_header['message_type']
@@ -624,7 +630,20 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'interface_position': interface_position_index,
+                'load_sample_id': load_sample_id_bytes.hex(),
+                'load_status': load_status,
+                'unload_sample_id': unload_sample_id_bytes.hex(),
+                'unload_status': unload_status,
+                'sample_status': sample_status,
+                'onboard_count': onboard_count,
+                'completed_count': completed_count,
+                'ready_to_load': ready_to_load,
+                'return_ready_count': return_ready_count
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
             conn.sendall(message)
@@ -800,7 +819,13 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            ack_type = "ACK" if return_code == 0x00 else "NACK"
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'return_sequence_id': f"0x{sequence_id:04x}",
+                'return_code': f"0x{return_code:02x}"
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
             conn.sendall(message)
@@ -897,7 +922,11 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'return_sequence_id': f"0x{return_sequence_id:04x}",
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
             conn.sendall(message)
@@ -929,7 +958,9 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}"}
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 设置等待ACK标志
             self._awaiting_init_complete_ack = True
@@ -990,7 +1021,17 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'return_sequence_id': f"0x{header['sequence_id']:04x}",
+                'automation_interface_status': f"0x{health_status['automation_interface_status']:04x}",
+                'instrument_process_status': f"0x{health_status['instrument_process_status']:04x}",
+                'lis_connection_status': f"0x{health_status['lis_connection_status']:04x}",
+                'interface_positions': health_status['interface_positions'],
+                'on_board_tube_count': health_status['on_board_tube_count'],
+                'completed_tube_count': health_status['completed_tube_count']
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
             conn.sendall(message)
@@ -1036,7 +1077,11 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'return_sequence_id': f"0x{header['sequence_id']:04x}"
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
             conn.sendall(message)
@@ -1083,7 +1128,12 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'return_sequence_id': f"0x{header['sequence_id']:04x}", 
+                'onboard_count': onboard_count
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
             conn.sendall(message)
@@ -1137,7 +1187,11 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'return_sequence_id': f"0x{header['sequence_id']:04x}"
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
             conn.sendall(message)
@@ -1185,7 +1239,14 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'return_sequence_id': f"0x{header['sequence_id']:04x}",
+                'interface_position_index': interface_position_index,
+                'ready_to_load': ready_to_load,
+                'return_ready_count': return_ready_count
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
             conn.sendall(message)
@@ -1258,7 +1319,15 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'return_sequence_id': f"0x{header['sequence_id']:04x}",
+                'interface_position_index': interface_position_index,
+                'carrier_occupancy': carrier_occupancy,
+                'sample_id': sample_id,
+                'success': success
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
             conn.sendall(message)
@@ -1329,7 +1398,16 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'return_sequence_id': f"0x{header['sequence_id']:04x}",
+                'interface_position_index': interface_position_index,
+                'carrier_occupancy': carrier_occupancy,
+                'sample_id': sample_id,
+                'in_queue': in_queue,
+                'success': success
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
             conn.sendall(message)
@@ -1372,7 +1450,13 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'return_sequence_id': f"0x{header['sequence_id']:04x}",
+                'interface_position_index': interface_position_index,
+                'success': success
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
             conn.sendall(message)
@@ -1494,7 +1578,19 @@ class LASServer:
             
             # 记录发送的原始数据
             message_hex = binascii.hexlify(message).decode('ascii')
-            self.logger.log_las_raw('SENT', message_hex)
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'return_sequence_id': f"0x{header['sequence_id']:04x}",
+                'interface_position_index': interface_position_index,
+                'load_sample': load_result.get('sample_id', 'N/A'),
+                'unload_sample': unload_result.get('sample_id', 'N/A'),
+                'sample_status': sample_status,
+                'onboard_count': onboard_count,
+                'completed_count': completed_count,
+                'ready_to_load': ready_to_load,
+                'return_ready_count': return_ready_count
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
             conn.sendall(message)
@@ -1676,7 +1772,13 @@ class LASServer:
                     
                     # 记录发送的原始数据
                     message_hex = binascii.hexlify(message).decode('ascii')
-                    self.logger.log_las_raw('SENT', message_hex)
+                    extra_info = {
+                        'sequence_id': f"0x{sequence_id:04x}",
+                        'interface_position_index': interface_position_index,
+                        'ready_to_load': ready_to_load,
+                        'return_ready_count': return_ready_count
+                    }
+                    self.logger.log_las_raw('SENT', message_hex, extra_info)
                     # 发送消息
                     conn.sendall(message)
                     
@@ -1728,7 +1830,11 @@ class LASServer:
                     
                     # 记录发送的原始数据
                     message_hex = binascii.hexlify(message).decode('ascii')
-                    self.logger.log_las_raw('SENT', message_hex)
+                    extra_info = {
+                        'sequence_id': f"0x{sequence_id:04x}",
+                        'onboard_count': onboard_count
+                    }
+                    self.logger.log_las_raw('SENT', message_hex, extra_info)
                     # 发送消息
                     conn.sendall(message)
                     
@@ -1789,7 +1895,16 @@ class LASServer:
                     
                     # 记录发送的原始数据
                     message_hex = binascii.hexlify(message).decode('ascii')
-                    self.logger.log_las_raw('SENT', message_hex)
+                    extra_info = {
+                        'sequence_id': f"0x{sequence_id:04x}",
+                        'automation_interface_status': f"0x{health_status['automation_interface_status']:04x}",
+                        'instrument_process_status': f"0x{health_status['instrument_process_status']:04x}",
+                        'lis_connection_status': f"0x{health_status['lis_connection_status']:04x}",
+                        'interface_positions': f"0x{health_status['interface_positions']:04x}",
+                        'on_board_tube_count': health_status['on_board_tube_count'],
+                        'completed_tube_count': health_status['completed_tube_count']
+                    }
+                    self.logger.log_las_raw('SENT', message_hex, extra_info)
                     # 发送消息
                     conn.sendall(message)
                     
@@ -1840,7 +1955,10 @@ class LASServer:
                     
                     # 记录发送的原始数据
                     message_hex = binascii.hexlify(message).decode('ascii')
-                    self.logger.log_las_raw('SENT', message_hex)
+                    extra_info = {
+                        'sequence_id': f"0x{sequence_id:04x}"
+                    }
+                    self.logger.log_las_raw('SENT', message_hex, extra_info)
                     # 发送消息
                     conn.sendall(message)
                     
@@ -1899,7 +2017,10 @@ class LASServer:
                     
                     # 记录发送的原始数据
                     message_hex = binascii.hexlify(message).decode('ascii')
-                    self.logger.log_las_raw('SENT', message_hex)
+                    extra_info = {
+                        'sequence_id': f"0x{sequence_id:04x}"
+                    }
+                    self.logger.log_las_raw('SENT', message_hex, extra_info)
                     # 发送消息
                     conn.sendall(message)
                     
