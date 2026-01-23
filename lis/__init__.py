@@ -1,1 +1,1 @@
-from .lis import LISServer
+from .lis import LISClient

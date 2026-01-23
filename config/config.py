@@ -50,8 +50,8 @@ class ConfigManager:
                 'response_timeout': 20  # 秒
             },
             'lis': {
-                'host': '0.0.0.0',
-                'port': 10002,
+                'host': '127.0.0.1',
+                'port': 5000,
                 'result_delay': 1800,  # 30分钟，单位秒
                 'max_connections': 10
             },

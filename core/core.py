@@ -69,14 +69,14 @@ class AtellicaCore:
         
         self.logger.info("AtellicaCore initialized successfully")
     
-    def set_lis_server(self, lis_server):
-        """设置LIS服务器实例
+    def set_lis_client(self, lis_client):
+        """设置LIS客户端实例
         
         Args:
-            lis_server: LISServer实例
+            lis_client: LISClient实例
         """
-        self.lis_server = lis_server
-        self.logger.info("LIS server instance set in core")
+        self.lis_client = lis_client
+        self.logger.info("LIS client instance set in core")
     
     def _generate_results_loop(self):
         """结果生成循环，定期检查并生成样本结果"""

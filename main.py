@@ -10,7 +10,7 @@ import time
 import argparse
 from core import AtellicaCore
 from las import LASServer
-from lis import LISServer
+from lis import LISClient
 from ui import AtellicaUI
 from config import ConfigManager
 from logger import Logger
@@ -46,12 +46,10 @@ def main():
         logger.info("LASServer initialized successfully")
         
         # 初始化LIS服务器
-        logger.info("Initializing LISServer...")
-        lis_server = LISServer(config_manager, logger, core)
-        logger.info("LISServer initialized successfully")
+        logger.info("Initializing LISClient...")
+        lis_client = LISClient(config_manager, logger, core)
+        logger.info("LISClient initialized successfully")
         
-        # 将LIS服务器实例设置到核心模块
-        core.set_lis_server(lis_server)
         
         if args.no_ui:
             # 无UI模式
@@ -61,9 +59,9 @@ def main():
                 las_server.start()
                 logger.info("LASServer started successfully")
                 
-                logger.info("Starting LISServer...")
-                lis_server.start()
-                logger.info("LISServer started successfully")
+                logger.info("Starting LISClient...")
+                lis_client.start()
+                logger.info("LISClient started successfully")
                 
                 logger.info("AtellicaSimulator is running in headless mode. Press Ctrl+C to exit.")
                 # 进入主循环
@@ -72,12 +70,12 @@ def main():
             except KeyboardInterrupt:
                 logger.info("Shutting down...")
                 las_server.stop()
-                lis_server.stop()
+                lis_client.stop()
                 logger.info("AtellicaSimulator stopped successfully")
         else:
             # 有UI模式
             logger.info("Running with UI")
-            ui = AtellicaUI(config_manager, logger, core, las_server, lis_server)
+            ui = AtellicaUI(config_manager, logger, core, las_server, lis_client)   
             # 设置UI引用到LAS服务器
             las_server.set_ui(ui)
             ui.run()
