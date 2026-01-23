@@ -57,7 +57,10 @@ class AtellicaCore:
             0: None,  # IP0锁定的carrier
             1: None   # IP1锁定的carrier
         }
-        self.ready_to_load = 0
+        self.ready_to_load = {
+            0: False,  # IP0是否就绪装载
+            1: False   # IP1是否就绪装载
+        }
         self.return_ready_count = 0
         
         # 线程锁
@@ -621,10 +624,6 @@ class AtellicaCore:
             
             self.queues[interface_position_index].append(carrier_info)
             
-            # 更新就绪状态
-            if carrier_occupancy in [2, 3]:  # 有样本的carrier
-                self.ready_to_load = 1
-            
             self.logger.info(f"Added to queue IP{interface_position_index}: SampleID={sample_id}, Occupancy={carrier_occupancy}")
             return True
     
@@ -690,14 +689,27 @@ class AtellicaCore:
         with self.sample_lock:
             return self.queues.get(interface_position_index, []).copy()
     
-    def get_ready_to_load(self):
+    def get_ready_to_load(self, interface_position_index=None):
         """获取就绪装载状态
         
+        Args:
+            interface_position_index: 接口位置索引（可选），0=IP0, 1=IP1
+            
         Returns:
             int: 0=未就绪, 1=就绪
         """
         with self.sample_lock:
-            return self.ready_to_load
+            if interface_position_index is not None:
+                # 根据接口位置索引返回对应预设值
+                if interface_position_index == 0:
+                    return 1 if self.ready_to_load[0] else 0
+                elif interface_position_index == 1:
+                    return 1 if self.ready_to_load[1] else 0
+                else:
+                    return 0  # 无效索引返回未就绪
+            else:
+                # 保持向后兼容，返回整体就绪状态
+                return 1 if any(self.ready_to_load.values()) else 0
     
     def get_return_ready_count(self):
         """获取可返回样本数量
@@ -1087,11 +1099,5 @@ class AtellicaCore:
             # 释放锁定的carrier
             if self.locked_carriers[interface_position_index] is not None:
                 self.locked_carriers[interface_position_index] = None
-            
-            # 更新就绪状态
-            if len(self.queues[interface_position_index]) > 0:
-                self.ready_to_load = 1
-            else:
-                self.ready_to_load = 0
             
             return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, self.ready_to_load, self.return_ready_count

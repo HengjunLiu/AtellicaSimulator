@@ -571,7 +571,11 @@ class LASServer:
             
             # 如果有任意一个IP为locked状态，先发送LOAD_UNLOAD_RESPONSE
             if ip0_locked or ip1_locked:
-                self._send_load_unload_response(conn)
+                # 根据锁定状态选择对应的接口位置索引
+                if ip0_locked:
+                    self._send_load_unload_response(conn, interface_position_index=0)
+                elif ip1_locked:
+                    self._send_load_unload_response(conn, interface_position_index=1)
             
             # 发送初始化完成消息
             self._send_initialization_complete(conn)
@@ -582,20 +586,26 @@ class LASServer:
             self.logger.error(f"Error handling initialization complete: {str(e)}")
             self.logger.log_las(f"Error handling initialization complete: {str(e)}")
     
-    def _send_load_unload_response(self, conn):
+    def _send_load_unload_response(self, conn, interface_position_index=0):
         """发送LOAD_UNLOAD_RESPONSE消息
         
         Args:
             conn: 连接 socket
+            interface_position_index: 接口位置索引，0=IP0, 1=IP1
         """
         try:
             # 获取相关状态
             health_status = self.core.get_instrument_health()
-            ready_to_load = self.core.get_ready_to_load()
+            # 验证参数类型
+            if not isinstance(interface_position_index, int):
+                self.logger.error(f"Invalid interface_position_index type: {type(interface_position_index).__name__}, expected int")
+                interface_position_index = 0  # 默认为IP0
+            # 确保索引值在有效范围内
+            if interface_position_index not in (0, 1):
+                self.logger.error(f"Invalid interface_position_index value: {interface_position_index}, expected 0 or 1")
+                interface_position_index = 0  # 默认为IP0
+            ready_to_load = self.core.get_ready_to_load(interface_position_index)
             return_ready_count = self.core.get_return_ready_count()
-            
-            # 构建空的响应消息体
-            interface_position_index = 0  # 默认IP0
             load_sample_id_len = 0
             load_sample_id_bytes = b''
             load_status = 1  # 1=成功
@@ -1215,12 +1225,12 @@ class LASServer:
             # 获取传输状态
             health_status = self.core.get_instrument_health()
             
-            # 获取核心模块的队列信息
-            ready_to_load = self.core.get_ready_to_load()
-            return_ready_count = self.core.get_return_ready_count()
-            
             # 从请求消息体中获取Interface Position Index字段
             interface_position_index = body[0] if body else 0
+            
+            # 获取核心模块的队列信息
+            ready_to_load = self.core.get_ready_to_load(interface_position_index)
+            return_ready_count = self.core.get_return_ready_count()
             
             # 构建响应消息体（针对请求中的接口位置）
             body = struct.pack(
@@ -1727,6 +1737,20 @@ class LASServer:
                         body
                     )
                     
+                    # 记录发送的原始数据
+                    message_hex = binascii.hexlify(message).decode('ascii')
+                    extra_info = {
+                        'sequence_id': f"0x{sequence_id:04x}",
+                        'load_sample': load_sample_id_bytes.decode('ascii'),
+                        'unload_sample': unload_sample_id_bytes.decode('ascii'),
+                        'sample_status': sample_status,
+                        'onboard_count': onboard_count,
+                        'completed_count': completed_count,
+                        'ready_to_load': ready_to_load,
+                        'return_ready_count': return_ready_count
+                    }
+                    self.logger.log_las_raw('SENT', message_hex, extra_info)
+
                     # 发送消息
                     conn.sendall(message)
                     

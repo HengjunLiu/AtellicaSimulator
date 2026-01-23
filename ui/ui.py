@@ -130,32 +130,27 @@ class AtellicaUI:
         ttk.Label(status_grid, textvariable=self.completed_tubes_var, width=15).grid(row=1, column=5, padx=5, pady=2)
         
         # 队列状态（新增）
-        ttk.Label(status_grid, text="就绪装载:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, padx=5, pady=2)
-        self.ready_to_load_var = tk.StringVar()
-        self.ready_to_load_label = ttk.Label(status_grid, textvariable=self.ready_to_load_var, width=15)
-        self.ready_to_load_label.grid(row=2, column=1, padx=5, pady=2)
-        
-        ttk.Label(status_grid, text="可返回样本数:").grid(row=2, column=2, sticky=tk.W, padx=5, pady=2)
+        ttk.Label(status_grid, text="可返回样本数:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=2)
         self.return_ready_count_var = tk.StringVar()
-        ttk.Label(status_grid, textvariable=self.return_ready_count_var, width=15).grid(row=2, column=3, padx=5, pady=2)
+        ttk.Label(status_grid, textvariable=self.return_ready_count_var, width=15).grid(row=2, column=1, padx=5, pady=2)
         
-        ttk.Label(status_grid, text="IP0队列长度:").grid(row=2, column=4, sticky=tk.W, padx=5, pady=2)
+        ttk.Label(status_grid, text="IP0队列长度:").grid(row=2, column=2, sticky=tk.W, padx=5, pady=2)
         self.ip0_queue_len_var = tk.StringVar()
-        ttk.Label(status_grid, textvariable=self.ip0_queue_len_var, width=15).grid(row=2, column=5, padx=5, pady=2)
+        ttk.Label(status_grid, textvariable=self.ip0_queue_len_var, width=15).grid(row=2, column=3, padx=5, pady=2)
         
-        ttk.Label(status_grid, text="IP1队列长度:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Label(status_grid, text="IP1队列长度:").grid(row=2, column=4, sticky=tk.W, padx=5, pady=2)
         self.ip1_queue_len_var = tk.StringVar()
-        ttk.Label(status_grid, textvariable=self.ip1_queue_len_var, width=15).grid(row=3, column=1, padx=5, pady=2)
+        ttk.Label(status_grid, textvariable=self.ip1_queue_len_var, width=15).grid(row=2, column=5, padx=5, pady=2)
         
-        ttk.Label(status_grid, text="IP0锁定状态:").grid(row=3, column=2, sticky=tk.W, padx=5, pady=2)
+        ttk.Label(status_grid, text="IP0锁定状态:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=2)
         self.ip0_locked_var = tk.StringVar()
         self.ip0_locked_label = ttk.Label(status_grid, textvariable=self.ip0_locked_var, width=15)
-        self.ip0_locked_label.grid(row=3, column=3, padx=5, pady=2)
+        self.ip0_locked_label.grid(row=3, column=1, padx=5, pady=2)
         
-        ttk.Label(status_grid, text="IP1锁定状态:").grid(row=3, column=4, sticky=tk.W, padx=5, pady=2)
+        ttk.Label(status_grid, text="IP1锁定状态:").grid(row=3, column=2, sticky=tk.W, padx=5, pady=2)
         self.ip1_locked_var = tk.StringVar()
         self.ip1_locked_label = ttk.Label(status_grid, textvariable=self.ip1_locked_var, width=15)
-        self.ip1_locked_label.grid(row=3, column=5, padx=5, pady=2)
+        self.ip1_locked_label.grid(row=3, column=3, padx=5, pady=2)
         
         # 中间内容框架（分为左侧参数配置、中间手动处理和右侧状态显示）
         content_frame = ttk.Frame(main_frame)
@@ -355,14 +350,6 @@ class AtellicaUI:
             self.completed_tubes_var.set(str(health_status['completed_tube_count']))
             
             # 更新队列状态信息（新增）
-            ready_to_load = self.core.get_ready_to_load()
-            if ready_to_load == 1:
-                self.ready_to_load_var.set("Ready to Load")
-                self.ready_to_load_label.configure(foreground="green")
-            else:
-                self.ready_to_load_var.set("Not Ready to Load")
-                self.ready_to_load_label.configure(foreground="gray")
-            
             return_ready_count = self.core.get_return_ready_count()
             self.return_ready_count_var.set(str(return_ready_count))
             
@@ -430,7 +417,11 @@ class AtellicaUI:
             
             # 获取队列详细信息
             detail_text += f"\n队列管理详细信息：\n"
-            detail_text += f"就绪装载状态：{'Ready to Load' if ready_to_load == 1 else 'Not Ready to Load'}\n"
+            # 获取IP0和IP1各自的就绪状态
+            ip0_ready = self.core.get_ready_to_load(0)
+            ip1_ready = self.core.get_ready_to_load(1)
+            detail_text += f"IP0就绪状态：{'Ready to Load' if ip0_ready == 1 else 'Not Ready to Load'}\n"
+            detail_text += f"IP1就绪状态：{'Ready to Load' if ip1_ready == 1 else 'Not Ready to Load'}\n"
             detail_text += f"可返回样本数：{return_ready_count}\n"
             
             # IP0队列详细信息
