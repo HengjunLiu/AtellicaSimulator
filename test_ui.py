@@ -12,7 +12,7 @@ from config import ConfigManager
 from logger import Logger
 from core import AtellicaCore
 from las import LASServer
-from lis import LISServer
+from lis import LISClient
 from ui import AtellicaUI
 
 # Simple test script to run UI
@@ -30,13 +30,13 @@ if __name__ == "__main__":
         print("Initializing LASServer...")
         las_server = LASServer(config_manager, logger, core)
         
-        print("Initializing LISServer...")
-        lis_server = LISServer(config_manager, logger, core)
+        print("Initializing LISClient...")
+        lis_client = LISClient(config_manager, logger, core)
         
-        core.set_lis_server(lis_server)
+        core.set_lis_client(lis_client)
         
         print("Initializing UI...")
-        ui = AtellicaUI(config_manager, logger, core, las_server, lis_server)
+        ui = AtellicaUI(config_manager, logger, core, las_server, lis_client)
         las_server.set_ui(ui)
         
         print("Running UI mainloop...")

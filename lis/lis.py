@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-LIS模块 - ASTM协议服务端实现
+LIS模块 - ASTM协议客户端实现
 """
 
 import socket
@@ -11,11 +11,11 @@ import random
 from datetime import datetime
 
 
-class LISServer:
-    """LIS服务器，实现ASTM协议"""
+class LISClient:
+    """LIS客户端，实现ASTM协议"""
     
     def __init__(self, config_manager, logger, core):
-        """初始化LIS服务器
+        """初始化LIS客户端
         
         Args:
             config_manager: 配置管理器实例
@@ -28,20 +28,22 @@ class LISServer:
         
         # 配置信息
         self.config = config_manager.get_lis_config()
-        self.host = self.config.get('host', '0.0.0.0')
-        self.port = self.config.get('port', 10002)
+        self.host = self.config.get('host', '127.0.0.1')
+        self.port = self.config.get('port', 5000)
         self.result_delay = self.config.get('result_delay', 1800)  # 30分钟，单位秒
-        self.max_connections = self.config.get('max_connections', 10)
+        self.reconnect_interval = self.config.get('reconnect_interval', 30)  # 重连间隔，单位秒
         
-        # 服务器状态
-        self.server_socket = None
+        # 客户端状态
+        self.client_socket = None
         self.is_running = False
-        self.connections = []
+        self.is_connected = False
+        self.receive_thread = None
+        self.buffer = ''
         self.connection_lock = threading.Lock()
         
-        # 查询结果存储
-        self.query_results = {}
-        self.query_results_lock = threading.Lock()
+        # 响应缓存，用于存储LIS服务器的响应
+        self.response_cache = {}
+        self.response_cache_lock = threading.Lock()
         
         # ASTM协议常量
         self.RECORD_SEP = '\x0d'  # 记录分隔符（CR）
@@ -57,160 +59,163 @@ class LISServer:
         self.RECORD_TYPE_RESULT = 'R'
         self.RECORD_TYPE_COMMENT = 'C'
         self.RECORD_TYPE_TERMINATOR = 'L'
-        self.RECORD_TYPE_QUERY = 'Q'  # 查询记录
         
         # 注册结果回调
         self.core.register_result_callback(self._send_result_callback)
         
-        self.logger.info(f"LISServer initialized, listening on {self.host}:{self.port}")
+        self.logger.info(f"LISClient initialized, will connect to {self.host}:{self.port}")
     
     def start(self):
-        """启动LIS服务器"""
+        """启动LIS客户端"""
         if self.is_running:
-            self.logger.warning("LISServer is already running")
+            self.logger.warning("LISClient is already running")
             return
         
-        try:
-            # 创建TCP服务器 socket
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.server_socket.bind((self.host, self.port))
-            self.server_socket.listen(self.max_connections)
-            
-            self.is_running = True
-            self.logger.info(f"LISServer started, listening on {self.host}:{self.port}")
-            
-            # 启动接受连接的线程
-            accept_thread = threading.Thread(target=self._accept_connections, daemon=True)
-            accept_thread.start()
-            
-        except Exception as e:
-            self.logger.error(f"Failed to start LISServer: {str(e)}")
-            self.is_running = False
+        self.is_running = True
+        self.logger.info("LISClient started")
+        
+        # 启动连接线程
+        connect_thread = threading.Thread(target=self._connect_loop, daemon=True)
+        connect_thread.start()
     
     def stop(self):
-        """停止LIS服务器"""
-        if not self.is_running:
-            return
-        
+        """停止LIS客户端"""
         self.is_running = False
         
         try:
-            # 关闭所有连接
-            with self.connection_lock:
-                for conn in self.connections:
-                    conn.close()
-                self.connections.clear()
+            # 关闭连接
+            if self.client_socket:
+                self.client_socket.close()
+                self.client_socket = None
             
-            # 关闭服务器 socket
-            if self.server_socket:
-                self.server_socket.close()
-                self.server_socket = None
-            
-            self.logger.info("LISServer stopped")
+            self.is_connected = False
+            self.logger.info("LISClient stopped")
         except Exception as e:
-            self.logger.error(f"Error stopping LISServer: {str(e)}")
+            self.logger.error(f"Error stopping LISClient: {str(e)}")
     
-    def _accept_connections(self):
-        """接受客户端连接"""
+    def _connect_loop(self):
+        """连接循环，负责维护与LIS服务器的连接"""
         while self.is_running:
-            try:
-                conn, addr = self.server_socket.accept()
-                with self.connection_lock:
-                    if len(self.connections) >= self.max_connections:
-                        conn.close()
-                        self.logger.warning(f"LIS connection rejected from {addr[0]}:{addr[1]} - max connections reached")
-                        continue
-                    self.connections.append(conn)
-                
-                self.logger.info(f"LIS connection established from {addr[0]}:{addr[1]}")
-                self.logger.log_lis(f"Connection established: {addr[0]}:{addr[1]}")
-                
-                # 为每个连接创建处理线程
-                conn_thread = threading.Thread(
-                    target=self._handle_connection,
-                    args=(conn, addr),
-                    daemon=True
-                )
-                conn_thread.start()
-                
-            except socket.error as e:
-                if self.is_running:
-                    self.logger.error(f"Error accepting LIS connection: {str(e)}")
-                break
-            except Exception as e:
-                self.logger.error(f"Unexpected error in LIS accept thread: {str(e)}")
+            if not self.is_connected:
+                self.logger.info(f"Attempting to connect to LIS server at {self.host}:{self.port}...")
+                self.logger.log_lis(f"Attempting to connect to LIS server at {self.host}:{self.port}...")
+                if self._connect():
+                    self.logger.info(f"Connected to LIS server at {self.host}:{self.port}")
+                    self.logger.log_lis(f"Connected to LIS server at {self.host}:{self.port}")
+                    # 启动接收线程
+                    self.receive_thread = threading.Thread(target=self._receive_data, daemon=True)
+                    self.receive_thread.start()
+                else:
+                    self.logger.error(f"Failed to connect to LIS server. Retrying in {self.reconnect_interval} seconds...")
+                    self.logger.log_lis(f"Failed to connect to LIS server. Retrying in {self.reconnect_interval} seconds...")
+                    time.sleep(self.reconnect_interval)
+            time.sleep(1)
     
-    def _handle_connection(self, conn, addr):
-        """处理单个连接
+    def _connect(self):
+        """连接到LIS服务器
         
-        Args:
-            conn: 连接 socket
-            addr: 客户端地址
+        Returns:
+            bool: 连接是否成功
         """
-        buffer = ''
-        
         try:
-            while self.is_running:
+            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            # 移除超时设置，避免因超时而断开连接
+            # self.client_socket.settimeout(10)
+            self.client_socket.connect((self.host, self.port))
+            self.is_connected = True
+            # 更新核心LIS连接状态为已连接
+            self.core.update_lis_connection_status(1)  # 1: Connected
+            # 记录连接成功到LIS通讯日志
+            self.logger.log_lis(f"Connection established to {self.host}:{self.port}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Connection error: {str(e)}")
+            self.logger.log_lis(f"Connection error: {str(e)}")
+            self.is_connected = False
+            # 更新核心LIS连接状态为断开连接
+            self.core.update_lis_connection_status(2)  # 2: Disconnected
+            return False
+    
+    def _receive_data(self):
+        """接收LIS服务器数据"""
+        while self.is_running and self.is_connected:
+            try:
+                # 设置一个较短的超时，以便能够定期检查连接状态
+                self.client_socket.settimeout(5)  # 5秒超时
                 # 接收数据
-                data = conn.recv(4096)
+                data = self.client_socket.recv(4096)
                 if not data:
+                    self.logger.info("Connection to LIS server closed")
+                    self.logger.log_lis("Connection to LIS server closed")
+                    self.is_connected = False
+                    # 更新核心LIS连接状态为断开连接
+                    self.core.update_lis_connection_status(2)  # 2: Disconnected
                     break
                 
-                # 转换为字符串
-                buffer += data.decode('ascii', errors='replace')
+                # 立即显示收到的数据到日志
+                self.logger.log_lis(f"Received data: {repr(data)}")
                 
-                # 处理缓冲区中的ASTM消息
-                while True:
-                    # 查找完整消息（以L记录结尾）
-                    msg_end = buffer.find(f"L{self.FIELD_SEP}")
-                    if msg_end == -1:
-                        break
-                    
-                    # 提取完整消息
-                    # 找到消息的起始位置（H记录）
-                    msg_start = buffer.find(f"H{self.FIELD_SEP}")
-                    if msg_start == -1:
-                        # 没有找到H记录，清空缓冲区
-                        buffer = ''
-                        break
-                    
-                    # 提取完整消息
-                    message = buffer[msg_start:msg_end + buffer[msg_end:].find(self.RECORD_SEP) + 1]
-                    buffer = buffer[msg_end + buffer[msg_end:].find(self.RECORD_SEP) + 1:]
-                    
-                    # 处理消息
-                    self._process_message(conn, addr, message)
-                    
-        except socket.error as e:
-            self.logger.error(f"LIS connection error with {addr[0]}:{addr[1]}: {str(e)}")
-        except Exception as e:
-            self.logger.error(f"Unexpected error handling LIS connection from {addr[0]}:{addr[1]}: {str(e)}")
-        finally:
-            # 清理连接
-            with self.connection_lock:
-                if conn in self.connections:
-                    self.connections.remove(conn)
-            
-            try:
-                conn.close()
-            except:
-                pass
-            
-            self.logger.info(f"LIS connection closed with {addr[0]}:{addr[1]}")
-            self.logger.log_lis(f"Connection closed: {addr[0]}:{addr[1]}")
+                # 转换为字符串并添加到缓冲区
+                self.buffer += data.decode('ascii', errors='replace')
+                
+                # 收到消息后立即回复ACK
+                self._send_ack()
+                
+                # 检查是否包含EOT字符(0x04)
+                if '\x04' in self.buffer:
+                    # 处理包含EOT的完整消息
+                    self._process_buffer_with_eot()
+                
+            except socket.timeout:
+                # 超时异常，不断开连接，继续等待数据
+                # 这是正常的，因为我们设置了超时以便定期检查连接状态
+                continue
+            except socket.error as e:
+                error_msg = f"Error receiving data from LIS server: {str(e)}"
+                self.logger.error(error_msg)
+                self.logger.log_lis(error_msg)
+                self.is_connected = False
+                # 更新核心LIS连接状态为断开连接
+                self.core.update_lis_connection_status(2)  # 2: Disconnected
+                break
+            except Exception as e:
+                error_msg = f"Unexpected error in LIS receive thread: {str(e)}"
+                self.logger.error(error_msg)
+                self.logger.log_lis(error_msg)
+                self.is_connected = False
+                # 更新核心LIS连接状态为断开连接
+                self.core.update_lis_connection_status(2)  # 2: Disconnected
+                break
     
-    def _process_message(self, conn, addr, message):
+    def _process_buffer_with_eot(self):
+        """处理包含EOT字符的缓冲区数据"""
+        while '\x04' in self.buffer:
+            # 找到EOT字符位置
+            eot_pos = self.buffer.find('\x04')
+            if eot_pos == -1:
+                break
+            
+            # 提取完整消息（从当前位置到EOT）
+            full_message = self.buffer[:eot_pos]
+            # 移除已处理的消息和EOT字符
+            self.buffer = self.buffer[eot_pos + 1:]
+            
+            # 处理完整消息
+            if full_message.strip():
+                # 记录完整消息
+                self.logger.log_lis(f"Processing complete message: {repr(full_message)}")
+                # 处理ASTM消息
+                self._process_message(full_message)
+    
+    def _process_message(self, message):
         """处理ASTM消息
         
         Args:
-            conn: 连接 socket
-            addr: 客户端地址
             message: ASTM消息
         """
         try:
             # 记录接收到的消息
-            self.logger.log_lis(f"Received message from {addr[0]}:{addr[1]}")
+            self.logger.log_lis(f"Received message from LIS server")
             self.logger.log_lis(f"Message content: {repr(message)}")
             
             # 解析消息
@@ -222,6 +227,7 @@ class LISServer:
             patient_info = {}
             current_sample = None
             test_orders = []
+            is_query_response = False
             
             for record in records:
                 record = record.strip()
@@ -234,7 +240,10 @@ class LISServer:
                 if record_type == self.RECORD_TYPE_HEADER:
                     # 处理头记录
                     self._handle_header_record(fields)
-                    
+                    # 检查是否是查询响应（消息控制ID为Q）
+                    if len(fields) >= 5 and fields[4] == 'Q':
+                        is_query_response = True
+                        
                 elif record_type == self.RECORD_TYPE_PATIENT:
                     # 处理患者记录
                     patient_info = self._parse_patient_record(fields)
@@ -246,21 +255,20 @@ class LISServer:
                         current_sample = order_info['sample_id']
                         test_orders = order_info['tests']
                         
-                elif record_type == self.RECORD_TYPE_QUERY:
-                    # 处理查询记录
-                    query_info = self._parse_query_record(fields)
-                    if query_info:
-                        # 发送查询响应
-                        self._send_query_response(conn, query_info)
-                    
                 elif record_type == self.RECORD_TYPE_TERMINATOR:
                     # 处理终止记录
                     if current_sample and test_orders:
                         # 接收样本
-                        self._receive_sample(conn, current_sample, test_orders, patient_info)
+                        self._receive_sample(current_sample, test_orders, patient_info)
+                        
+                        # 如果是查询响应，将结果存储到响应缓存
+                        if is_query_response:
+                            with self.response_cache_lock:
+                                self.response_cache[current_sample] = test_orders
+                            self.logger.log_lis(f"Stored query response for sample {current_sample}: {test_orders}")
             
-            # 发送确认消息
-            self._send_ack(conn)
+            # 不再发送ACK，因为已经在收到数据时立即回复了
+            # self._send_ack()
             
         except Exception as e:
             self.logger.error(f"Error processing LIS message: {str(e)}")
@@ -337,20 +345,14 @@ class LISServer:
         self.logger.log_lis(f"Parsed order record: {order_info}")
         return order_info
     
-    def _receive_sample(self, conn, sample_id, tests, patient_info):
+    def _receive_sample(self, sample_id, tests, patient_info):
         """接收样本
         
         Args:
-            conn: 连接 socket
             sample_id: 样本ID
             tests: 测试项目列表
             patient_info: 患者信息
         """
-        # 存储查询结果
-        with self.query_results_lock:
-            self.query_results[sample_id] = tests
-            self.logger.log_lis(f"Stored query result for sample {sample_id}: {tests}")
-        
         # 调用核心模块接收样本
         success = self.core.receive_sample(sample_id, tests, patient_info)
         
@@ -361,20 +363,20 @@ class LISServer:
             self.logger.error(f"Failed to receive sample {sample_id} from LIS")
             self.logger.log_lis(f"Failed to receive sample: {sample_id}")
     
-    def _send_ack(self, conn):
-        """发送确认消息
-        
-        Args:
-            conn: 连接 socket
-        """
+    def _send_ack(self):
+        """发送确认消息"""
         # ASTM确认消息（简单ACK）
-        ack_msg = '\x06'  # ACK字符
-        conn.sendall(ack_msg.encode('ascii'))
-        self.logger.log_lis(f"Sent ACK to client")
+        with self.connection_lock:
+            if self.is_connected and self.client_socket:
+                try:
+                    ack_msg = '\x06'  # ACK字符
+                    self.client_socket.sendall(ack_msg.encode('ascii'))
+                    self.logger.log_lis(f"Sent ACK to LIS server")
+                except Exception as e:
+                    self.logger.error(f"Error sending ACK: {str(e)}")
     
     def _send_result_callback(self, sample_id, results):
         """结果回调函数，用于发送结果回LIS
-        
         Args:
             sample_id: 样本ID
             results: 测试结果
@@ -386,21 +388,88 @@ class LISServer:
         # 构建ASTM结果消息
         result_msg = self._build_result_message(sample_info)
         
-        # 发送结果到所有连接的客户端
+        # 发送结果到LIS服务器
+        self._send_message(result_msg)
+    
+    def get_apply(self, barcode):
+        """获取申请项目
+        Args:
+            barcode: 样本条码
+        Returns:
+            list: 申请项目列表
+        """
+        if not barcode:
+            return []
+        
+        # 记录获取申请项目请求
+        self.logger.log_lis(f"Getting apply for barcode: {barcode}")
+        
+        # 检查响应缓存中是否已有结果
+        with self.response_cache_lock:
+            if barcode in self.response_cache:
+                # 从缓存中获取结果
+                test_orders = self.response_cache[barcode]
+                # 从缓存中移除，避免重复使用
+                del self.response_cache[barcode]
+                self.logger.log_lis(f"Retrieved apply from cache for barcode: {barcode}")
+                # 转换为显示格式
+                return [f"{test} - {self._get_test_name(test)}" for test in test_orders]
+        
+        # 检查是否已连接到LIS服务器
+        if not self.is_connected:
+            self.logger.warning("Not connected to LIS server, using mock data")
+            # 返回模拟的申请项目
+            return ["TEST001 - 血常规", "TEST002 - 生化常规", "TEST003 - 肝功能", "TEST004 - 肾功能"]
+        
+        try:
+            # 构建ASTM查询消息
+            query_message = self._build_query_message(barcode)
+            
+            # 发送查询消息到LIS服务器
+            self._send_message(query_message)
+            
+            # 等待并接收响应（这里简化处理，实际应该使用异步方式）
+            # 注意：这只是一个示例，实际实现需要根据LIS服务器的响应格式进行调整
+            self.logger.log_lis(f"Sent query for barcode: {barcode}")
+            
+            # 由于我们使用的是模拟实现，这里仍然返回模拟数据
+            # 实际项目中应该解析LIS服务器的响应并返回真实的申请项目
+            # 响应会通过_receive_data方法接收并由_process_message方法处理
+            # 这里可以添加逻辑来等待响应或使用回调机制
+            return ["TEST001 - 血常规", "TEST002 - 生化常规", "TEST003 - 肝功能", "TEST004 - 肾功能"]
+        except Exception as e:
+            self.logger.error(f"Error getting apply from LIS server: {str(e)}")
+            # 出错时返回模拟数据
+            return ["TEST001 - 血常规", "TEST002 - 生化常规", "TEST003 - 肝功能", "TEST004 - 肾功能"]
+    
+    def _send_message(self, message):
+        """发送消息到LIS服务器
+        
+        Args:
+            message: 要发送的ASTM消息
+        """
         with self.connection_lock:
-            for conn in self.connections:
+            if self.is_connected and self.client_socket:
                 try:
-                    conn.sendall(result_msg.encode('ascii'))
-                    self.logger.log_lis(f"Sent results for sample {sample_id} to client")
+                    self.client_socket.sendall(message.encode('ascii'))
+                    self.logger.log_lis(f"Sent message to LIS server")
+                    self.logger.log_lis(f"Message content: {repr(message)}")
+                    
+                    # 等待ACK
+                    ack = self.client_socket.recv(1)
+                    if ack == b'\x06':  # ACK
+                        self.logger.log_lis("Received ACK from LIS server")
+                    else:
+                        self.logger.log_lis(f"Received unexpected response: {repr(ack)}")
+                        
                 except Exception as e:
-                    self.logger.error(f"Error sending results to client: {str(e)}")
+                    self.logger.error(f"Error sending message to LIS server: {str(e)}")
+                    self.is_connected = False
     
     def _build_result_message(self, sample_info):
         """构建ASTM结果消息
-        
         Args:
             sample_info: 样本信息
-            
         Returns:
             str: ASTM结果消息
         """
@@ -415,8 +484,8 @@ class LISServer:
         # 添加头记录
         header_record = [
             self.RECORD_TYPE_HEADER,
-            'LIS',                      # 发送方ID
-            'ATELLICA',                 # 接收方ID
+            'ATELLICA',                 # 发送方ID
+            'LIS',                      # 接收方ID
             date_time_str,              # 消息日期时间
             '1',                        # 消息控制ID
             '1',                        # 版本号
@@ -492,207 +561,10 @@ class LISServer:
         
         return astm_message
     
-    def _parse_query_record(self, fields):
-        """解析查询记录
-        
+    def _build_query_message(self, barcode):
+        """构建查询申请项目的ASTM消息
         Args:
-            fields: 查询记录字段列表
-            
-        Returns:
-            dict: 查询信息，包含sample_id
-        """
-        query_info = {
-            'sample_id': ''
-        }
-        
-        if len(fields) >= 2:
-            # 查询类型（例如：1表示查询样本订单）
-            query_info['query_type'] = fields[1] if fields[1] else ''
-        
-        if len(fields) >= 3:
-            # 样本ID
-            query_info['sample_id'] = fields[2] if fields[2] else ''
-        
-        self.logger.log_lis(f"Parsed query record: {query_info}")
-        return query_info
-    
-    def _send_query_response(self, conn, query_info):
-        """发送查询响应
-        
-        Args:
-            conn: 连接 socket
-            query_info: 查询信息
-        """
-        sample_id = query_info.get('sample_id', '')
-        if not sample_id:
-            self.logger.error("No sample ID in query")
-            return
-        
-        # 构建查询响应消息
-        response_msg = self._build_query_response_message(sample_id)
-        
-        try:
-            # 发送响应
-            conn.sendall(response_msg.encode('ascii'))
-            self.logger.log_lis(f"Sent query response for sample {sample_id}")
-        except Exception as e:
-            self.logger.error(f"Error sending query response: {str(e)}")
-    
-    def _build_query_response_message(self, sample_id):
-        """构建ASTM查询响应消息
-        
-        Args:
-            sample_id: 样本ID
-            
-        Returns:
-            str: ASTM查询响应消息
-        """
-        # 获取当前时间
-        now = datetime.now()
-        date_time_str = now.strftime('%Y%m%d%H%M%S')
-        date_str = now.strftime('%Y%m%d')
-        
-        # 构建消息
-        message = []
-        
-        # 添加头记录
-        header_record = [
-            self.RECORD_TYPE_HEADER,
-            'ATELLICA',                 # 发送方ID（ATS）
-            'LIS',                      # 接收方ID
-            date_time_str,              # 消息日期时间
-            '1',                        # 消息控制ID
-            '1',                        # 版本号
-            '1'                         # 字符集
-        ]
-        message.append(self.FIELD_SEP.join(header_record))
-        
-        # 添加订单记录（响应查询）
-        # 从测试库存中随机选择3-5个测试项目作为响应
-        test_items = list(self.core.test_inventory['tests'].keys())[:10]  # 取前10个测试项目
-        selected_tests = random.sample(test_items, random.randint(3, 5))
-        
-        # 将测试项目转换为ASTM格式（重复字段）
-        test_field = self.REPEAT_SEP.join([test for test in selected_tests])
-        
-        order_record = [
-            self.RECORD_TYPE_ORDER,
-            sample_id,                  # 样本ID
-            test_field,                 # 测试订单
-            date_str,                   # 采集日期
-            '',                         # 采集时间
-            '',                         # 采集者ID
-            '',                         # 容器类型
-            '',                         # 容器状态
-            '',                         # 样本状态
-            '',                         # 优先级
-            '',                         # 医生ID
-            ''                          # 科室
-        ]
-        message.append(self.FIELD_SEP.join(order_record))
-        
-        # 添加终止记录
-        terminator_record = [
-            self.RECORD_TYPE_TERMINATOR,
-            '2',  # 消息中的记录数（H + O + L = 3？不，这里是H + O + L = 3，但我们只有H + O，所以是2）
-            '1'   # 校验和（简化处理）
-        ]
-        message.append(self.FIELD_SEP.join(terminator_record))
-        
-        # 组合消息，添加记录分隔符
-        astm_message = self.RECORD_SEP.join(message) + self.RECORD_SEP
-        
-        self.logger.log_lis(f"Built query response for sample {sample_id}")
-        self.logger.log_lis(f"Response message: {repr(astm_message)}")
-        
-        return astm_message
-    
-    def _send_result_message(self, conn, astm_message):
-        """发送ASTM结果消息
-        
-        Args:
-            conn: 连接 socket
-            astm_message: ASTM结果消息
-        """
-        try:
-            # 发送消息
-            conn.sendall(astm_message.encode('ascii'))
-            
-            # 等待ACK
-            ack = conn.recv(1)
-            if ack == b'\x06':  # ACK
-                self.logger.log_lis("Received ACK for result message")
-            else:
-                self.logger.log_lis(f"Received unexpected response: {repr(ack)}")
-                
-        except Exception as e:
-            self.logger.error(f"Error sending result message: {str(e)}")
-            self.logger.log_lis(f"Error sending result message: {str(e)}")
-    
-    def query_worklist(self, sample_id):
-        """查询样本工单
-        
-        Args:
-            sample_id: 样本ID
-            
-        Returns:
-            list: 测试项目列表，或空列表
-        """
-        self.logger.info(f"Querying worklist for sample {sample_id} via ASTM")
-        
-        # 构建查询消息
-        query_msg = self._build_query_message(sample_id)
-        
-        # 向所有连接的LIS客户端发送查询
-        with self.connection_lock:
-            for conn in self.connections:
-                try:
-                    # 发送查询
-                    conn.sendall(query_msg.encode('ascii'))
-                    self.logger.log_lis(f"Sent query for sample {sample_id} to LIS")
-                    
-                    # 等待响应（简单实现，实际可能需要更复杂的处理）
-                    time.sleep(1)  # 等待1秒，实际实现应使用超时机制
-                    
-                except Exception as e:
-                    self.logger.error(f"Error querying worklist: {str(e)}")
-        
-        # 注意：这里只是发送查询，实际响应处理在_handle_connection方法中
-        # 我们将在core模块中使用轮询方式等待结果
-        return []
-    
-    def get_query_result(self, sample_id, timeout=30):
-        """获取查询结果
-        
-        Args:
-            sample_id: 样本ID
-            timeout: 超时时间（秒）
-            
-        Returns:
-            list: 测试项目列表，或空列表
-        """
-        start_time = time.time()
-        
-        while time.time() - start_time < timeout:
-            with self.query_results_lock:
-                if sample_id in self.query_results:
-                    # 获取并移除结果
-                    result = self.query_results.pop(sample_id)
-                    self.logger.log_lis(f"Retrieved query result for sample {sample_id}: {result}")
-                    return result
-            
-            # 等待1秒后重试
-            time.sleep(1)
-        
-        self.logger.warning(f"Timeout waiting for query result for sample {sample_id}")
-        return []
-    
-    def _build_query_message(self, sample_id):
-        """构建ASTM查询消息
-        
-        Args:
-            sample_id: 样本ID
-            
+            barcode: 样本条码
         Returns:
             str: ASTM查询消息
         """
@@ -706,40 +578,59 @@ class LISServer:
         # 添加头记录
         header_record = [
             self.RECORD_TYPE_HEADER,
-            'ATELLICA',                 # 发送方ID（ATS）
+            'ATELLICA',                 # 发送方ID
             'LIS',                      # 接收方ID
             date_time_str,              # 消息日期时间
-            '1',                        # 消息控制ID
+            'Q',                        # 消息控制ID（Q表示查询）
             '1',                        # 版本号
             '1'                         # 字符集
         ]
         message.append(self.FIELD_SEP.join(header_record))
         
-        # 添加查询记录
+        # 添加查询记录（使用订单记录类型，实际应该根据ASTM协议使用正确的记录类型）
         query_record = [
-            self.RECORD_TYPE_QUERY,
-            '1',                        # 查询类型：1=查询样本订单
-            sample_id,                  # 样本ID
-            '',                         # 可选字段
-            '',                         # 可选字段
-            '',                         # 可选字段
-            '',                         # 可选字段
-            ''                          # 可选字段
+            self.RECORD_TYPE_ORDER,
+            barcode,  # 样本ID/条码
+            '',  # 测试请求
+            '',  # 采集日期
+            '',  # 采集时间
+            '',  # 采集者ID
+            '',  # 容器类型
+            '',  # 容器状态
+            '',  # 样本状态
+            '',  # 优先级
+            '',  # 医生ID
+            ''   # 科室
         ]
         message.append(self.FIELD_SEP.join(query_record))
         
         # 添加终止记录
         terminator_record = [
             self.RECORD_TYPE_TERMINATOR,
-            '2',                        # 消息中的记录数（H + Q + L = 3）
-            '1'                         # 校验和（简化处理）
+            '1',  # 消息中的记录数
+            '1'   # 校验和（简化处理）
         ]
         message.append(self.FIELD_SEP.join(terminator_record))
         
         # 组合消息，添加记录分隔符
         astm_message = self.RECORD_SEP.join(message) + self.RECORD_SEP
         
-        self.logger.log_lis(f"Built query message for sample {sample_id}")
-        self.logger.log_lis(f"Query message: {repr(astm_message)}")
+        self.logger.log_lis(f"Built query message for barcode: {barcode}")
+        self.logger.log_lis(f"Query message content: {repr(astm_message)}")
         
         return astm_message
+    
+    def _get_test_name(self, test_code):
+        """根据测试代码获取测试名称
+        Args:
+            test_code: 测试代码
+        Returns:
+            str: 测试名称
+        """
+        test_names = {
+            'TEST001': '血常规',
+            'TEST002': '生化常规',
+            'TEST003': '肝功能',
+            'TEST004': '肾功能'
+        }
+        return test_names.get(test_code, '未知测试')

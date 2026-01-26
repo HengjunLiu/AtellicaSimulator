@@ -9,13 +9,14 @@ from tkinter import ttk, scrolledtext
 import threading
 import time
 
+from .lisui import LisUI
 
 APP_VERSION = "v1.3.7"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""
     
-    def __init__(self, config_manager, logger, core, las_server, lis_server):
+    def __init__(self, config_manager, logger, core, las_server, lis_client):
         """初始化UI
         
         Args:
@@ -23,13 +24,13 @@ class AtellicaUI:
             logger: 日志管理器实例
             core: 核心模拟逻辑实例
             las_server: LAS服务器实例
-            lis_server: LIS服务器实例
+            lis_client: LIS客户端实例
         """
         self.config_manager = config_manager
         self.logger = logger
         self.core = core
         self.las_server = las_server
-        self.lis_server = lis_server
+        self.lis_client = lis_client
         
         # 创建主窗口
         self.root = tk.Tk()
@@ -63,7 +64,7 @@ class AtellicaUI:
         
         # 启动服务器
         self.las_server.start()
-        self.lis_server.start()
+        self.lis_client.start()
         
         # 启动状态更新线程
         self.running = True
@@ -289,6 +290,7 @@ class AtellicaUI:
         ttk.Button(left_button_frame, text="在机标本", command=self._show_onboard_samples).pack(side=tk.LEFT, padx=5)
         ttk.Button(left_button_frame, text="编辑库存", command=self._show_inventory_editor).pack(side=tk.LEFT, padx=5)
         ttk.Button(left_button_frame, text="清空日志", command=self._clear_logs).pack(side=tk.LEFT, padx=5)
+        ttk.Button(left_button_frame, text="LIS模拟", command=self._open_lis_simulation).pack(side=tk.LEFT, padx=5)
         
         # 添加右侧退出按钮
         right_button_frame = ttk.Frame(button_frame)
@@ -923,6 +925,12 @@ class AtellicaUI:
         """清空日志"""
         self.las_log_text.delete(1.0, tk.END)
         self.lis_log_text.delete(1.0, tk.END)
+    
+    def _open_lis_simulation(self):
+        """打开LIS模拟数据窗口"""
+        # 创建LisUI实例，传递lis_client
+        self.lis_ui = LisUI(self.root, self.logger, self.lis_client)
+
     
     def _show_manual_prompt(self, request_type, interface_position, sample_id):
         """显示手动处理提示
