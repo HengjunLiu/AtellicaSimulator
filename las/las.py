@@ -1700,16 +1700,17 @@ class LASServer:
             # 2. 发送LOAD_UNLOAD_RESPONSE消息到所有连接的客户端
             with self.connection_lock:
                 for conn in self.connections:
-                    # 构建响应消息体
+                    # 构建响应消息体 - 遵循LAS接口协议
+                    # 手工弹出场景：标本已离开ATS，且不在LAS上
                     load_sample_id_bytes = b''
                     load_sample_id_len = 0
-                    load_status = 0x01  # Success
+                    load_status = 0x00  # Not Applicable (纯卸载操作，无装载)
                     
                     unload_sample_id_bytes = sample_id.encode('ascii')
                     unload_sample_id_len = len(unload_sample_id_bytes)
-                    unload_status = 0x01  # Success
+                    unload_status = 0x01  # Success (成功处理手工弹出)
                     
-                    sample_status = 0x01  # Sample Processed successfully
+                    sample_status = 0x03  # Sample Ejected (样本被手工弹出，符合LAS协议)
                     onboard_count = self.core.get_instrument_health()['on_board_tube_count']
                     completed_count = self.core.get_instrument_health()['completed_tube_count']
                     ready_to_load = self.core.get_ready_to_load()

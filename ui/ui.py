@@ -11,7 +11,7 @@ import time
 
 from .lisui import LisUI
 
-APP_VERSION = "v1.3.7"
+APP_VERSION = "v1.3.8"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""
@@ -197,12 +197,11 @@ class AtellicaUI:
         self.ip0_remote_status_combobox.grid(row=3, column=1, padx=5, pady=5)
         ttk.Button(device_config_frame, text="应用", command=self._update_ip0_remote_status).grid(row=3, column=2, padx=5, pady=5)
         
-        # IP0锁所有权配置
+        # IP0锁所有权配置（只读，由程序自动更新）
         ttk.Label(device_config_frame, text="IP0锁所有权:").grid(row=4, column=0, sticky=tk.W, padx=5, pady=5)
-        self.ip0_lock_ownership_combobox = ttk.Combobox(device_config_frame, values=["Locked by Instrument", "Not Locked by Instrument"], width=25)
+        self.ip0_lock_ownership_combobox = ttk.Combobox(device_config_frame, values=["Locked by Instrument", "Not Locked by Instrument"], width=25, state="readonly")
         self.ip0_lock_ownership_combobox.set("Not Locked by Instrument")
         self.ip0_lock_ownership_combobox.grid(row=4, column=1, padx=5, pady=5)
-        ttk.Button(device_config_frame, text="应用", command=self._update_ip0_lock_ownership).grid(row=4, column=2, padx=5, pady=5)
         
         # IP1远程控制状态配置
         ttk.Label(device_config_frame, text="IP1远程控制状态:").grid(row=5, column=0, sticky=tk.W, padx=5, pady=5)
@@ -211,12 +210,11 @@ class AtellicaUI:
         self.ip1_remote_status_combobox.grid(row=5, column=1, padx=5, pady=5)
         ttk.Button(device_config_frame, text="应用", command=self._update_ip1_remote_status).grid(row=5, column=2, padx=5, pady=5)
         
-        # IP1锁所有权配置
+        # IP1锁所有权配置（只读，由程序自动更新）
         ttk.Label(device_config_frame, text="IP1锁所有权:").grid(row=6, column=0, sticky=tk.W, padx=5, pady=5)
-        self.ip1_lock_ownership_combobox = ttk.Combobox(device_config_frame, values=["Locked by Instrument", "Not Locked by Instrument"], width=25)
+        self.ip1_lock_ownership_combobox = ttk.Combobox(device_config_frame, values=["Locked by Instrument", "Not Locked by Instrument"], width=25, state="readonly")
         self.ip1_lock_ownership_combobox.set("Not Locked by Instrument")
         self.ip1_lock_ownership_combobox.grid(row=6, column=1, padx=5, pady=5)
-        ttk.Button(device_config_frame, text="应用", command=self._update_ip1_lock_ownership).grid(row=6, column=2, padx=5, pady=5)
         
         # 中间：手动样本处理
         manual_frame = ttk.LabelFrame(content_frame, text="手动样本处理", padding="10")
@@ -379,6 +377,17 @@ class AtellicaUI:
             else:
                 self.ip1_locked_var.set("Unlocked")
                 self.ip1_locked_label.configure(foreground="green")
+            
+            # 自动更新IP0和IP1的锁所有权（根据程序状态）
+            health_status = self.core.get_instrument_health()
+            # 更新IP0锁所有权
+            ip0_lock_ownership = health_status['lock_ownership'][0] if len(health_status['lock_ownership']) > 0 else 2
+            ip0_lock_desc = "Locked by Instrument" if ip0_lock_ownership == 1 else "Not Locked by Instrument"
+            self.ip0_lock_ownership_combobox.set(ip0_lock_desc)
+            # 更新IP1锁所有权
+            ip1_lock_ownership = health_status['lock_ownership'][1] if len(health_status['lock_ownership']) > 1 else 2
+            ip1_lock_desc = "Locked by Instrument" if ip1_lock_ownership == 1 else "Not Locked by Instrument"
+            self.ip1_lock_ownership_combobox.set(ip1_lock_desc)
             
             # 更新详细状态文本
             detail_text = f"设备状态详细信息：\n"
@@ -923,8 +932,12 @@ class AtellicaUI:
     
     def _clear_logs(self):
         """清空日志"""
+        # 清空UI文本框
         self.las_log_text.delete(1.0, tk.END)
         self.lis_log_text.delete(1.0, tk.END)
+        # 清空日志缓冲区，防止日志重新显示
+        self.las_log_buffer.clear()
+        self.lis_log_buffer.clear()
     
     def _open_lis_simulation(self):
         """打开LIS模拟数据窗口"""
@@ -1136,12 +1149,13 @@ class AtellicaUI:
         """退出应用"""
         self.running = False
         
-        # 停止服务器
+        # 停止服务器和客户端
         self.las_server.stop()
-        self.lis_server.stop()
+        self.lis_client.stop()
         
         # 关闭窗口
         self.root.quit()
+        self.root.destroy()
     
     def run(self):
         """运行UI主循环"""

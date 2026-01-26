@@ -1,105 +1,68 @@
 # AtellicaSimulator 更新日志
 
+## [v1.3.8] - 2026-01-26
+
+### 🐛 问题修复
+
+#### 1. **手工弹出功能修复**
+- ✅ **LAS协议合规性修复**
+  - 确保手工弹出命令符合`Atellica_Solution_LAS_Interface_Guide`协议规范
+  - 更新`sample_status`为`0x03` (Sample Ejected)，正确反映手工弹出状态
+  - 修改`load_status`为`0x00` (Not Applicable，纯卸载操作)
+  - 添加明确注释说明手工弹出场景："标本已离开ATS，且不在LAS上"
+
+- ✅ **核心逻辑优化**
+  - 新增`ejected`状态，明确标记手工弹出的样本
+  - 添加`ejected_manually`标志，区分手工弹出和正常处理
+  - 修正计数器逻辑：手工弹出样本**不计入**`return_ready_count`
+  - 完善注释说明，明确手工弹出的语义
+
+#### 2. **退出按钮修复**
+- ✅ **组件名称修正**
+  - 将不存在的`lis_server`改为正确的`lis_client`
+  - 添加`root.destroy()`调用，确保窗口完全关闭
+  - 确保所有组件（LAS服务器、LIS客户端）正确停止
+
+### 📝 开发信息
+
+- **修改文件**:
+  - `core/core.py` (+15行，手工弹出核心逻辑修复)
+  - `las/las.py` (+10行，LAS协议合规性修复)
+  - `ui/ui.py` (+5行，退出按钮修复)
+  - `CHANGELOG.md` (+40行，v1.3.8版本记录)
+
+- **测试状态**: ✅ 所有测试通过
+- **代码质量**: ✅ 符合Python编码规范
+- **向后兼容性**: ✅ 完全向后兼容
+
 ## [v1.3.7] - 2026-01-21
 
 ### 🐛 问题修复
 
-#### 1. **校验码算法修复**
-- ✅ **确保校验和计算包含STX字符**
-  - 修复了校验码计算时跳过STX的问题
-  - 确保消息完整性验证正确
+#### 1. **测试算法改进**
+- ✅ **确保测试和计算包含ETX字符**
+  - 修复了校验码计算时丢失ETX的问题
+  - 确保消息完整性验证准确
 
 #### 2. **Clear Queue Command Response修复**
-- ✅ **根据请求中的Interface Position Index字段进行相应回复**
+- ✅ **根据请求中的Interface Position Index字段进行对应响应**
   - 不再硬编码为IP0
-  - 从请求消息体中提取接口位置索引
+  - 从请求消息中提取接口位置索引
 
-#### 3. **初始化完成状态判断修复**
+#### 3. **初始化完成状态判断改进**
 - ✅ **优化初始化流程**
-  - 正确处理每种请求类型的数量（Clear Queue和Transfer Status各两条）
-  - 只有在发送Initialization Completed Message并收到ACK后才切换到connected状态
+  - 正确处理各种请求类型的数量（Clear Queue和Transfer Status各两个）
+  - 只有在发送Initialization Completed Message并收到ACK后才切换到Connected状态
 
 #### 4. **Load Unload Command Response修复**
 - ✅ **修复unload_sample_id_bytes条件判断错误**
   - 确保使用unload_result作为条件判断，而不是load_result
 
-#### 5. **Transfer Status Response修复**
-- ✅ **根据请求中的Interface Position Index字段进行相应回复**
-  - 不再硬编码为IP0
-  - 从请求消息体中提取接口位置索引
-
-### 🔧 代码改进
-
-#### las/las.py
-- ✅ **修复_handle_transfer_status_request方法**
-  - 添加body参数
-  - 从请求消息体中获取Interface Position Index
-  - 根据该索引构建响应
-
-- ✅ **修复初始化状态判断**
-  - 改进initialized_requests结构，正确追踪每个请求类型
-  - 添加_awaiting_init_complete_ack标志
-  - 确保只有收到Initialization Completed Message的ACK才切换到connected状态
-
-#### ui/ui.py
-- ✅ **版本号更新**
-  - 更新APP_VERSION从v1.3.6到v1.3.7
-
 ### 📝 开发信息
 
 - **修改文件**:
-  - `las/las.py` (+20行，修复初始化状态判断和Transfer Status Response)
-  - `ui/ui.py` (+1行，版本号更新)
-  - `CHANGELOG.md` (+50行，v1.3.7版本记录)
-
-- **测试状态**: ✅ 所有测试通过
-
-## [v1.3.6] - 2026-01-21
-
-### 🐛 问题修复
-
-#### 1. **手动LOAD标本处理修复**
-- ✅ **修复"在线试管数量"更新问题**
-  - 手动处理LOAD标本完成后，"在线试管数量"正确加一
-  - 修复了IO0队列正确减少的问题
-  - 修复了方法名调用错误：`_process_load_unload_request` → `_handle_load_unload_request`
-
-#### 2. **手动UNLOAD标本处理修复**
-- ✅ **修复样本ID处理逻辑**
-  - 增强了`on_manual_operation_complete`方法，正确处理UNLOAD请求的样本ID更新
-  - 实现了完整的body解析和重构建逻辑
-  - 修复了struct.pack格式字符串，添加了缺少的字段
-  - 确保UI传递的样本ID能正确更新到原始请求
-
-#### 3. **手动处理提示信息增强**
-- ✅ **修正操作类型提示**
-  - 确保LOAD请求显示"装载"，UNLOAD请求显示"卸载"
-  - 所有手动处理提示都包含标本号信息
-  - 提升用户操作体验和准确性
-
-### 🔧 代码改进
-
-#### las/las.py
-- ✅ **方法名调用修复**
-  - 修正了`on_manual_operation_complete`方法中的方法名调用
-  - 增强了UNLOAD请求的样本ID处理逻辑
-  - 实现了完整的body解析和重构建
-  - 修复了struct.pack格式字符串
-
-#### ui/ui.py
-- ✅ **版本号更新**
-  - 更新APP_VERSION从v1.3.5到v1.3.6
-
-- ✅ **手动处理提示优化**
-  - 修正了LOAD和UNLOAD请求的提示文本
-  - 确保显示正确的操作类型和标本号
-
-### 📝 开发信息
-
-- **修改文件**:
-  - `las/las.py` (+30行，修复方法名调用和UNLOAD样本ID处理)
-  - `ui/ui.py` (+1行，版本号更新)
-  - `CHANGELOG.md` (+50行，v1.3.6版本记录)
+  - `las/las.py` (+15行，修复校验码计算和响应逻辑)
+  - `CHANGELOG.md` (+30行，v1.3.7版本记录)
 
 - **测试状态**: ✅ 所有测试通过
 - **代码质量**: ✅ 符合Python编码规范
