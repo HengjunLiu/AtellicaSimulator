@@ -239,7 +239,7 @@ class AtellicaCore:
             return self.samples.get(sample_id)
     
     def manual_eject_sample(self, sample_id):
-        """手动弹出样本
+        """手动弹出样本 - 标本已离开ATS，且不在LAS上
         
         Args:
             sample_id: 要弹出的样本ID
@@ -254,19 +254,20 @@ class AtellicaCore:
             sample = self.samples[sample_id]
             
             # 检查样本状态
-            if sample['status'] in ['completed', 'unloaded']:
+            if sample['status'] in ['completed', 'unloaded', 'ejected']:
                 return False
             
-            # 更新样本状态
-            sample['status'] = 'completed'
+            # 更新样本状态 - 标记为已弹出（标本已离开ATS，不在LAS上）
+            sample['status'] = 'ejected'  # 新增状态：手工弹出
             sample['completed_time'] = time.time()
             sample['unloaded'] = True
+            sample['ejected_manually'] = True  # 标记为手工弹出
             
             with self.status_lock:
-                # 更新计数器
+                # 更新计数器 - 手工弹出的样本不计入可返回数量
                 self.on_board_tube_count -= 1
                 self.completed_tube_count += 1
-                self.return_ready_count += 1
+                # 移除return_ready_count增加，因为标本已直接取走，不会返回给LAS
             
             return True
     
