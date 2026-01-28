@@ -37,6 +37,9 @@ class AtellicaCore:
         self.sample_acquisition_delay = config_manager.get_core_config().get('sample_acquisition_delay', 0)
         self.on_board_tube_count = config_manager.get_core_config().get('on_board_tube_count', 0)
         self.completed_tube_count = config_manager.get_core_config().get('completed_tube_count', 0)
+        # 命令状态
+        self.load_command_status = config_manager.get_core_config().get('load_command_status', 1)
+        self.unload_command_status = config_manager.get_core_config().get('unload_command_status', 1)
         
         # 测试项目 inventory
         self.test_inventory = config_manager.get_test_inventory_config().copy()
@@ -104,6 +107,15 @@ class AtellicaCore:
                 )
             ''')
             
+            # 创建locked_carrier_info表
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS locked_carrier_info (
+                    interface_positions TEXT PRIMARY KEY,
+                    sample_id TEXT,
+                    carrier_occupancy INTEGER
+                )
+            ''')
+            
             # 提交事务并关闭连接
             conn.commit()
             conn.close()
@@ -123,6 +135,15 @@ class AtellicaCore:
         """
         self.lis_client = lis_client
         self.logger.info("LIS client instance set in core")
+    
+    def set_las_server(self, las_server):
+        """设置LAS服务器实例
+        
+        Args:
+            las_server: LASServer实例
+        """
+        self.las_server = las_server
+        self.logger.info("LAS server instance set in core")
     
     def _generate_results_loop(self):
         """结果生成循环，定期检查并生成样本结果"""
@@ -256,12 +277,8 @@ class AtellicaCore:
             
             self.samples[sample_id] = sample
             
-            # 更新在线试管数量
-            with self.status_lock:
-                self.on_board_tube_count += 1
-            
-            # 计算结果生成时间（30分钟后）
-            result_delay = self.config_manager.get_lis_config().get('result_delay', 1800)
+            # 计算结果生成时间（5分钟后）
+            result_delay = self.config_manager.get_lis_config().get('result_delay', 300)
             result_time = time.time() + result_delay
             
             self.pending_results[sample_id] = {
@@ -312,8 +329,6 @@ class AtellicaCore:
             with self.status_lock:
                 # 更新计数器 - 手工弹出的样本不计入可返回数量
                 self.on_board_tube_count -= 1
-                self.completed_tube_count += 1
-                # 移除return_ready_count增加，因为标本已直接取走，不会返回给LAS
             
             return True
     
@@ -330,11 +345,25 @@ class AtellicaCore:
         """更新自动化接口状态
         
         Args:
-            status: 状态值（1: Green, 3: Red）
+            status: 状态值（1: Green, 3: Red，4: Critical）
         """
         with self.status_lock:
+            if self.automation_interface_status == status:
+                return
             self.automation_interface_status = status
             self.logger.info(f"Updated automation interface status to {status}")
+            
+            # 根据状态值更新装载命令状态
+            if status == 1:
+                self.update_load_command_status(1)
+            elif status == 3:
+                self.update_load_command_status(3)
+            elif status == 4:
+                self.update_load_command_status(2)
+        
+        # 调用LAS服务器的send_instrument_health_response方法
+        if hasattr(self, 'las_server') and self.las_server:
+            self.las_server.send_instrument_health_response()
     
     def update_instrument_process_status(self, status):
         """更新仪器处理状态
@@ -343,6 +372,8 @@ class AtellicaCore:
             status: 状态值（1: Green, 2: Yellow, 3: Red）
         """
         with self.status_lock:
+            if self.instrument_process_status == status:
+                return
             self.instrument_process_status = status
             self.logger.info(f"Updated instrument process status to {status}")
     
@@ -353,6 +384,8 @@ class AtellicaCore:
             status: 状态值（1: Connected, 2: Disconnected）
         """
         with self.status_lock:
+            if self.lis_connection_status == status:
+                return
             self.lis_connection_status = status
             self.logger.info(f"Updated LIS connection status to {status}")
     
@@ -365,6 +398,8 @@ class AtellicaCore:
         """
         with self.status_lock:
             if 0 <= ip_index < len(self.remote_control_status):
+                if self.remote_control_status[ip_index] == status:
+                    return
                 self.remote_control_status[ip_index] = status
                 self.logger.info(f"Updated remote control status for IP{ip_index} to {status}")
     
@@ -379,6 +414,26 @@ class AtellicaCore:
             if 0 <= ip_index < len(self.lock_ownership):
                 self.lock_ownership[ip_index] = ownership
                 self.logger.info(f"Updated lock ownership for IP{ip_index} to {ownership}")
+    
+    def update_load_command_status(self, status):
+        """更新装载命令状态
+        
+        Args:
+            status: 装载命令状态值
+        """
+        with self.status_lock:
+            self.load_command_status = status
+            self.logger.info(f"Updated load command status to {status}")
+    
+    def update_unload_command_status(self, status):
+        """更新卸载命令状态
+        
+        Args:
+            status: 卸载命令状态值
+        """
+        with self.status_lock:
+            self.unload_command_status = status
+            self.logger.info(f"Updated unload command status to {status}")
     
     def get_instrument_health(self):
         """获取仪器健康状态
@@ -989,6 +1044,62 @@ class AtellicaCore:
         except Exception as e:
             self.logger.error(f"Unexpected error deleting sample {sample_id} from database: {str(e)}")
     
+    def _save_locked_carrier(self, interface_positions, sample_id, carrier_occupancy):
+        """持久化存储锁定状态到数据库
+        
+        Args:
+            interface_positions: 接口位置，格式为"IP0/IP1"
+            sample_id: 样本ID
+            carrier_occupancy: carrier状态
+        """
+        try:
+            conn = self._get_db_connection()
+            cursor = conn.cursor()
+            
+            # 检查记录是否存在
+            cursor.execute('SELECT interface_positions FROM locked_carrier_info WHERE interface_positions = ?', (interface_positions,))
+            existing_record = cursor.fetchone()
+            
+            if existing_record:
+                # 记录存在，执行更新操作
+                cursor.execute('''
+                    UPDATE locked_carrier_info 
+                    SET sample_id = ?, carrier_occupancy = ? 
+                    WHERE interface_positions = ?
+                ''', (sample_id, carrier_occupancy, interface_positions))
+            else:
+                # 记录不存在，执行插入操作
+                cursor.execute('''
+                    INSERT INTO locked_carrier_info (interface_positions, sample_id, carrier_occupancy)
+                    VALUES (?, ?, ?)
+                ''', (interface_positions, sample_id, carrier_occupancy))
+            
+            conn.commit()
+            conn.close()
+        except sqlite3.Error as e:
+            self.logger.error(f"Error saving locked carrier to database: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error saving locked carrier to database: {str(e)}")
+    
+    def _delete_locked_carrier(self, interface_positions):
+        """从数据库中删除锁定状态记录
+        
+        Args:
+            interface_positions: 接口位置，格式为"IP0/IP1"
+        """
+        try:
+            conn = self._get_db_connection()
+            cursor = conn.cursor()
+            
+            # 基于主键执行删除操作
+            cursor.execute('DELETE FROM locked_carrier_info WHERE interface_positions = ?', (interface_positions,))
+            conn.commit()
+            conn.close()
+        except sqlite3.Error as e:
+            self.logger.error(f"Error deleting locked carrier from database: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error deleting locked carrier from database: {str(e)}")
+    
     def process_load_unload(self, interface_position_index, carrier_occupancy, sample_id, tube_height, tube_diameter, elapsed_time):
         """处理装载/卸载请求
         
@@ -1030,8 +1141,20 @@ class AtellicaCore:
                             'carrier_occupancy': carrier_occupancy
                         }
                         
-                        # 更新在线试管数量
-                        self.on_board_tube_count += 1
+                        # 持久化存储锁定状态到数据库
+                        interface_positions = f"IP{interface_position_index}"
+                        self._save_locked_carrier(interface_positions, sample_id, carrier_occupancy)
+                        
+                        # 从队列中获取并删除第一项数据
+                        queue_sample_id = None
+                        try:
+                            if self.queues.get(interface_position_index):
+                                # 取出队列第一项数据
+                                queue_item = self.queues[interface_position_index].pop(0)
+                                queue_sample_id = queue_item.get('sample_id')
+                        except (IndexError, KeyError, AttributeError) as e:
+                            self.logger.error(f"Error processing queue: {e}")
+                            queue_sample_id = None
                         
                         # 检查样本是否存在
                         if sample_id in self.samples:
@@ -1039,7 +1162,17 @@ class AtellicaCore:
                             if sample['status'] == 'received':
                                 sample['status'] = 'processing'
                                 sample_status = 0x01  # Sample Processed successfully
-                                load_result = {'sample_id': sample_id, 'status': 1}  # Success
+                                
+                                # 确定load_result['status']的值
+                                load_result_status = self.load_command_status
+                                if queue_sample_id and queue_sample_id != sample_id:
+                                    load_result_status = 4
+                                
+                                load_result = {'sample_id': sample_id, 'status': load_result_status}
+                                
+                                # 根据status执行相应操作
+                                if load_result_status == 1:
+                                    self.on_board_tube_count += 1
                                 
                                 # 将样本信息插入数据库
                                 load_time = sample.get('load_time', time.time())
@@ -1047,6 +1180,10 @@ class AtellicaCore:
                                 self._insert_sample_to_db(sample_id, 'processing', test, load_time)
                             else:
                                 load_result = {'sample_id': sample_id, 'status': 7}  # Instrument Skipped Loading
+                                
+                                # 确保其他状态值也有处理逻辑
+                                if load_result['status'] == 7:
+                                    self.logger.info(f"Instrument skipped loading for sample {sample_id}")
                         else:
                             # 样本不存在，创建新样本记录
                             current_time = time.time()
@@ -1059,8 +1196,18 @@ class AtellicaCore:
                                 'load_time': current_time,
                                 'interface_position': interface_position_index
                             }
-                            load_result = {'sample_id': sample_id, 'status': 1}  # Success
+                            
+                            # 确定load_result['status']的值
+                            load_result_status = self.load_command_status
+                            if queue_sample_id and queue_sample_id != sample_id:
+                                load_result_status = 4
+                            
+                            load_result = {'sample_id': sample_id, 'status': load_result_status}
                             sample_status = 0x01  # Sample Processed successfully
+                            
+                            # 根据status执行相应操作
+                            if load_result_status == 1:
+                                self.on_board_tube_count += 1
                             
                             # 将样本信息插入数据库
                             self._insert_sample_to_db(sample_id, 'processing', '', current_time)
@@ -1099,6 +1246,10 @@ class AtellicaCore:
             
             # 释放锁定的carrier
             if self.locked_carriers[interface_position_index] is not None:
+                # 从数据库中删除锁定状态记录
+                interface_positions = f"IP{interface_position_index}"
+                self._delete_locked_carrier(interface_positions)
+                # 释放锁定
                 self.locked_carriers[interface_position_index] = None
             
             return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, self.ready_to_load, self.return_ready_count

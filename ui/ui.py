@@ -153,6 +153,15 @@ class AtellicaUI:
         self.ip1_locked_label = ttk.Label(status_grid, textvariable=self.ip1_locked_var, width=15)
         self.ip1_locked_label.grid(row=3, column=3, padx=5, pady=2)
         
+        # 命令状态显示
+        ttk.Label(status_grid, text="装载命令状态:").grid(row=4, column=0, sticky=tk.W, padx=5, pady=2)
+        self.load_command_status_var = tk.StringVar()
+        ttk.Label(status_grid, textvariable=self.load_command_status_var, width=15).grid(row=4, column=1, padx=5, pady=2)
+        
+        ttk.Label(status_grid, text="卸载命令状态:").grid(row=4, column=2, sticky=tk.W, padx=5, pady=2)
+        self.unload_command_status_var = tk.StringVar()
+        ttk.Label(status_grid, textvariable=self.unload_command_status_var, width=15).grid(row=4, column=3, padx=5, pady=2)
+        
         # 中间内容框架（分为左侧参数配置、中间手动处理和右侧状态显示）
         content_frame = ttk.Frame(main_frame)
         content_frame.pack(fill=tk.X, pady=5, expand=False)
@@ -197,24 +206,12 @@ class AtellicaUI:
         self.ip0_remote_status_combobox.grid(row=3, column=1, padx=5, pady=5)
         ttk.Button(device_config_frame, text="应用", command=self._update_ip0_remote_status).grid(row=3, column=2, padx=5, pady=5)
         
-        # IP0锁所有权配置（只读，由程序自动更新）
-        ttk.Label(device_config_frame, text="IP0锁所有权:").grid(row=4, column=0, sticky=tk.W, padx=5, pady=5)
-        self.ip0_lock_ownership_combobox = ttk.Combobox(device_config_frame, values=["Locked by Instrument", "Not Locked by Instrument"], width=25, state="readonly")
-        self.ip0_lock_ownership_combobox.set("Not Locked by Instrument")
-        self.ip0_lock_ownership_combobox.grid(row=4, column=1, padx=5, pady=5)
-        
         # IP1远程控制状态配置
-        ttk.Label(device_config_frame, text="IP1远程控制状态:").grid(row=5, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(device_config_frame, text="IP1远程控制状态:").grid(row=4, column=0, sticky=tk.W, padx=5, pady=5)
         self.ip1_remote_status_combobox = ttk.Combobox(device_config_frame, values=["Offline or Local", "Online Unloading Only Mode"], width=25)
         self.ip1_remote_status_combobox.set("Offline or Local")
-        self.ip1_remote_status_combobox.grid(row=5, column=1, padx=5, pady=5)
-        ttk.Button(device_config_frame, text="应用", command=self._update_ip1_remote_status).grid(row=5, column=2, padx=5, pady=5)
-        
-        # IP1锁所有权配置（只读，由程序自动更新）
-        ttk.Label(device_config_frame, text="IP1锁所有权:").grid(row=6, column=0, sticky=tk.W, padx=5, pady=5)
-        self.ip1_lock_ownership_combobox = ttk.Combobox(device_config_frame, values=["Locked by Instrument", "Not Locked by Instrument"], width=25, state="readonly")
-        self.ip1_lock_ownership_combobox.set("Not Locked by Instrument")
-        self.ip1_lock_ownership_combobox.grid(row=6, column=1, padx=5, pady=5)
+        self.ip1_remote_status_combobox.grid(row=4, column=1, padx=5, pady=5)
+        ttk.Button(device_config_frame, text="应用", command=self._update_ip1_remote_status).grid(row=4, column=2, padx=5, pady=5)
         
         # 中间：手动样本处理
         manual_frame = ttk.LabelFrame(content_frame, text="手动样本处理", padding="10")
@@ -380,14 +377,7 @@ class AtellicaUI:
             
             # 自动更新IP0和IP1的锁所有权（根据程序状态）
             health_status = self.core.get_instrument_health()
-            # 更新IP0锁所有权
-            ip0_lock_ownership = health_status['lock_ownership'][0] if len(health_status['lock_ownership']) > 0 else 2
-            ip0_lock_desc = "Locked by Instrument" if ip0_lock_ownership == 1 else "Not Locked by Instrument"
-            self.ip0_lock_ownership_combobox.set(ip0_lock_desc)
-            # 更新IP1锁所有权
-            ip1_lock_ownership = health_status['lock_ownership'][1] if len(health_status['lock_ownership']) > 1 else 2
-            ip1_lock_desc = "Locked by Instrument" if ip1_lock_ownership == 1 else "Not Locked by Instrument"
-            self.ip1_lock_ownership_combobox.set(ip1_lock_desc)
+            # 锁所有权状态已移除以简化界面
             
             # 更新详细状态文本
             detail_text = f"设备状态详细信息：\n"
@@ -428,12 +418,46 @@ class AtellicaUI:
             
             # 获取队列详细信息
             detail_text += f"\n队列管理详细信息：\n"
+            # 队列管理详细信息：
             # 获取IP0和IP1各自的就绪状态
             ip0_ready = self.core.get_ready_to_load(0)
             ip1_ready = self.core.get_ready_to_load(1)
             detail_text += f"IP0就绪状态：{'Ready to Load' if ip0_ready == 1 else 'Not Ready to Load'}\n"
             detail_text += f"IP1就绪状态：{'Ready to Load' if ip1_ready == 1 else 'Not Ready to Load'}\n"
             detail_text += f"可返回样本数：{return_ready_count}\n"
+            
+            # 更新命令状态显示
+            load_status = getattr(self.core, 'load_command_status', 1)
+            load_status_map = {
+                1: "Success",
+                2: "Lock Carrier",
+                3: "OK to Unlock",
+                4: "Queue Mismatch",
+                5: "Interface Offline",
+                6: "Load Skipped",
+                7: "Skipped Loading",
+                8: "Unsupported ID"
+            }
+            load_status_text = load_status_map.get(load_status, "Success")
+            self.load_command_status_var.set(load_status_text)
+            
+            unload_status = getattr(self.core, 'unload_command_status', 1)
+            unload_status_map = {
+                1: "Success",
+                2: "Lock Carrier",
+                3: "OK to Unlock",
+                4: "Queue Mismatch",
+                5: "Interface Offline",
+                6: "Unload Skipped",
+                7: "Skipped Unloading"
+            }
+            unload_status_text = unload_status_map.get(unload_status, "Success")
+            self.unload_command_status_var.set(unload_status_text)
+            
+            # 在详细状态中添加命令状态信息
+            detail_text += f"\n命令状态详细信息：\n"
+            detail_text += f"装载命令状态：{load_status_map.get(load_status, load_status)}\n"
+            detail_text += f"卸载命令状态：{unload_status_map.get(unload_status, unload_status)}\n"
             
             # IP0队列详细信息
             detail_text += f"\nIP0队列 (长度: {len(ip0_queue)})：\n"
@@ -561,25 +585,11 @@ class AtellicaUI:
         self.core.update_remote_control_status(0, status_code)
         self._update_status()
     
-    def _update_ip0_lock_ownership(self):
-        """更新IP0锁所有权"""
-        ownership = self.ip0_lock_ownership_combobox.get()
-        ownership_code = 1 if ownership == "Locked by Instrument" else 2
-        self.core.update_lock_ownership(0, ownership_code)
-        self._update_status()
-    
     def _update_ip1_remote_status(self):
         """更新IP1远程控制状态"""
         status = self.ip1_remote_status_combobox.get()
         status_code = 1 if status == "Offline or Local" else 5
         self.core.update_remote_control_status(1, status_code)
-        self._update_status()
-    
-    def _update_ip1_lock_ownership(self):
-        """更新IP1锁所有权"""
-        ownership = self.ip1_lock_ownership_combobox.get()
-        ownership_code = 1 if ownership == "Locked by Instrument" else 2
-        self.core.update_lock_ownership(1, ownership_code)
         self._update_status()
     
     def _show_inventory_editor(self):

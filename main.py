@@ -44,11 +44,15 @@ def main():
         logger.info("Initializing LASServer...")
         las_server = LASServer(config_manager, logger, core)
         logger.info("LASServer initialized successfully")
+        # 设置LAS服务器引用到核心
+        core.set_las_server(las_server)
         
         # 初始化LIS服务器
         logger.info("Initializing LISClient...")
         lis_client = LISClient(config_manager, logger, core)
         logger.info("LISClient initialized successfully")
+        # 设置LIS客户端引用到核心
+        core.set_lis_client(lis_client)
         
         
         if args.no_ui:
