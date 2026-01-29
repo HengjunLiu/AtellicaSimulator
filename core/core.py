@@ -37,9 +37,6 @@ class AtellicaCore:
         self.sample_acquisition_delay = config_manager.get_core_config().get('sample_acquisition_delay', 0)
         self.on_board_tube_count = config_manager.get_core_config().get('on_board_tube_count', 0)
         self.completed_tube_count = config_manager.get_core_config().get('completed_tube_count', 0)
-        # 命令状态
-        self.load_command_status = config_manager.get_core_config().get('load_command_status', 1)
-        self.unload_command_status = config_manager.get_core_config().get('unload_command_status', 1)
         
         # 测试项目 inventory
         self.test_inventory = config_manager.get_test_inventory_config().copy()
@@ -352,17 +349,6 @@ class AtellicaCore:
                 return
             self.automation_interface_status = status
             self.logger.info(f"Updated automation interface status to {status}")
-            
-            # 根据状态值更新装载命令状态
-            if status == 1:
-                self.update_load_command_status(1)
-                self.update_unload_command_status(1)
-            elif status == 3:
-                self.update_load_command_status(3)
-                self.update_unload_command_status(3)
-            elif status == 4:
-                self.update_load_command_status(2)
-                self.update_unload_command_status(2)
         
         # 调用LAS服务器的send_instrument_health_response方法
         if hasattr(self, 'las_server') and self.las_server:
@@ -418,25 +404,24 @@ class AtellicaCore:
                 self.lock_ownership[ip_index] = ownership
                 self.logger.info(f"Updated lock ownership for IP{ip_index} to {ownership}")
     
-    def update_load_command_status(self, status):
-        """更新装载命令状态
+    def get_load_unload_command_status(self, interface_positions):
+        """获取装载/卸载命令状态
         
         Args:
-            status: 装载命令状态值
+            interface_positions: 接口位置（0或1）
+            
+        Returns:
+            int: 命令状态码（1、2、3或5）
         """
         with self.status_lock:
-            self.load_command_status = status
-            self.logger.info(f"Updated load command status to {status}")
-    
-    def update_unload_command_status(self, status):
-        """更新卸载命令状态
-        
-        Args:
-            status: 卸载命令状态值
-        """
-        with self.status_lock:
-            self.unload_command_status = status
-            self.logger.info(f"Updated unload command status to {status}")
+            if self.automation_interface_status == 4:
+                return 2
+            elif self.automation_interface_status == 3:
+                return 3
+            elif self.remote_control_status[interface_positions] == 1:
+                return 5
+            else:
+                return 1
     
     def get_instrument_health(self):
         """获取仪器健康状态
@@ -1167,7 +1152,7 @@ class AtellicaCore:
                                 sample_status = 0x01  # Sample Processed successfully
                                 
                                 # 确定load_result['status']的值
-                                load_result_status = self.load_command_status
+                                load_result_status = self.get_load_unload_command_status(interface_position_index)
                                 if queue_sample_id and queue_sample_id != sample_id:
                                     load_result_status = 4
                                 
@@ -1201,7 +1186,7 @@ class AtellicaCore:
                             }
                             
                             # 确定load_result['status']的值
-                            load_result_status = self.load_command_status
+                            load_result_status = self.get_load_unload_command_status(interface_position_index)
                             if queue_sample_id and queue_sample_id != sample_id:
                                 load_result_status = 4
                             
@@ -1247,7 +1232,7 @@ class AtellicaCore:
                             for sid, sample in self.samples.items():
                                 if sample['status'] == 'completed' and 'unloaded' not in sample and sample.get('ready_for_unload', False):
                                     # 确定unload_result['status']的值
-                                    unload_result_status = self.unload_command_status
+                                    unload_result_status = self.get_load_unload_command_status(interface_position_index)
                                     
                                     # 标记样本为已卸载
                                     sample['unloaded'] = True
