@@ -42,12 +42,29 @@ class ConfigManager:
                 'protocol_version': '0x0330',
                 'instrument_type': '0x0001',
                 'capability_version': '0x0104',
-                'software_version': '0x0100',
+                'software_version': '0x0101',
                 'instrument_id': '0xFF',
                 'instrument_serial': 'ATELLICA',
-                'keep_alive_interval': 30,  # 秒
-                'ack_timeout': 20,  # 秒
-                'response_timeout': 20  # 秒
+                'keep_alive_interval': 15,  # 秒
+                'keep_alive_inactivity_timeout': 15,  # 秒
+                'ack_timeout': 1,  # 秒
+                'max_ack_retries': 5,  # 最大重试次数
+                'max_nack_retries': 3,  # 最大NACK重试次数
+                'instrument_health_timeout': 20,  # 秒
+                'test_inventory_timeout': 20,  # 秒
+                'onboard_sample_info_timeout': 20,  # 秒
+                'transfer_status_timeout': 20,  # 秒
+                'add_queue_timeout': 20,  # 秒
+                'skip_queue_timeout': 20,  # 秒
+                'clear_queue_timeout': 20,  # 秒
+                'load_unload_timeout': 600,  # 秒
+                'consumable_inventory_timeout': 20,  # 秒
+                'handshake_retry_period': 30,  # 秒
+                'handshake_response_timeout': 20,  # 秒
+                'handshake_timeout': 30,  # 秒 - LAS连接后未发送handshake消息的超时时间
+                'initialization_wait_period': 30,  # 秒
+                'initialization_complete_timeout': 30,  # 秒
+                'analyzer_shaking_timeout': 480  # 秒 (8分钟)
             },
             'lis': {
                 'host': '127.0.0.1',

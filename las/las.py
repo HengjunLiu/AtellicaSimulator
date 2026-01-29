@@ -37,11 +37,52 @@ class LASServer:
         self.connections = []
         self.connection_lock = threading.Lock()
         
+        # 连接状态跟踪
+        self.connection_states = {}  # 记录连接的创建时间和状态
+        
         # Keep-Alive机制
         self.keep_alive_interval = self.config.get('keep_alive_interval', 15)  # 秒
+        self.keep_alive_inactivity_timeout = self.config.get('keep_alive_inactivity_timeout', 15)  # 秒
         self.last_message_time = time.time()
         self.last_keep_alive_time = 0
         self.keep_alive_thread = None
+        
+        # 超时和重试机制
+        self.ack_timeout = self.config.get('ack_timeout', 1)  # ACK/NACK超时时间
+        self.max_ack_retries = self.config.get('max_ack_retries', 5)  # 最大ACK重试次数
+        self.max_nack_retries = self.config.get('max_nack_retries', 3)  # 最大NACK重试次数
+        
+        # 响应消息超时配置
+        self.timeouts = {
+            'instrument_health': self.config.get('instrument_health_timeout', 20),
+            'test_inventory': self.config.get('test_inventory_timeout', 20),
+            'onboard_sample_info': self.config.get('onboard_sample_info_timeout', 20),
+            'transfer_status': self.config.get('transfer_status_timeout', 20),
+            'add_queue': self.config.get('add_queue_timeout', 20),
+            'skip_queue': self.config.get('skip_queue_timeout', 20),
+            'clear_queue': self.config.get('clear_queue_timeout', 20),
+            'load_unload': self.config.get('load_unload_timeout', 600),
+            'consumable_inventory': self.config.get('consumable_inventory_timeout', 20)
+        }
+        
+        # 握手和初始化超时
+        self.handshake_retry_period = self.config.get('handshake_retry_period', 30)  # 秒
+        self.handshake_response_timeout = self.config.get('handshake_response_timeout', 20)  # 秒
+        self.handshake_timeout = self.config.get('handshake_timeout', 60)  # 秒 - LAS连接后未发送handshake消息的超时时间
+        self.initialization_wait_period = self.config.get('initialization_wait_period', 30)  # 秒
+        self.initialization_complete_timeout = self.config.get('initialization_complete_timeout', 30)  # 秒
+        self.analyzer_shaking_timeout = self.config.get('analyzer_shaking_timeout', 480)  # 秒
+        
+        # 消息跟踪和超时管理
+        self.pending_messages = {}  # 跟踪等待响应的消息
+        self.message_lock = threading.Lock()
+        
+        # 重试计数器
+        self.retry_counts = {}  # 跟踪消息重试次数
+        
+        # 连接重置状态
+        self.connection_reset_time = 0
+        self.reset_in_progress = False
         
         # 序列ID管理
         self.sequence_id = 1
@@ -71,6 +112,12 @@ class LASServer:
         self.pending_requests = []
         self.ui = None
         
+        # 超时检查线程
+        self.timeout_check_thread = None
+        self.timeout_check_interval = 0.5  # 秒
+        
+        # 核心模块引用
+        self.core = core
         
         # 消息类型常量
         self.MSG_TYPE_HANDSHAKE = 0x0001
@@ -138,10 +185,11 @@ class LASServer:
             # Keep-Alive消息体为空
             body = b''
             
-            # 构建完整消息
+            # 构建完整消息，启用消息跟踪以便检测超时
             message, sequence_id = self._build_message(
                 self.MSG_TYPE_KEEPALIVE,
-                body
+                body,
+                track_message=True  # 启用消息跟踪以检测Keep-Alive响应超时
             )
             
             # 记录发送的原始数据
@@ -177,6 +225,10 @@ class LASServer:
             return
         
         try:
+            # 1. Wait Period Prior to Entering Listening Mode - 15秒
+            self.logger.info(f"Entering Wait Period Prior to Listening Mode: {self.keep_alive_inactivity_timeout} seconds")
+            time.sleep(self.keep_alive_inactivity_timeout)
+            
             # 创建TCP服务器 socket
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -187,8 +239,14 @@ class LASServer:
             self.logger.info(f"LASServer started, listening on {self.host}:{self.port}")
             
             # 启动接受连接的线程
+            # 注意：Wait Period Prior to Initiating Handshake (LAS)是LAS端的等待时间，不是仪器端
+            # 仪器端应该立即进入监听状态，准备接收LAS的Handshake消息
             accept_thread = threading.Thread(target=self._accept_connections, daemon=True)
             accept_thread.start()
+            
+            # 启动超时检查线程
+            self.timeout_check_thread = threading.Thread(target=self._run_timeout_check, daemon=True)
+            self.timeout_check_thread.start()
             
         except Exception as e:
             self.logger.error(f"Failed to start LASServer: {str(e)}")
@@ -222,16 +280,26 @@ class LASServer:
         while self.is_running:
             try:
                 conn, addr = self.server_socket.accept()
+                connection_id = f"{addr[0]}:{addr[1]}:{int(time.time())}"
+                
                 with self.connection_lock:
                     self.connections.append(conn)
+                    # 记录连接状态
+                    self.connection_states[connection_id] = {
+                        'conn': conn,
+                        'addr': addr,
+                        'created_time': time.time(),
+                        'status': 'connected',  # connected, handshake_received, initialized
+                        'last_activity': time.time()
+                    }
                 
-                self.logger.info(f"LAS connection established from {addr[0]}:{addr[1]}")
-                self.logger.log_las(f"Connection established: {addr[0]}:{addr[1]}")
+                self.logger.info(f"LAS connection established from {addr[0]}:{addr[1]}, ConnectionID={connection_id}")
+                self.logger.log_las(f"Connection established: {addr[0]}:{addr[1]}, ConnectionID={connection_id}")
                 
                 # 为每个连接创建处理线程
                 conn_thread = threading.Thread(
                     target=self._handle_connection,
-                    args=(conn, addr),
+                    args=(conn, addr, connection_id),
                     daemon=True
                 )
                 conn_thread.start()
@@ -243,12 +311,13 @@ class LASServer:
             except Exception as e:
                 self.logger.error(f"Unexpected error in LAS accept thread: {str(e)}")
     
-    def _handle_connection(self, conn, addr):
+    def _handle_connection(self, conn, addr, connection_id):
         """处理单个连接
         
         Args:
             conn: 连接 socket
             addr: 客户端地址
+            connection_id: 连接ID
         """
         buffer = b''
         
@@ -265,6 +334,67 @@ class LASServer:
                 # 接收数据
                 data = conn.recv(4096)
                 if not data:
+                    # LAS端因超时断连
+                    self.logger.warning(f"LAS connection closed by LAS side (timeout), ConnectionID={connection_id}")
+                    
+                    # 2. 若LAS端因超时断连，仪器同步执行断连 + 重置 + 重启监听
+                    self.logger.info("Step 1: LAS timeout detected, initiating TCP connection closure")
+                    with self.connection_lock:
+                        if conn in self.connections:
+                            try:
+                                conn.close()
+                                self.logger.info(f"Disconnected LAS TCP connection due to LAS timeout")
+                            except Exception as e:
+                                self.logger.error(f"Error closing connection: {str(e)}")
+                        # 清空连接列表
+                        self.connections.clear()
+                        # 清空连接状态
+                        self.connection_states.clear()
+                    
+                    # 重置通信状态
+                    self.logger.info("Step 2: Resetting communication state")
+                    with self.message_lock:
+                        self.pending_messages.clear()
+                        self.retry_counts.clear()
+                    # 重置会话状态
+                    self.conversation_status = self.CONVERSATION_STATUS_LISTENING
+                    # 重置等待标志
+                    self._awaiting_handshake_ack = False
+                    self._awaiting_init_complete_ack = False
+                    # 重置初始化请求集合
+                    self.initialized_requests = {
+                        'clear_queue': set(),
+                        'transfer_status': set(),
+                        'instrument_health': False,
+                        'test_inventory': False,
+                        'onboard_sample_info': False,
+                        'consumable_inventory': False
+                    }
+                    
+                    # 执行15秒监听前等待
+                    self.logger.info("Step 3: Entering 15-second wait period before restarting listening")
+                    self.logger.info(f"Entering Wait Period Prior to Listening Mode: {self.keep_alive_inactivity_timeout} seconds")
+                    time.sleep(self.keep_alive_inactivity_timeout)
+                    
+                    # 重启监听
+                    self.logger.info("Step 4: Restarting TCP listening mode")
+                    try:
+                        if self.server_socket:
+                            self.server_socket.close()
+                        # 重新创建TCP服务器 socket
+                        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                        self.server_socket.bind((self.host, self.port))
+                        self.server_socket.listen(5)
+                        self.logger.info(f"LASServer restarted, listening on {self.host}:{self.port}")
+                    except Exception as e:
+                        self.logger.error(f"Failed to restart LASServer: {str(e)}")
+                    
+                    # 重新启动接受连接的线程
+                    accept_thread = threading.Thread(target=self._accept_connections, daemon=True)
+                    accept_thread.start()
+                    
+                    self.logger.info("LAS timeout handling completed. Waiting for LAS to reconnect.")
                     break
                 
                 # 重置最后消息时间
@@ -302,8 +432,22 @@ class LASServer:
                     # 记录接收的原始数据
                     message_hex = binascii.hexlify(message).decode('ascii')
                     
-                    # 处理消息，传递原始十六进制数据用于日志记录
-                    self._process_message(conn, addr, message, message_hex)
+                    try:
+                        # 处理消息，传递原始十六进制数据用于日志记录
+                        self._process_message(conn, addr, message, message_hex)
+                    except Exception as e:
+                        # 1. 若为仪器自身故障，标记业务执行失败
+                        self.logger.error(f"Instrument internal error processing business message: {str(e)}")
+                        self.logger.error(f"Marking business execution as failed due to internal error")
+                        
+                        # 发送NACK消息，表示消息处理失败
+                        try:
+                            # 解析消息头以获取sequence_id
+                            msg_header, _, _ = self._parse_message(message)
+                            if msg_header:
+                                self._send_ack(conn, msg_header['sequence_id'], 0x01)  # 0x01 = NACK
+                        except Exception as ack_error:
+                            self.logger.error(f"Error sending NACK: {str(ack_error)}")
                     
         except socket.error as e:
             self.logger.error(f"LAS connection error with {addr[0]}:{addr[1]}: {str(e)}")
@@ -314,14 +458,20 @@ class LASServer:
             with self.connection_lock:
                 if conn in self.connections:
                     self.connections.remove(conn)
+                
+                # 从连接状态中移除
+                for conn_id, state in list(self.connection_states.items()):
+                    if state['conn'] == conn:
+                        del self.connection_states[conn_id]
+                        break
             
             try:
                 conn.close()
             except:
                 pass
             
-            self.logger.info(f"LAS connection closed with {addr[0]}:{addr[1]}")
-            self.logger.log_las(f"Connection closed: {addr[0]}:{addr[1]}")
+            self.logger.info(f"LAS connection closed with {addr[0]}:{addr[1]}, ConnectionID={connection_id}")
+            self.logger.log_las(f"Connection closed: {addr[0]}:{addr[1]}, ConnectionID={connection_id}")
     
     def _process_message(self, conn, addr, message, message_hex):
         """处理uRAP消息
@@ -372,6 +522,418 @@ class LASServer:
             self.logger.error(f"Error processing LAS message: {str(e)}")
             self.logger.log_las(f"Error processing message: {str(e)}")
     
+    def _run_timeout_check(self):
+        """运行超时检查，处理消息超时和重试逻辑"""
+        try:
+            while self.is_running:
+                try:
+                    time.sleep(self.timeout_check_interval)
+                    current_time = time.time()
+                    
+                    # 检查待处理消息的超时情况
+                    with self.message_lock:
+                        expired_messages = []
+                        for seq_id, msg_info in list(self.pending_messages.items()):
+                            # 根据消息类型确定超时时间
+                            timeout = self.ack_timeout  # 默认使用ACK超时
+                            
+                            # 检查消息是否超时
+                            if current_time - msg_info['send_time'] > timeout:
+                                expired_messages.append(seq_id)
+                        
+                        # 处理超时消息
+                        for seq_id in expired_messages:
+                            if seq_id in self.pending_messages:
+                                msg_info = self.pending_messages[seq_id]
+                                self.logger.warning(f"Message timeout detected: SeqID=0x{seq_id:04x}, Type=0x{msg_info['message_type']:04x}")
+                                
+                                # 检查是否为Keep-Alive消息
+                                if msg_info['message_type'] == self.MSG_TYPE_KEEPALIVE:
+                                    # Keep-Alive消息的特殊处理
+                                    self.logger.info(f"Keep-Alive message timeout detected: SeqID=0x{seq_id:04x}")
+                                    
+                                    # 检查重试次数
+                                    if msg_info['retries'] < self.max_ack_retries:
+                                        # 增加重试次数并重新发送消息
+                                        msg_info['retries'] += 1
+                                        msg_info['send_time'] = current_time
+                                        self.logger.info(f"Retrying Keep-Alive message (attempt {msg_info['retries']}/{self.max_ack_retries}): SeqID=0x{seq_id:04x}")
+                                        
+                                        # 4. 重试期间暂停所有主动推送
+                                        self.logger.info("Pausing all active message pushes during Keep-Alive retry period")
+                                        
+                                        # 重新发送消息到所有活跃连接
+                                        try:
+                                            with self.connection_lock:
+                                                for conn in self.connections:
+                                                    try:
+                                                        conn.sendall(msg_info['message'])
+                                                        self.logger.log_las(f"Retried Keep-Alive message sent: SeqID=0x{seq_id:04x}")
+                                                    except Exception as e:
+                                                        self.logger.error(f"Error resending Keep-Alive message: {str(e)}")
+                                        except Exception as e:
+                                            self.logger.error(f"Error in connection lock: {str(e)}")
+                                    else:
+                                        # 达到最大重试次数，判定链路永久失效
+                                        self.logger.error(f"Max Keep-Alive retries reached: SeqID=0x{seq_id:04x}, link permanently failed")
+                                        del self.pending_messages[seq_id]
+                                        
+                                        # 1) 无视 TCP 表面连通状态，直接判定链路永久失效
+                                        self.logger.info("Step 1: Link permanently failed, ignoring TCP surface connectivity state")
+                                        
+                                        # 2) 主动断连，全量重置通信层状态
+                                        self.logger.info("Step 2: Initiating TCP connection closure and resetting communication state")
+                                        with self.connection_lock:
+                                            for conn in self.connections:
+                                                try:
+                                                    conn.close()
+                                                    self.logger.info(f"Disconnected LAS TCP connection due to Keep-Alive failure")
+                                                except Exception as e:
+                                                    self.logger.error(f"Error closing connection: {str(e)}")
+                                            # 清空连接列表
+                                            self.connections.clear()
+                                            # 清空连接状态
+                                            self.connection_states.clear()
+                                        
+                                        # 全量重置通信层状态
+                                        self.logger.info("Step 2: Resetting communication layer state")
+                                        with self.message_lock:
+                                            self.pending_messages.clear()
+                                            self.retry_counts.clear()
+                                        # 重置会话状态
+                                        self.conversation_status = self.CONVERSATION_STATUS_LISTENING
+                                        # 重置等待标志
+                                        self._awaiting_handshake_ack = False
+                                        self._awaiting_init_complete_ack = False
+                                        # 重置初始化请求集合
+                                        self.initialized_requests = {
+                                            'clear_queue': set(),
+                                            'transfer_status': set(),
+                                            'instrument_health': False,
+                                            'test_inventory': False,
+                                            'onboard_sample_info': False,
+                                            'consumable_inventory': False
+                                        }
+                                        
+                                        # 3) 执行 15 秒监听前等待，重启监听
+                                        self.logger.info("Step 3: Entering 15-second wait period before restarting listening")
+                                        self.logger.info(f"Entering Wait Period Prior to Listening Mode: {self.keep_alive_inactivity_timeout} seconds")
+                                        time.sleep(self.keep_alive_inactivity_timeout)
+                                        
+                                        # 重启监听
+                                        self.logger.info("Step 3: Restarting TCP listening mode")
+                                        try:
+                                            if self.server_socket:
+                                                self.server_socket.close()
+                                            # 重新创建TCP服务器 socket
+                                            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                                            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                                            self.server_socket.bind((self.host, self.port))
+                                            self.server_socket.listen(5)
+                                            self.logger.info(f"LASServer restarted, listening on {self.host}:{self.port}")
+                                        except Exception as e:
+                                            self.logger.error(f"Failed to restart LASServer: {str(e)}")
+                                        
+                                        # 重新启动接受连接的线程
+                                        accept_thread = threading.Thread(target=self._accept_connections, daemon=True)
+                                        accept_thread.start()
+                                        
+                                        self.logger.info("Keep-Alive failure handling completed. Waiting for LAS to reconnect.")
+                                else:
+                                    # 非Keep-Alive消息的常规处理
+                                    # 检查重试次数
+                                    if msg_info['retries'] < self.max_ack_retries:
+                                        # 增加重试次数并重新发送消息
+                                        msg_info['retries'] += 1
+                                        msg_info['send_time'] = current_time
+                                        self.logger.info(f"Retrying message (attempt {msg_info['retries']}/{self.max_ack_retries}): SeqID=0x{seq_id:04x}")
+                                        
+                                        # 重新发送消息到所有活跃连接
+                                        try:
+                                            with self.connection_lock:
+                                                for conn in self.connections:
+                                                    try:
+                                                        conn.sendall(msg_info['message'])
+                                                        self.logger.log_las(f"Retried message sent: SeqID=0x{seq_id:04x}")
+                                                    except Exception as e:
+                                                        self.logger.error(f"Error resending message: {str(e)}")
+                                        except Exception as e:
+                                            self.logger.error(f"Error in connection lock: {str(e)}")
+                                    else:
+                                        # 达到最大重试次数，判定握手失败
+                                        self.logger.error(f"Max retries reached for message: SeqID=0x{seq_id:04x}, handshake failed")
+                                        del self.pending_messages[seq_id]
+                                        
+                                        # 1. 判定握手失败，主动断连并重置通信状态
+                                        self.logger.info("Step 1: Handshake failed, initiating TCP connection closure")
+                                        with self.connection_lock:
+                                            for conn in self.connections:
+                                                try:
+                                                    conn.close()
+                                                    self.logger.info(f"Disconnected LAS TCP connection due to handshake failure")
+                                                except Exception as e:
+                                                    self.logger.error(f"Error closing connection: {str(e)}")
+                                            # 清空连接列表
+                                            self.connections.clear()
+                                            # 清空连接状态
+                                            self.connection_states.clear()
+                                        
+                                        # 重置通信状态
+                                        self.logger.info("Step 1: Resetting communication state")
+                                        with self.message_lock:
+                                            self.pending_messages.clear()
+                                            self.retry_counts.clear()
+                                        # 重置会话状态
+                                        self.conversation_status = self.CONVERSATION_STATUS_LISTENING
+                                        # 重置等待标志
+                                        self._awaiting_handshake_ack = False
+                                        self._awaiting_init_complete_ack = False
+                                        # 重置初始化请求集合
+                                        self.initialized_requests = {
+                                            'clear_queue': set(),
+                                            'transfer_status': set(),
+                                            'instrument_health': False,
+                                            'test_inventory': False,
+                                            'onboard_sample_info': False,
+                                            'consumable_inventory': False
+                                        }
+                                        
+                                        # 2. 执行 15 秒监听前等待，重启监听
+                                        self.logger.info("Step 2: Entering 15-second wait period before restarting listening")
+                                        self.logger.info(f"Entering Wait Period Prior to Listening Mode: {self.keep_alive_inactivity_timeout} seconds")
+                                        time.sleep(self.keep_alive_inactivity_timeout)
+                                        
+                                        # 3. 重启监听
+                                        self.logger.info("Step 3: Restarting TCP listening mode")
+                                        try:
+                                            if self.server_socket:
+                                                self.server_socket.close()
+                                            # 重新创建TCP服务器 socket
+                                            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                                            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                                            self.server_socket.bind((self.host, self.port))
+                                            self.server_socket.listen(5)
+                                            self.logger.info(f"LASServer restarted, listening on {self.host}:{self.port}")
+                                        except Exception as e:
+                                            self.logger.error(f"Failed to restart LASServer: {str(e)}")
+                                        
+                                        # 重新启动接受连接的线程
+                                        accept_thread = threading.Thread(target=self._accept_connections, daemon=True)
+                                        accept_thread.start()
+                                        
+                                        self.logger.info("Handshake failure handling completed. Waiting for LAS to reconnect and initiate handshake.")
+                    
+                    # 检查连接无活动超时
+                    try:
+                        if self.conversation_status == self.CONVERSATION_STATUS_CONNECTED:
+                            time_since_last_msg = current_time - self.last_message_time
+                            if time_since_last_msg > self.keep_alive_inactivity_timeout * 3:  # 3倍无活动超时时间
+                                self.logger.warning(f"Connection inactive for {time_since_last_msg:.1f} seconds, sending Keep-Alive")
+                                # 发送Keep-Alive消息到所有活跃连接
+                                try:
+                                    with self.connection_lock:
+                                        for conn in self.connections:
+                                            try:
+                                                self._send_keepalive(conn)
+                                            except Exception as e:
+                                                self.logger.error(f"Error sending Keep-Alive: {str(e)}")
+                                except Exception as e:
+                                    self.logger.error(f"Error in connection lock: {str(e)}")
+                    except Exception as e:
+                        self.logger.error(f"Error checking connection inactivity: {str(e)}")
+                    
+                    # 检查握手超时 - LAS连接后未发送handshake消息
+                    try:
+                        with self.connection_lock:
+                            expired_connections = []
+                            for conn_id, state in list(self.connection_states.items()):
+                                # 只检查已连接但未收到handshake消息的连接
+                                if state['status'] == 'connected':
+                                    time_since_connection = current_time - state['created_time']
+                                    if time_since_connection > self.handshake_timeout:
+                                        expired_connections.append(conn_id)
+                            
+                            # 处理握手超时的连接
+                            for conn_id in expired_connections:
+                                if conn_id in self.connection_states:
+                                    state = self.connection_states[conn_id]
+                                    addr = state['addr']
+                                    time_since_connection = current_time - state['created_time']
+                                    
+                                    # 记录超时事件的详细信息
+                                    self.logger.error(f"Handshake timeout detected for connection {conn_id} from {addr[0]}:{addr[1]}")
+                                    self.logger.error(f"Timeout details: Connection time={time.ctime(state['created_time'])}, "
+                                                    f"Elapsed time={time_since_connection:.1f} seconds, "
+                                                    f"Timeout threshold={self.handshake_timeout} seconds")
+                                    
+                                    # 主动断开连接
+                                    try:
+                                        state['conn'].close()
+                                        self.logger.info(f"Disconnected LAS connection {conn_id} due to handshake timeout")
+                                    except Exception as e:
+                                        self.logger.error(f"Error closing connection {conn_id}: {str(e)}")
+                                    
+                                    # 从连接列表和状态中移除
+                                    if state['conn'] in self.connections:
+                                        self.connections.remove(state['conn'])
+                                    del self.connection_states[conn_id]
+                                    
+                                    # 生成符合系统日志管理规范的日志信息
+                                    self.logger.log_las(f"Handshake timeout: ConnectionID={conn_id}, "
+                                                      f"Address={addr[0]}:{addr[1]}, "
+                                                      f"ErrorType=HandshakeTimeout")
+                    except Exception as e:
+                        self.logger.error(f"Error checking handshake timeout: {str(e)}")
+                    
+                    # 检查初始化序列超时 - 握手后30秒内未完成初始化
+                    try:
+                        if self.conversation_status == self.CONVERSATION_STATUS_INITIALIZATION and hasattr(self, 'initialization_start_time'):
+                            time_since_initialization = current_time - self.initialization_start_time
+                            if time_since_initialization > self.initialization_complete_timeout:
+                                # 检查初始化是否完成
+                                is_initialized = (
+                                    len(self.initialized_requests['clear_queue']) >= 2 and
+                                    len(self.initialized_requests['transfer_status']) >= 2 and
+                                    self.initialized_requests['instrument_health'] and
+                                    self.initialized_requests['test_inventory'] and
+                                    self.initialized_requests['onboard_sample_info'] and
+                                    self.initialized_requests['consumable_inventory']
+                                )
+                                
+                                if not is_initialized:
+                                    # 初始化序列超时
+                                    self.logger.error(f"Initialization sequence timeout detected")
+                                    self.logger.error(f"Timeout details: Initialization start time={time.ctime(self.initialization_start_time)}, "
+                                                    f"Elapsed time={time_since_initialization:.1f} seconds, "
+                                                    f"Timeout threshold={self.initialization_complete_timeout} seconds")
+                                    
+                                    # 记录未完成的初始化请求
+                                    missing_requests = []
+                                    if len(self.initialized_requests['clear_queue']) < 2:
+                                        missing_requests.append(f"clear_queue (need 2, got {len(self.initialized_requests['clear_queue'])})")
+                                    if len(self.initialized_requests['transfer_status']) < 2:
+                                        missing_requests.append(f"transfer_status (need 2, got {len(self.initialized_requests['transfer_status'])})")
+                                    if not self.initialized_requests['instrument_health']:
+                                        missing_requests.append("instrument_health")
+                                    if not self.initialized_requests['test_inventory']:
+                                        missing_requests.append("test_inventory")
+                                    if not self.initialized_requests['onboard_sample_info']:
+                                        missing_requests.append("onboard_sample_info")
+                                    if not self.initialized_requests['consumable_inventory']:
+                                        missing_requests.append("consumable_inventory")
+                                    
+                                    self.logger.error(f"Missing initialization requests: {', '.join(missing_requests)}")
+                                    
+                                    # 1. 主动发送 TCP 断开请求（FIN 包），强制关闭与 LAS 的连接
+                                    self.logger.info("Step 1: Initiating TCP connection closure due to initialization sequence timeout")
+                                    with self.connection_lock:
+                                        for conn in self.connections:
+                                            try:
+                                                conn.close()
+                                                self.logger.info(f"Disconnected LAS TCP connection due to initialization sequence timeout")
+                                            except Exception as e:
+                                                self.logger.error(f"Error closing connection: {str(e)}")
+                                        # 清空连接列表
+                                        self.connections.clear()
+                                        # 清空连接状态
+                                        self.connection_states.clear()
+                                    
+                                    # 2. 通信状态重置
+                                    self.logger.info("Step 2: Resetting communication state")
+                                    # 2.1 清空临时数据
+                                    with self.message_lock:
+                                        self.pending_messages.clear()
+                                        self.retry_counts.clear()
+                                    # 重置消息序列号计数器
+                                    with self.sequence_lock:
+                                        self.sequence_id = 1
+                                    # 重置初始化请求缓存
+                                    self.initialized_requests = {
+                                        'clear_queue': set(),
+                                        'transfer_status': set(),
+                                        'instrument_health': False,
+                                        'test_inventory': False,
+                                        'onboard_sample_info': False,
+                                        'consumable_inventory': False
+                                    }
+                                    # 重置握手状态
+                                    self._awaiting_handshake_ack = False
+                                    self._awaiting_init_complete_ack = False
+                                    # 重置会话状态
+                                    self.conversation_status = self.CONVERSATION_STATUS_LISTENING
+                                    
+                                    # 3. 重启监听等待
+                                    self.logger.info("Step 3: Restarting listening wait period")
+                                    # 3.1 启动 "进入监听模式前等待周期"（默认 15 秒）
+                                    self.logger.info(f"Entering Wait Period Prior to Listening Mode: {self.keep_alive_inactivity_timeout} seconds")
+                                    time.sleep(self.keep_alive_inactivity_timeout)
+                                    
+                                    # 3.2 重新初始化服务器套接字
+                                    try:
+                                        if self.server_socket:
+                                            self.server_socket.close()
+                                        # 重新创建TCP服务器 socket
+                                        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                                        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                                        self.server_socket.bind((self.host, self.port))
+                                        self.server_socket.listen(5)
+                                        self.logger.info(f"LASServer restarted, listening on {self.host}:{self.port}")
+                                    except Exception as e:
+                                        self.logger.error(f"Failed to restart LASServer: {str(e)}")
+                                    
+                                    # 3.3 重新启动接受连接的线程
+                                    accept_thread = threading.Thread(target=self._accept_connections, daemon=True)
+                                    accept_thread.start()
+                                    
+                                    self.logger.info("Initialization sequence timeout handling completed. Waiting for LAS to reconnect.")
+                    except Exception as e:
+                        self.logger.error(f"Error checking initialization sequence timeout: {str(e)}")
+                except Exception as e:
+                    if self.is_running:
+                        self.logger.error(f"Error in timeout check: {str(e)}")
+                    time.sleep(1)
+        except Exception as e:
+            self.logger.error(f"Critical error in timeout check thread: {str(e)}")
+    
+    def _handle_connection_reset(self):
+        """处理连接重置逻辑"""
+        if self.reset_in_progress:
+            return
+        
+        self.reset_in_progress = True
+        try:
+            self.logger.info("Initiating connection reset due to communication failure")
+            
+            # 清理待处理消息
+            with self.message_lock:
+                self.pending_messages.clear()
+                self.retry_counts.clear()
+            
+            # 重置会话状态
+            self.conversation_status = self.CONVERSATION_STATUS_LISTENING
+            self.initialized_requests = {
+                'clear_queue': set(),
+                'transfer_status': set(),
+                'instrument_health': False,
+                'test_inventory': False,
+                'onboard_sample_info': False,
+                'consumable_inventory': False
+            }
+            
+            # 重置等待标志
+            self._awaiting_handshake_ack = False
+            self._awaiting_init_complete_ack = False
+            
+            # 记录重置时间
+            self.connection_reset_time = time.time()
+            
+            self.logger.info("Connection reset completed")
+            
+        except Exception as e:
+            self.logger.error(f"Error handling connection reset: {str(e)}")
+        finally:
+            self.reset_in_progress = False
+    
     def _handle_ack(self, conn, header, body):
         """处理ACK消息
         
@@ -382,16 +944,27 @@ class LASServer:
         """
         try:
             return_code = body[0] if body else 0x00
-            self.logger.log_las(f"Received ACK for SeqID=0x{header['return_sequence_id']:04x}, ReturnCode=0x{return_code:02x}")
+            return_seq_id = header['return_sequence_id']
+            self.logger.log_las(f"Received ACK for SeqID=0x{return_seq_id:04x}, ReturnCode=0x{return_code:02x}")
+            
+            # 从待处理消息中移除已确认的消息
+            with self.message_lock:
+                if return_seq_id in self.pending_messages:
+                    del self.pending_messages[return_seq_id]
+                    self.logger.log_las(f"Removed completed message from pending list: SeqID=0x{return_seq_id:04x}")
             
             if return_code == 0x00:
                 # 检查是否是对主动发送的握手消息的ACK
                 if hasattr(self, '_awaiting_handshake_ack') and self._awaiting_handshake_ack:
+                    # 记录初始化开始时间，用于检测初始化序列超时
+                    self.initialization_start_time = time.time()
+                    
                     # 收到对主动握手消息的ACK，切换到initialization状态
                     self.conversation_status = self.CONVERSATION_STATUS_INITIALIZATION
                     self._awaiting_handshake_ack = False
                     self.logger.info(f"Handshake completed, switching to {self.CONVERSATION_STATUS_INITIALIZATION} state")
                     self.logger.log_las(f"Handshake completed, switching to {self.CONVERSATION_STATUS_INITIALIZATION} state")
+                    self.logger.info(f"Initialization sequence started. Must complete within {self.initialization_complete_timeout} seconds")
                     # 重置初始化请求集合
                     self.initialized_requests = {
                     'clear_queue': set(),
@@ -410,6 +983,18 @@ class LASServer:
                     self._awaiting_init_complete_ack = False
                     self.logger.info(f"Initialization completed, switching to {self.CONVERSATION_STATUS_CONNECTED} state")
                     self.logger.log_las(f"Initialization completed, switching to {self.CONVERSATION_STATUS_CONNECTED} state")
+            else:
+                # NACK处理
+                self.logger.warning(f"Received NACK for message: SeqID=0x{return_seq_id:04x}, ReturnCode=0x{return_code:02x}")
+                # 检查NACK重试次数
+                nack_count = self.retry_counts.get(return_seq_id, 0)
+                if nack_count < self.max_nack_retries:
+                    self.retry_counts[return_seq_id] = nack_count + 1
+                    self.logger.info(f"NACK received, will retry (attempt {nack_count + 1}/{self.max_nack_retries})")
+                else:
+                    # 达到最大NACK重试次数，触发连接重置
+                    self.logger.error(f"Max NACK retries reached for message: SeqID=0x{return_seq_id:04x}, initiating connection reset")
+                    self._handle_connection_reset()
                 
         except Exception as e:
             self.logger.error(f"Error handling LAS ACK: {str(e)}")
@@ -559,23 +1144,23 @@ class LASServer:
         try:
             # 检查IP0和IP1的锁定状态
             health_status = self.core.get_instrument_health()
-            # 默认IP0和IP1都是unlocked状态
-            ip0_locked = False
-            ip1_locked = False
             
             # 检查是否有IP处于locked状态
             if health_status['lock_ownership']:
-                # lock_ownership[0] 是 IP0 的状态，2表示locked
-                ip0_locked = len(health_status['lock_ownership']) > 0 and health_status['lock_ownership'][0] == 2
-                ip1_locked = len(health_status['lock_ownership']) > 1 and health_status['lock_ownership'][1] == 2
-            
-            # 如果有任意一个IP为locked状态，先发送LOAD_UNLOAD_RESPONSE
-            if ip0_locked or ip1_locked:
-                # 根据锁定状态选择对应的接口位置索引
-                if ip0_locked:
-                    self._send_load_unload_response(conn, interface_position_index=0)
-                elif ip1_locked:
-                    self._send_load_unload_response(conn, interface_position_index=1)
+                # 遍历所有接口位置，发送LOAD_UNLOAD_RESPONSE
+                for i in range(health_status['interface_positions']):
+                    lock_status = health_status['lock_ownership'][i] if i < len(health_status['lock_ownership']) else 2
+                    # lock_ownership为1表示Locked by Instrument，需要发送LOAD_UNLOAD_RESPONSE
+                    if lock_status == 1:
+                        # 获取该IP上实际的样本ID
+                        actual_sample_id = ""
+                        # 检查core模块中是否有锁定的carrier信息
+                        if hasattr(self.core, 'locked_carriers') and self.core.locked_carriers and i in self.core.locked_carriers:
+                            carrier_info = self.core.locked_carriers[i]
+                            if carrier_info and 'sample_id' in carrier_info:
+                                actual_sample_id = carrier_info['sample_id']
+                        # 发送响应消息，包含实际样本ID
+                        self._send_load_unload_response(conn, i, actual_sample_id)
             
             # 发送初始化完成消息
             self._send_initialization_complete(conn)
@@ -586,38 +1171,38 @@ class LASServer:
             self.logger.error(f"Error handling initialization complete: {str(e)}")
             self.logger.log_las(f"Error handling initialization complete: {str(e)}")
     
-    def _send_load_unload_response(self, conn, interface_position_index=0):
+    def _send_load_unload_response(self, conn, interface_position_index=0, actual_sample_id=""):
         """发送LOAD_UNLOAD_RESPONSE消息
         
         Args:
             conn: 连接 socket
-            interface_position_index: 接口位置索引，0=IP0, 1=IP1
+            interface_position_index: 接口位置索引，默认IP0
+            actual_sample_id: 实际的样本ID，用于填充到响应消息中
         """
         try:
             # 获取相关状态
             health_status = self.core.get_instrument_health()
-            # 验证参数类型
-            if not isinstance(interface_position_index, int):
-                self.logger.error(f"Invalid interface_position_index type: {type(interface_position_index).__name__}, expected int")
-                interface_position_index = 0  # 默认为IP0
-            # 确保索引值在有效范围内
-            if interface_position_index not in (0, 1):
-                self.logger.error(f"Invalid interface_position_index value: {interface_position_index}, expected 0 or 1")
-                interface_position_index = 0  # 默认为IP0
             ready_to_load = self.core.get_ready_to_load(interface_position_index)
             return_ready_count = self.core.get_return_ready_count()
-            load_sample_id_len = 0
-            load_sample_id_bytes = b''
-            load_status = 1  # 1=成功
-            unload_sample_id_len = 0
-            unload_sample_id_bytes = b''
-            unload_status = 1  # 1=成功
-            sample_status = 0  # 0=无样本
+            
+            # 构建响应消息体 - 根据实际情况动态填充
+            load_sample_id = actual_sample_id  # 使用传入的实际样本ID
+            unload_sample_id = ""  # 暂时为空，可根据实际情况获取
+            
+            load_sample_id_len = len(load_sample_id)
+            load_sample_id_bytes = load_sample_id.encode('ascii')
+            load_status = 2  # 2=error performing Load command(Lock Carrier in place)
+            
+            unload_sample_id_len = len(unload_sample_id)
+            unload_sample_id_bytes = unload_sample_id.encode('ascii')
+            unload_status = 2  # 2=error performing Unload command(Lock Carrier in place)
+            
+            sample_status = 0  # 0=No Sample Present
             onboard_count = health_status['on_board_tube_count']
             completed_count = health_status['completed_tube_count']
             
             body = struct.pack(
-                f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B B B H H B H',
+                f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B B H H B H',
                 interface_position_index,
                 load_sample_id_len,
                 load_sample_id_bytes,
@@ -739,13 +1324,14 @@ class LASServer:
         checksum = sum(data) % 256
         return f"{checksum:02X}".encode('ascii')
     
-    def _build_message(self, message_type, body, return_sequence_id=0):
+    def _build_message(self, message_type, body, return_sequence_id=0, track_message=False):
         """构建uRAP消息
         
         Args:
             message_type: 消息类型
             body: 消息体
             return_sequence_id: 返回序列ID
+            track_message: 是否跟踪此消息以进行超时检查
             
         Returns:
             bytes: 完整的uRAP消息
@@ -782,6 +1368,16 @@ class LASServer:
         
         # 构建完整消息
         message = header + body + checksum + b'\x03'  # ETX
+        
+        # 跟踪消息以进行超时检查
+        if track_message:
+            with self.message_lock:
+                self.pending_messages[sequence_id] = {
+                    'message_type': message_type,
+                    'message': message,
+                    'send_time': time.time(),
+                    'retries': 0
+                }
         
         return message, sequence_id
     
@@ -875,6 +1471,13 @@ class LASServer:
             
             instrument_serial = body[10:10+serial_len].decode('ascii')
             
+            # 更新连接状态为handshake_received
+            for conn_id, state in list(self.connection_states.items()):
+                if state['conn'] == conn:
+                    state['status'] = 'handshake_received'
+                    state['last_activity'] = time.time()
+                    break
+            
             self.logger.info(f"LAS handshake received: ProtocolVersion=0x{protocol_version:04x}, "
                            f"InstrumentType=0x{instrument_type:04x}, Serial={instrument_serial}")
             self.logger.log_las(f"Handshake received: Protocol=0x{protocol_version:04x}, "
@@ -927,7 +1530,8 @@ class LASServer:
             message, sequence_id = self._build_message(
                 self.MSG_TYPE_HANDSHAKE,
                 body,
-                return_sequence_id=return_sequence_id
+                return_sequence_id=return_sequence_id,
+                track_message=True
             )
             
             # 记录发送的原始数据
@@ -963,7 +1567,8 @@ class LASServer:
             # 构建完整消息
             message, sequence_id = self._build_message(
                 self.MSG_TYPE_INITIALIZATION_COMPLETE,
-                body
+                body,
+                track_message=True
             )
             
             # 记录发送的原始数据
@@ -1026,7 +1631,8 @@ class LASServer:
             message, sequence_id = self._build_message(
                 self.MSG_TYPE_INSTRUMENT_HEALTH_RESPONSE,
                 body,
-                return_sequence_id=header['sequence_id']
+                return_sequence_id=header['sequence_id'],
+                track_message=True
             )
             
             # 记录发送的原始数据
@@ -1082,7 +1688,8 @@ class LASServer:
             message, sequence_id = self._build_message(
                 self.MSG_TYPE_TEST_INVENTORY_RESPONSE,
                 body,
-                return_sequence_id=header['sequence_id']
+                return_sequence_id=header['sequence_id'],
+                track_message=True
             )
             
             # 记录发送的原始数据
@@ -1133,7 +1740,8 @@ class LASServer:
             message, sequence_id = self._build_message(
                 self.MSG_TYPE_ONBOARD_SAMPLE_INFO_RESPONSE,
                 body,
-                return_sequence_id=header['sequence_id']
+                return_sequence_id=header['sequence_id'],
+                track_message=True
             )
             
             # 记录发送的原始数据
@@ -1192,7 +1800,8 @@ class LASServer:
             message, sequence_id = self._build_message(
                 self.MSG_TYPE_CONSUMABLE_INVENTORY_RESPONSE,
                 body,
-                return_sequence_id=header['sequence_id']
+                return_sequence_id=header['sequence_id'],
+                track_message=True
             )
             
             # 记录发送的原始数据
@@ -1244,7 +1853,8 @@ class LASServer:
             message, sequence_id = self._build_message(
                 self.MSG_TYPE_TRANSFER_STATUS_RESPONSE,
                 body,
-                return_sequence_id=header['sequence_id']
+                return_sequence_id=header['sequence_id'],
+                track_message=True
             )
             
             # 记录发送的原始数据
@@ -1324,7 +1934,8 @@ class LASServer:
             message, sequence_id = self._build_message(
                 self.MSG_TYPE_ADD_QUEUE_RESPONSE,
                 response_body,
-                return_sequence_id=header['sequence_id']
+                return_sequence_id=header['sequence_id'],
+                track_message=True
             )
             
             # 记录发送的原始数据
@@ -1403,7 +2014,8 @@ class LASServer:
             message, sequence_id = self._build_message(
                 self.MSG_TYPE_SKIP_QUEUE_RESPONSE,
                 response_body,
-                return_sequence_id=header['sequence_id']
+                return_sequence_id=header['sequence_id'],
+                track_message=True
             )
             
             # 记录发送的原始数据
@@ -1455,7 +2067,8 @@ class LASServer:
             message, sequence_id = self._build_message(
                 self.MSG_TYPE_CLEAR_QUEUE_RESPONSE,
                 body,
-                return_sequence_id=header['sequence_id']
+                return_sequence_id=header['sequence_id'],
+                track_message=True
             )
             
             # 记录发送的原始数据
@@ -1513,9 +2126,9 @@ class LASServer:
             elapsed_time = struct.unpack_from('!H', body, offset)[0]
             
             # 确定请求类型
-            # 0x01表示有样本需要卸载 (LOAD request)
+            # 0x01、0x02、0x03表示有样本需要卸载 (LOAD request)
             # 0x00表示需要装载样本 (UNLOAD request)
-            request_type = 'load' if carrier_occupancy == 0x01 else 'unload'
+            request_type = 'load' if carrier_occupancy in [0x01, 0x02, 0x03] else 'unload'
             
             # 获取要显示的样本ID
             display_sample_id = sample_id
@@ -1554,6 +2167,16 @@ class LASServer:
                 elapsed_time
             )
             
+            # 确保load_result和unload_result被正确初始化
+            if load_result is None:
+                load_result = {'sample_id': sample_id, 'status': 1}  # 默认使用请求中的样本ID
+            if unload_result is None:
+                unload_result = {'sample_id': '', 'status': 1}
+            
+            # 确保load_result包含sample_id，如果没有则使用请求中的样本ID
+            if 'sample_id' not in load_result or not load_result['sample_id']:
+                load_result['sample_id'] = sample_id
+            
             # 构建响应消息体
             # Load Sample ID
             load_sample_id_bytes = load_result.get('sample_id', '').encode('ascii') if load_result else b''
@@ -1583,7 +2206,8 @@ class LASServer:
             message, sequence_id = self._build_message(
                 self.MSG_TYPE_LOAD_UNLOAD_RESPONSE,
                 body,
-                return_sequence_id=header['sequence_id']
+                return_sequence_id=header['sequence_id'],
+                track_message=True
             )
             
             # 记录发送的原始数据
@@ -1613,6 +2237,11 @@ class LASServer:
         except Exception as e:
             self.logger.error(f"Error handling LAS load/unload request: {str(e)}")
             self.logger.log_las(f"Error handling load/unload request: {str(e)}")
+            
+            # 1. 暂停当前机械动作，保留载具锁定状态
+            self.logger.info("Step 1: Pausing current mechanical action, preserving carrier lock state")
+            # 注意：载具锁定状态由core模块管理，异常处理时会自动保留
+            # 这里不需要额外操作，因为core模块会维护载具锁定状态
     
     # ========== 主动消息发送方法（供core模块调用） ==========
     
