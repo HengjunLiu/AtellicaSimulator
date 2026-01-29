@@ -42,7 +42,7 @@ class ConfigManager:
                 'protocol_version': '0x0330',
                 'instrument_type': '0x0001',
                 'capability_version': '0x0104',
-                'software_version': '0x0100',
+                'software_version': '0x0101',
                 'instrument_id': '0xFF',
                 'instrument_serial': 'ATELLICA',
                 'keep_alive_interval': 15,  # 秒
