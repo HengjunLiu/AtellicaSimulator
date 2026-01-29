@@ -39,7 +39,7 @@ def main():
         logger.info("Initializing AtellicaCore...")
         core = AtellicaCore(config_manager, logger)
         logger.info("AtellicaCore initialized successfully")
-        
+
         # 初始化LAS服务器
         logger.info("Initializing LASServer...")
         las_server = LASServer(config_manager, logger, core)

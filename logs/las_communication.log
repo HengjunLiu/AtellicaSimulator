@@ -1,14 +1,1240 @@
-2026-01-09 18:41:40 - LASCommunication - INFO - Connection established: 127.0.0.1:12953
-2026-01-09 18:41:41 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0001
-2026-01-09 18:41:41 - LASCommunication - INFO - Connection closed: 127.0.0.1:12953
-2026-01-09 18:41:44 - LASCommunication - INFO - Connection established: 127.0.0.1:12958
-2026-01-09 18:41:44 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] 在一个非套接字上尝试了一个操作。
-2026-01-09 18:42:14 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] 在一个非套接字上尝试了一个操作。
-2026-01-09 18:42:44 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] 在一个非套接字上尝试了一个操作。
-2026-01-09 18:43:15 - LASCommunication - INFO - Keep-Alive timeout, closing connection
-2026-01-09 18:43:15 - LASCommunication - INFO - Keep-Alive timeout, closing connection
-2026-01-09 18:43:15 - LASCommunication - INFO - Connection closed: 127.0.0.1:12958
-2026-01-09 18:43:18 - LASCommunication - INFO - Connection established: 127.0.0.1:12972
-2026-01-09 18:43:19 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0005
-2026-01-09 18:43:19 - LASCommunication - INFO - Connection closed: 127.0.0.1:12972
-2026-01-09 18:43:49 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] 在一个非套接字上尝试了一个操作。
+2026-01-29 09:17:58 - LASCommunication - INFO - Connection established: 127.0.0.1:50718, ConnectionID=127.0.0.1:50718:1769649478
+2026-01-29 09:18:28 - LASCommunication - INFO - Handshake timeout: ConnectionID=127.0.0.1:50718:1769649478, Address=127.0.0.1:50718, ErrorType=HandshakeTimeout
+2026-01-29 09:18:28 - LASCommunication - INFO - Connection closed: 127.0.0.1:50718, ConnectionID=127.0.0.1:50718:1769649478
+2026-01-29 09:21:08 - LASCommunication - INFO - Connection established: 127.0.0.1:50787, ConnectionID=127.0.0.1:50787:1769649668
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0001, SeqID=0x0001, Content=0200270001000000010000019c07570d02ff033000000104ffffff084154454c4c494341423003
+2026-01-29 09:21:11 - LASCommunication - INFO - Sent ACK for SeqID=0x0001, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Handshake received: Protocol=0x0330, Type=0x0000, Serial=ATELLICA
+2026-01-29 09:21:11 - LASCommunication - INFO - Handshake response sent, SeqID=0x0002, Content=020027000200000001001a011d09150b01ff0330000101040100ff084154454c4c494341304403
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0000, SeqID=0x0002, Content=0200160002000200000000019c07570d10ff00333303
+2026-01-29 09:21:11 - LASCommunication - INFO - Received ACK for SeqID=0x0002, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0002
+2026-01-29 09:21:11 - LASCommunication - INFO - Handshake completed, switching to initialization state
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0405, SeqID=0x0003, Content=0200160003000004050000019c07570d13ff00334503
+2026-01-29 09:21:11 - LASCommunication - INFO - Sent ACK for SeqID=0x0003, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Clear queue response sent, SeqID=0x0004
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0000, SeqID=0x0004, Content=0200160004000400000000019c07570d25ff00344303
+2026-01-29 09:21:11 - LASCommunication - INFO - Received ACK for SeqID=0x0004, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0004
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0405, SeqID=0x0005, Content=0200160005000004050000019c07570d27ff01353503
+2026-01-29 09:21:11 - LASCommunication - INFO - Sent ACK for SeqID=0x0005, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Clear queue response sent, SeqID=0x0006
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0000, SeqID=0x0006, Content=0200160006000600000000019c07570d4fff00374103
+2026-01-29 09:21:11 - LASCommunication - INFO - Received ACK for SeqID=0x0006, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0006
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0201, SeqID=0x0007, Content=0200150007000002010000019c07570d50ff373803
+2026-01-29 09:21:11 - LASCommunication - INFO - Sent ACK for SeqID=0x0007, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Instrument health response sent, SeqID=0x0008
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0000, SeqID=0x0008, Content=0200160008000800000000019c07570d71ff00413003
+2026-01-29 09:21:11 - LASCommunication - INFO - Received ACK for SeqID=0x0008, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0008
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0203, SeqID=0x0009, Content=0200150009000002030000019c07570d72ff394503
+2026-01-29 09:21:11 - LASCommunication - INFO - Sent ACK for SeqID=0x0009, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Test inventory response sent, SeqID=0x000a, Tests=5
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0000, SeqID=0x000a, Content=020016000a000a00000000019c07570d86ff00423903
+2026-01-29 09:21:11 - LASCommunication - INFO - Received ACK for SeqID=0x000a, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x000a
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0207, SeqID=0x000b, Content=020015000b000002070000019c07570d87ff423903
+2026-01-29 09:21:11 - LASCommunication - INFO - Sent ACK for SeqID=0x000b, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Onboard sample info response sent, SeqID=0x000c, Samples=0
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0000, SeqID=0x000c, Content=020016000c000c00000000019c07570dadff00453403
+2026-01-29 09:21:11 - LASCommunication - INFO - Received ACK for SeqID=0x000c, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x000c
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0209, SeqID=0x000d, Content=020016000d000002090000019c07570dafff00453603
+2026-01-29 09:21:11 - LASCommunication - INFO - Sent ACK for SeqID=0x000d, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Transfer status response sent, SeqID=0x000e
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0000, SeqID=0x000e, Content=020016000e000e00000000019c07570dbcff00463703
+2026-01-29 09:21:11 - LASCommunication - INFO - Received ACK for SeqID=0x000e, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x000e
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0209, SeqID=0x000f, Content=020016000f000002090000019c07570dbeff01463803
+2026-01-29 09:21:11 - LASCommunication - INFO - Sent ACK for SeqID=0x000f, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Transfer status response sent, SeqID=0x0010
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0000, SeqID=0x0010, Content=0200160010001000000000019c07570debff00324103
+2026-01-29 09:21:11 - LASCommunication - INFO - Received ACK for SeqID=0x0010, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0010
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x020b, SeqID=0x0011, Content=02001500110000020b0000019c07570decff323803
+2026-01-29 09:21:11 - LASCommunication - INFO - Sent ACK for SeqID=0x0011, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Consumable inventory response sent, SeqID=0x0012, Modules=2
+2026-01-29 09:21:11 - LASCommunication - INFO - Initialization complete sent, SeqID=0x0013, Content=02001500130000020d001a011d09150b02ff394203
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0000, SeqID=0x0012, Content=0200160012001200000000019c07570e13ff00353703
+2026-01-29 09:21:11 - LASCommunication - INFO - Received ACK for SeqID=0x0012, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0012
+2026-01-29 09:21:11 - LASCommunication - INFO - Initialization completed, switching to connected state
+2026-01-29 09:21:11 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0000, SeqID=0x0013, Content=0200160013001300000000019c07570e36ff00374303
+2026-01-29 09:21:11 - LASCommunication - INFO - Received ACK for SeqID=0x0013, ReturnCode=0x00
+2026-01-29 09:21:11 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0013
+2026-01-29 09:21:22 - LASCommunication - INFO - Connection established: 127.0.0.1:50796, ConnectionID=127.0.0.1:50796:1769649682
+2026-01-29 09:21:52 - LASCommunication - INFO - Received message from 127.0.0.1:50796: Type=0x0001, SeqID=0x0001, Content=0200270001000000010000019c0757ae53ff033000000104ffffff084154454c4c494341413203
+2026-01-29 09:21:52 - LASCommunication - INFO - Invalid message type 1 in connected state
+2026-01-29 09:21:52 - LASCommunication - INFO - Sent NACK for SeqID=0x0001, ReturnCode=0x03
+2026-01-29 09:21:52 - LASCommunication - INFO - Handshake timeout: ConnectionID=127.0.0.1:50796:1769649682, Address=127.0.0.1:50796, ErrorType=HandshakeTimeout
+2026-01-29 09:21:52 - LASCommunication - INFO - Connection closed: 127.0.0.1:50796, ConnectionID=127.0.0.1:50796:1769649682
+2026-01-29 09:22:22 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:23 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0016
+2026-01-29 09:22:23 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:23 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:24 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0019
+2026-01-29 09:22:24 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:24 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:25 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x001c
+2026-01-29 09:22:25 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:25 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:26 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x001f
+2026-01-29 09:22:26 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:26 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:27 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0022
+2026-01-29 09:22:27 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:27 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:28 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0025
+2026-01-29 09:22:28 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:28 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:29 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0028
+2026-01-29 09:22:29 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:29 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:30 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x002b
+2026-01-29 09:22:30 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:30 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:31 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x002e
+2026-01-29 09:22:31 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:31 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:32 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0031
+2026-01-29 09:22:32 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:32 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:33 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0034
+2026-01-29 09:22:33 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:33 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:34 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0037
+2026-01-29 09:22:34 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:34 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:35 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x003a
+2026-01-29 09:22:35 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:35 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:36 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x003d
+2026-01-29 09:22:36 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:36 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:37 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0040
+2026-01-29 09:22:37 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:37 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:37 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0043
+2026-01-29 09:22:38 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0044
+2026-01-29 09:22:38 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0045
+2026-01-29 09:22:38 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:38 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:38 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0048
+2026-01-29 09:22:39 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0049
+2026-01-29 09:22:39 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x004a
+2026-01-29 09:22:39 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:39 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:39 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x004d
+2026-01-29 09:22:40 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x004e
+2026-01-29 09:22:40 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x004f
+2026-01-29 09:22:40 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:40 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:40 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0052
+2026-01-29 09:22:41 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0053
+2026-01-29 09:22:41 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0054
+2026-01-29 09:22:41 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:41 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:41 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0057
+2026-01-29 09:22:42 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0058
+2026-01-29 09:22:42 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0059
+2026-01-29 09:22:42 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:42 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:42 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0015
+2026-01-29 09:22:42 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x005c
+2026-01-29 09:22:43 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x005d
+2026-01-29 09:22:43 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x005e
+2026-01-29 09:22:43 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:43 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:43 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0016
+2026-01-29 09:22:43 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0017
+2026-01-29 09:22:43 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0018
+2026-01-29 09:22:43 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0061
+2026-01-29 09:22:44 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0062
+2026-01-29 09:22:44 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0063
+2026-01-29 09:22:44 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:44 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:44 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0019
+2026-01-29 09:22:44 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001a
+2026-01-29 09:22:44 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001b
+2026-01-29 09:22:44 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0066
+2026-01-29 09:22:45 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0067
+2026-01-29 09:22:45 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0068
+2026-01-29 09:22:45 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:45 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:45 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001c
+2026-01-29 09:22:45 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001d
+2026-01-29 09:22:45 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001e
+2026-01-29 09:22:45 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x006b
+2026-01-29 09:22:46 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x006c
+2026-01-29 09:22:46 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x006d
+2026-01-29 09:22:46 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:46 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:47 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001f
+2026-01-29 09:22:47 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0020
+2026-01-29 09:22:47 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0021
+2026-01-29 09:22:47 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0070
+2026-01-29 09:22:47 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0071
+2026-01-29 09:22:47 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0072
+2026-01-29 09:22:47 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:47 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:48 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0022
+2026-01-29 09:22:48 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0023
+2026-01-29 09:22:48 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0024
+2026-01-29 09:22:48 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0075
+2026-01-29 09:22:48 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0076
+2026-01-29 09:22:48 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0077
+2026-01-29 09:22:48 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:48 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:49 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0025
+2026-01-29 09:22:49 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0026
+2026-01-29 09:22:49 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0027
+2026-01-29 09:22:49 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x007a
+2026-01-29 09:22:49 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0028
+2026-01-29 09:22:49 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x007b
+2026-01-29 09:22:49 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x007c
+2026-01-29 09:22:49 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:49 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:50 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0029
+2026-01-29 09:22:50 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002a
+2026-01-29 09:22:50 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x007f
+2026-01-29 09:22:50 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002b
+2026-01-29 09:22:50 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0080
+2026-01-29 09:22:50 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0081
+2026-01-29 09:22:50 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:50 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:51 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002c
+2026-01-29 09:22:51 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002d
+2026-01-29 09:22:51 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0084
+2026-01-29 09:22:51 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002e
+2026-01-29 09:22:51 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0085
+2026-01-29 09:22:51 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0086
+2026-01-29 09:22:51 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:51 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:52 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002f
+2026-01-29 09:22:52 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0030
+2026-01-29 09:22:52 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0089
+2026-01-29 09:22:52 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0031
+2026-01-29 09:22:52 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x008a
+2026-01-29 09:22:52 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x008b
+2026-01-29 09:22:52 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:52 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:53 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0032
+2026-01-29 09:22:53 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0033
+2026-01-29 09:22:53 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x008e
+2026-01-29 09:22:53 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0034
+2026-01-29 09:22:53 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x008f
+2026-01-29 09:22:53 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0090
+2026-01-29 09:22:53 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:53 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:54 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0035
+2026-01-29 09:22:54 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0036
+2026-01-29 09:22:54 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0093
+2026-01-29 09:22:54 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0037
+2026-01-29 09:22:54 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0094
+2026-01-29 09:22:54 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0095
+2026-01-29 09:22:54 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:54 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:55 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0038
+2026-01-29 09:22:55 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0039
+2026-01-29 09:22:55 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0098
+2026-01-29 09:22:55 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003a
+2026-01-29 09:22:55 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0099
+2026-01-29 09:22:55 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x009a
+2026-01-29 09:22:55 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:55 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:56 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003b
+2026-01-29 09:22:56 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003c
+2026-01-29 09:22:56 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x009d
+2026-01-29 09:22:56 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003d
+2026-01-29 09:22:56 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x009e
+2026-01-29 09:22:56 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x009f
+2026-01-29 09:22:56 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:56 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:57 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003e
+2026-01-29 09:22:57 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003f
+2026-01-29 09:22:57 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00a2
+2026-01-29 09:22:57 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0040
+2026-01-29 09:22:57 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00a3
+2026-01-29 09:22:57 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00a4
+2026-01-29 09:22:57 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:57 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:58 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0041
+2026-01-29 09:22:58 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0042
+2026-01-29 09:22:58 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0043
+2026-01-29 09:22:58 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00a7
+2026-01-29 09:22:58 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0044
+2026-01-29 09:22:58 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0045
+2026-01-29 09:22:58 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00a8
+2026-01-29 09:22:58 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00a9
+2026-01-29 09:22:58 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:58 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:59 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0046
+2026-01-29 09:22:59 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0047
+2026-01-29 09:22:59 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0048
+2026-01-29 09:22:59 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00ac
+2026-01-29 09:22:59 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0049
+2026-01-29 09:22:59 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004a
+2026-01-29 09:22:59 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00ad
+2026-01-29 09:22:59 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00ae
+2026-01-29 09:22:59 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:22:59 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:23:00 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004b
+2026-01-29 09:23:00 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004c
+2026-01-29 09:23:00 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004d
+2026-01-29 09:23:00 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00b1
+2026-01-29 09:23:00 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004e
+2026-01-29 09:23:00 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004f
+2026-01-29 09:23:00 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00b2
+2026-01-29 09:23:00 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00b3
+2026-01-29 09:23:00 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:23:00 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:23:01 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0050
+2026-01-29 09:23:01 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0051
+2026-01-29 09:23:01 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0052
+2026-01-29 09:23:01 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00b6
+2026-01-29 09:23:01 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0053
+2026-01-29 09:23:01 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0054
+2026-01-29 09:23:01 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:23:01 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:23:01 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00b7
+2026-01-29 09:23:01 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00ba
+2026-01-29 09:23:02 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0055
+2026-01-29 09:23:02 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0056
+2026-01-29 09:23:02 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0057
+2026-01-29 09:23:02 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00bb
+2026-01-29 09:23:02 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:23:02 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:23:02 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00be
+2026-01-29 09:23:02 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0058
+2026-01-29 09:23:02 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0059
+2026-01-29 09:23:02 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005a
+2026-01-29 09:23:02 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005b
+2026-01-29 09:23:02 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00bf
+2026-01-29 09:23:03 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0015
+2026-01-29 09:23:03 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005c
+2026-01-29 09:23:03 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x00c0
+2026-01-29 09:23:03 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0000, SeqID=0x0014, Content=020016001400c000000000019c0758c2f5ff00394503
+2026-01-29 09:23:03 - LASCommunication - INFO - Received ACK for SeqID=0x00c0, ReturnCode=0x00
+2026-01-29 09:23:03 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x00c0
+2026-01-29 09:23:03 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005d
+2026-01-29 09:23:03 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005e
+2026-01-29 09:23:03 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005f
+2026-01-29 09:23:03 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0060
+2026-01-29 09:23:04 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0016
+2026-01-29 09:23:04 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0017
+2026-01-29 09:23:04 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0018
+2026-01-29 09:23:04 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0061
+2026-01-29 09:23:04 - LASCommunication - INFO - Received message from 127.0.0.1:50787: Type=0x0000, SeqID=0x0015, Content=0200160015006100000000019c0758c6e2ff00333103
+2026-01-29 09:23:04 - LASCommunication - INFO - Received ACK for SeqID=0x0061, ReturnCode=0x00
+2026-01-29 09:23:04 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0061
+2026-01-29 09:23:04 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0062
+2026-01-29 09:23:04 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0063
+2026-01-29 09:23:04 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0064
+2026-01-29 09:23:04 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0065
+2026-01-29 09:32:31 - LASCommunication - INFO - Connection established: 127.0.0.1:51211, ConnectionID=127.0.0.1:51211:1769650351
+2026-01-29 09:32:43 - LASCommunication - INFO - Connection established: 127.0.0.1:51219, ConnectionID=127.0.0.1:51219:1769650363
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0001, SeqID=0x0001, Content=0200270001000000010000019c0761a0abff033000000104ffffff084154454c4c494341463603
+2026-01-29 09:32:44 - LASCommunication - INFO - Sent ACK for SeqID=0x0001, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Handshake received: Protocol=0x0330, Type=0x0000, Serial=ATELLICA
+2026-01-29 09:32:44 - LASCommunication - INFO - Handshake response sent, SeqID=0x0002, Content=020027000200000001001a011d09202c02ff0330000101040100ff084154454c4c494341334103
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0002, Content=0200160002000200000000019c0761a0b4ff00373403
+2026-01-29 09:32:44 - LASCommunication - INFO - Received ACK for SeqID=0x0002, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0002
+2026-01-29 09:32:44 - LASCommunication - INFO - Handshake completed, switching to initialization state
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0405, SeqID=0x0003, Content=0200160003000004050000019c0761a0b5ff00374403
+2026-01-29 09:32:44 - LASCommunication - INFO - Sent ACK for SeqID=0x0003, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Clear queue response sent, SeqID=0x0004
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0004, Content=0200160004000400000000019c0761a0c1ff00383503
+2026-01-29 09:32:44 - LASCommunication - INFO - Received ACK for SeqID=0x0004, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0004
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0405, SeqID=0x0005, Content=0200160005000004050000019c0761a0c2ff01384403
+2026-01-29 09:32:44 - LASCommunication - INFO - Sent ACK for SeqID=0x0005, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Clear queue response sent, SeqID=0x0006
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0006, Content=0200160006000600000000019c0761a0e4ff00414303
+2026-01-29 09:32:44 - LASCommunication - INFO - Received ACK for SeqID=0x0006, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0006
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0201, SeqID=0x0007, Content=0200150007000002010000019c0761a0e6ff414203
+2026-01-29 09:32:44 - LASCommunication - INFO - Sent ACK for SeqID=0x0007, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Instrument health response sent, SeqID=0x0008
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0008, Content=0200160008000800000000019c0761a0ebff00423703
+2026-01-29 09:32:44 - LASCommunication - INFO - Received ACK for SeqID=0x0008, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0008
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0203, SeqID=0x0009, Content=0200150009000002030000019c0761a0edff423603
+2026-01-29 09:32:44 - LASCommunication - INFO - Sent ACK for SeqID=0x0009, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Test inventory response sent, SeqID=0x000a, Tests=5
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x000a, Content=020016000a000a00000000019c0761a106ff00443703
+2026-01-29 09:32:44 - LASCommunication - INFO - Received ACK for SeqID=0x000a, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x000a
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0207, SeqID=0x000b, Content=020015000b000002070000019c0761a107ff443703
+2026-01-29 09:32:44 - LASCommunication - INFO - Sent ACK for SeqID=0x000b, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Onboard sample info response sent, SeqID=0x000c, Samples=0
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x000c, Content=020016000c000c00000000019c0761a116ff00454203
+2026-01-29 09:32:44 - LASCommunication - INFO - Received ACK for SeqID=0x000c, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x000c
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0209, SeqID=0x000d, Content=020016000d000002090000019c0761a117ff00454303
+2026-01-29 09:32:44 - LASCommunication - INFO - Sent ACK for SeqID=0x000d, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Transfer status response sent, SeqID=0x000e
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x000e, Content=020016000e000e00000000019c0761a137ff00313003
+2026-01-29 09:32:44 - LASCommunication - INFO - Received ACK for SeqID=0x000e, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x000e
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0209, SeqID=0x000f, Content=020016000f000002090000019c0761a138ff01313003
+2026-01-29 09:32:44 - LASCommunication - INFO - Sent ACK for SeqID=0x000f, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Transfer status response sent, SeqID=0x0010
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0010, Content=0200160010001000000000019c0761a141ff00314503
+2026-01-29 09:32:44 - LASCommunication - INFO - Received ACK for SeqID=0x0010, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0010
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x020b, SeqID=0x0011, Content=02001500110000020b0000019c0761a146ff323003
+2026-01-29 09:32:44 - LASCommunication - INFO - Sent ACK for SeqID=0x0011, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Consumable inventory response sent, SeqID=0x0012, Modules=2
+2026-01-29 09:32:44 - LASCommunication - INFO - Initialization complete sent, SeqID=0x0013, Content=02001500130000020d001a011d09202c02ff433703
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0012, Content=0200160012001200000000019c0761a15fff00343003
+2026-01-29 09:32:44 - LASCommunication - INFO - Received ACK for SeqID=0x0012, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0012
+2026-01-29 09:32:44 - LASCommunication - INFO - Initialization completed, switching to connected state
+2026-01-29 09:32:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0013, Content=0200160013001300000000019c0761a163ff00343603
+2026-01-29 09:32:44 - LASCommunication - INFO - Received ACK for SeqID=0x0013, ReturnCode=0x00
+2026-01-29 09:32:44 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0013
+2026-01-29 09:33:01 - LASCommunication - INFO - Handshake timeout: ConnectionID=127.0.0.1:51211:1769650351, Address=127.0.0.1:51211, ErrorType=HandshakeTimeout
+2026-01-29 09:33:01 - LASCommunication - INFO - Connection closed: 127.0.0.1:51211, ConnectionID=127.0.0.1:51211:1769650351
+2026-01-29 09:33:13 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0001, SeqID=0x0014, Content=0200270014000000010000019c076210d7ff033000000104ffffff084154454c4c494341413603
+2026-01-29 09:33:13 - LASCommunication - INFO - Invalid message type 1 in connected state
+2026-01-29 09:33:13 - LASCommunication - INFO - Sent NACK for SeqID=0x0014, ReturnCode=0x03
+2026-01-29 09:33:43 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0015
+2026-01-29 09:33:43 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:44 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0017
+2026-01-29 09:33:44 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:45 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0019
+2026-01-29 09:33:45 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:46 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x001b
+2026-01-29 09:33:46 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:47 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x001d
+2026-01-29 09:33:47 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:48 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x001f
+2026-01-29 09:33:48 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:49 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0021
+2026-01-29 09:33:49 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:50 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0023
+2026-01-29 09:33:50 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:51 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0025
+2026-01-29 09:33:51 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:52 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0027
+2026-01-29 09:33:52 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:53 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0029
+2026-01-29 09:33:53 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:54 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x002b
+2026-01-29 09:33:54 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:55 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x002d
+2026-01-29 09:33:55 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:56 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x002f
+2026-01-29 09:33:56 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:57 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0031
+2026-01-29 09:33:57 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:58 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0033
+2026-01-29 09:33:58 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:58 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0035
+2026-01-29 09:33:59 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0036
+2026-01-29 09:33:59 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0037
+2026-01-29 09:33:59 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:33:59 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0039
+2026-01-29 09:34:00 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x003a
+2026-01-29 09:34:00 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x003b
+2026-01-29 09:34:00 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:00 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x003d
+2026-01-29 09:34:01 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x003e
+2026-01-29 09:34:01 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x003f
+2026-01-29 09:34:01 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:01 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0041
+2026-01-29 09:34:02 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0042
+2026-01-29 09:34:02 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0043
+2026-01-29 09:34:02 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:02 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0045
+2026-01-29 09:34:03 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0046
+2026-01-29 09:34:03 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0047
+2026-01-29 09:34:03 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:03 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0015
+2026-01-29 09:34:03 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0016
+2026-01-29 09:34:03 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0049
+2026-01-29 09:34:04 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x004a
+2026-01-29 09:34:04 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x004b
+2026-01-29 09:34:04 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:04 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0017
+2026-01-29 09:34:04 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0018
+2026-01-29 09:34:04 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x004d
+2026-01-29 09:34:05 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x004e
+2026-01-29 09:34:05 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x004f
+2026-01-29 09:34:05 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:05 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0019
+2026-01-29 09:34:05 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001a
+2026-01-29 09:34:05 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0051
+2026-01-29 09:34:06 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0052
+2026-01-29 09:34:06 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0053
+2026-01-29 09:34:06 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:06 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001b
+2026-01-29 09:34:06 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001c
+2026-01-29 09:34:06 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0055
+2026-01-29 09:34:07 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0056
+2026-01-29 09:34:07 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0057
+2026-01-29 09:34:07 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:07 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001d
+2026-01-29 09:34:07 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001e
+2026-01-29 09:34:07 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0059
+2026-01-29 09:34:08 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x005a
+2026-01-29 09:34:08 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x005b
+2026-01-29 09:34:08 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:08 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001f
+2026-01-29 09:34:08 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0020
+2026-01-29 09:34:08 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x005d
+2026-01-29 09:34:09 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x005e
+2026-01-29 09:34:09 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x005f
+2026-01-29 09:34:09 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:09 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0021
+2026-01-29 09:34:09 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0022
+2026-01-29 09:34:09 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0061
+2026-01-29 09:34:10 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0062
+2026-01-29 09:34:10 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0063
+2026-01-29 09:34:10 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:10 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0023
+2026-01-29 09:34:10 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0024
+2026-01-29 09:34:10 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0065
+2026-01-29 09:34:11 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0066
+2026-01-29 09:34:11 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0067
+2026-01-29 09:34:11 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:11 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0025
+2026-01-29 09:34:11 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0026
+2026-01-29 09:34:11 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0069
+2026-01-29 09:34:12 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x006a
+2026-01-29 09:34:12 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x006b
+2026-01-29 09:34:12 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:12 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0027
+2026-01-29 09:34:12 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0028
+2026-01-29 09:34:12 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x006d
+2026-01-29 09:34:13 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x006e
+2026-01-29 09:34:13 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x006f
+2026-01-29 09:34:13 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:13 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0029
+2026-01-29 09:34:13 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002a
+2026-01-29 09:34:13 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0071
+2026-01-29 09:34:14 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0072
+2026-01-29 09:34:14 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0073
+2026-01-29 09:34:14 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:14 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002b
+2026-01-29 09:34:14 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002c
+2026-01-29 09:34:14 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0075
+2026-01-29 09:34:15 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0076
+2026-01-29 09:34:15 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0077
+2026-01-29 09:34:15 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:15 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002d
+2026-01-29 09:34:15 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002e
+2026-01-29 09:34:15 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0079
+2026-01-29 09:34:16 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x007a
+2026-01-29 09:34:16 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x007b
+2026-01-29 09:34:16 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:16 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002f
+2026-01-29 09:34:16 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0030
+2026-01-29 09:34:16 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x007d
+2026-01-29 09:34:17 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x007e
+2026-01-29 09:34:17 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x007f
+2026-01-29 09:34:17 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:17 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0031
+2026-01-29 09:34:17 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0032
+2026-01-29 09:34:17 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0081
+2026-01-29 09:34:18 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0082
+2026-01-29 09:34:18 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0083
+2026-01-29 09:34:18 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:18 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0033
+2026-01-29 09:34:18 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0034
+2026-01-29 09:34:18 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0035
+2026-01-29 09:34:18 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0085
+2026-01-29 09:34:19 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0036
+2026-01-29 09:34:19 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0086
+2026-01-29 09:34:19 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0087
+2026-01-29 09:34:19 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:19 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0037
+2026-01-29 09:34:19 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0038
+2026-01-29 09:34:19 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0039
+2026-01-29 09:34:19 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0089
+2026-01-29 09:34:20 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003a
+2026-01-29 09:34:20 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x008a
+2026-01-29 09:34:20 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x008b
+2026-01-29 09:34:20 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:20 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003b
+2026-01-29 09:34:20 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003c
+2026-01-29 09:34:20 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003d
+2026-01-29 09:34:20 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x008d
+2026-01-29 09:34:21 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003e
+2026-01-29 09:34:21 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x008e
+2026-01-29 09:34:21 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x008f
+2026-01-29 09:34:21 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:21 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003f
+2026-01-29 09:34:21 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0040
+2026-01-29 09:34:21 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0041
+2026-01-29 09:34:21 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0091
+2026-01-29 09:34:22 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0042
+2026-01-29 09:34:22 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0092
+2026-01-29 09:34:22 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0093
+2026-01-29 09:34:22 - LASCommunication - INFO - Error sending Keep-Alive: [WinError 10038] An operation was attempted on something that is not a socket
+2026-01-29 09:34:22 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0043
+2026-01-29 09:34:22 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0044
+2026-01-29 09:34:22 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0045
+2026-01-29 09:34:22 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0095
+2026-01-29 09:34:23 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0046
+2026-01-29 09:34:23 - LASCommunication - INFO - Keep-Alive sent, SeqID=0x0096
+2026-01-29 09:34:23 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0015, Content=0200160015009600000000019c07632296ff00383103
+2026-01-29 09:34:23 - LASCommunication - INFO - Received ACK for SeqID=0x0096, ReturnCode=0x00
+2026-01-29 09:34:23 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0096
+2026-01-29 09:34:23 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0015
+2026-01-29 09:34:23 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0016
+2026-01-29 09:34:23 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0047
+2026-01-29 09:34:23 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0048
+2026-01-29 09:34:23 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0049
+2026-01-29 09:34:24 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004a
+2026-01-29 09:34:24 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0016, Content=0200160016004a00000000019c0763267eff00323203
+2026-01-29 09:34:24 - LASCommunication - INFO - Received ACK for SeqID=0x004a, ReturnCode=0x00
+2026-01-29 09:34:24 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x004a
+2026-01-29 09:34:24 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0017
+2026-01-29 09:34:24 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0018
+2026-01-29 09:34:24 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004b
+2026-01-29 09:34:24 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004c
+2026-01-29 09:34:24 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004d
+2026-01-29 09:34:25 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004e
+2026-01-29 09:34:25 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0017, Content=0200160017004e00000000019c07632a68ff00313503
+2026-01-29 09:34:25 - LASCommunication - INFO - Received ACK for SeqID=0x004e, ReturnCode=0x00
+2026-01-29 09:34:25 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x004e
+2026-01-29 09:34:25 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0019
+2026-01-29 09:34:25 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001a
+2026-01-29 09:34:25 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004f
+2026-01-29 09:34:25 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0050
+2026-01-29 09:34:25 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0051
+2026-01-29 09:34:26 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0052
+2026-01-29 09:34:26 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0018, Content=0200160018005200000000019c07632e51ff00303703
+2026-01-29 09:34:26 - LASCommunication - INFO - Received ACK for SeqID=0x0052, ReturnCode=0x00
+2026-01-29 09:34:26 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0052
+2026-01-29 09:34:26 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001b
+2026-01-29 09:34:26 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001c
+2026-01-29 09:34:26 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0053
+2026-01-29 09:34:26 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0054
+2026-01-29 09:34:26 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0055
+2026-01-29 09:34:27 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0056
+2026-01-29 09:34:27 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0019, Content=0200160019005600000000019c0763323aff00463903
+2026-01-29 09:34:27 - LASCommunication - INFO - Received ACK for SeqID=0x0056, ReturnCode=0x00
+2026-01-29 09:34:27 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0056
+2026-01-29 09:34:27 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001d
+2026-01-29 09:34:27 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001e
+2026-01-29 09:34:27 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0057
+2026-01-29 09:34:27 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0058
+2026-01-29 09:34:27 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0059
+2026-01-29 09:34:28 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005a
+2026-01-29 09:34:28 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x001a, Content=020016001a005a00000000019c07633623ff00454203
+2026-01-29 09:34:28 - LASCommunication - INFO - Received ACK for SeqID=0x005a, ReturnCode=0x00
+2026-01-29 09:34:28 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x005a
+2026-01-29 09:34:28 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001f
+2026-01-29 09:34:28 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0020
+2026-01-29 09:34:28 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005b
+2026-01-29 09:34:28 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005c
+2026-01-29 09:34:28 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005d
+2026-01-29 09:34:29 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005e
+2026-01-29 09:34:29 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x001b, Content=020016001b005e00000000019c07633a0dff00444503
+2026-01-29 09:34:29 - LASCommunication - INFO - Received ACK for SeqID=0x005e, ReturnCode=0x00
+2026-01-29 09:34:29 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x005e
+2026-01-29 09:34:29 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0021
+2026-01-29 09:34:29 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0022
+2026-01-29 09:34:29 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005f
+2026-01-29 09:34:29 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0060
+2026-01-29 09:34:29 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0061
+2026-01-29 09:34:30 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0062
+2026-01-29 09:34:30 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x001c, Content=020016001c006200000000019c07633df6ff00434603
+2026-01-29 09:34:30 - LASCommunication - INFO - Received ACK for SeqID=0x0062, ReturnCode=0x00
+2026-01-29 09:34:30 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0062
+2026-01-29 09:34:30 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0023
+2026-01-29 09:34:30 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0024
+2026-01-29 09:34:30 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0063
+2026-01-29 09:34:30 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0064
+2026-01-29 09:34:30 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0065
+2026-01-29 09:34:31 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0066
+2026-01-29 09:34:31 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x001d, Content=020016001d006600000000019c076341dfff00433103
+2026-01-29 09:34:31 - LASCommunication - INFO - Received ACK for SeqID=0x0066, ReturnCode=0x00
+2026-01-29 09:34:31 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0066
+2026-01-29 09:34:31 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0025
+2026-01-29 09:34:31 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0026
+2026-01-29 09:34:31 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0067
+2026-01-29 09:34:31 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0068
+2026-01-29 09:34:31 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0069
+2026-01-29 09:34:32 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006a
+2026-01-29 09:34:32 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x001e, Content=020016001e006a00000000019c076345c9ff00423403
+2026-01-29 09:34:32 - LASCommunication - INFO - Received ACK for SeqID=0x006a, ReturnCode=0x00
+2026-01-29 09:34:32 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x006a
+2026-01-29 09:34:32 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0027
+2026-01-29 09:34:32 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0028
+2026-01-29 09:34:32 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006b
+2026-01-29 09:34:32 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006c
+2026-01-29 09:34:32 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006d
+2026-01-29 09:34:33 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006e
+2026-01-29 09:34:33 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x001f, Content=020016001f006e00000000019c076349eeff00453203
+2026-01-29 09:34:33 - LASCommunication - INFO - Received ACK for SeqID=0x006e, ReturnCode=0x00
+2026-01-29 09:34:33 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x006e
+2026-01-29 09:34:33 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0029
+2026-01-29 09:34:33 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002a
+2026-01-29 09:34:33 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006f
+2026-01-29 09:34:33 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0070
+2026-01-29 09:34:33 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0071
+2026-01-29 09:34:34 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0072
+2026-01-29 09:34:34 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0020, Content=0200160020007200000000019c07634d9cff00393903
+2026-01-29 09:34:34 - LASCommunication - INFO - Received ACK for SeqID=0x0072, ReturnCode=0x00
+2026-01-29 09:34:34 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0072
+2026-01-29 09:34:34 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002b
+2026-01-29 09:34:34 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002c
+2026-01-29 09:34:34 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0073
+2026-01-29 09:34:34 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0074
+2026-01-29 09:34:34 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0075
+2026-01-29 09:34:35 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0076
+2026-01-29 09:34:35 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0021, Content=0200160021007600000000019c07635188ff00384503
+2026-01-29 09:34:35 - LASCommunication - INFO - Received ACK for SeqID=0x0076, ReturnCode=0x00
+2026-01-29 09:34:35 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0076
+2026-01-29 09:34:35 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002d
+2026-01-29 09:34:35 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002e
+2026-01-29 09:34:35 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0077
+2026-01-29 09:34:35 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0078
+2026-01-29 09:34:35 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0079
+2026-01-29 09:34:36 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007a
+2026-01-29 09:34:36 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0022, Content=0200160022007a00000000019c0763556cff00374203
+2026-01-29 09:34:36 - LASCommunication - INFO - Received ACK for SeqID=0x007a, ReturnCode=0x00
+2026-01-29 09:34:36 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x007a
+2026-01-29 09:34:36 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002f
+2026-01-29 09:34:36 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0030
+2026-01-29 09:34:36 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007b
+2026-01-29 09:34:36 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007c
+2026-01-29 09:34:36 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007d
+2026-01-29 09:34:37 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007e
+2026-01-29 09:34:37 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0023, Content=0200160023007e00000000019c07635956ff00364503
+2026-01-29 09:34:37 - LASCommunication - INFO - Received ACK for SeqID=0x007e, ReturnCode=0x00
+2026-01-29 09:34:37 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x007e
+2026-01-29 09:34:37 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0031
+2026-01-29 09:34:37 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0032
+2026-01-29 09:34:37 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007f
+2026-01-29 09:34:37 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0080
+2026-01-29 09:34:37 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0081
+2026-01-29 09:34:38 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0082
+2026-01-29 09:34:38 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0024, Content=0200160024008200000000019c07635d3fff00363003
+2026-01-29 09:34:38 - LASCommunication - INFO - Received ACK for SeqID=0x0082, ReturnCode=0x00
+2026-01-29 09:34:38 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0082
+2026-01-29 09:34:38 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0025, Content=0200160025008200000000019c07635dd9ff00464203
+2026-01-29 09:34:38 - LASCommunication - INFO - Received ACK for SeqID=0x0082, ReturnCode=0x00
+2026-01-29 09:34:38 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0033
+2026-01-29 09:34:38 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0034
+2026-01-29 09:34:38 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0035
+2026-01-29 09:34:38 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0083
+2026-01-29 09:34:38 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0084
+2026-01-29 09:34:38 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0085
+2026-01-29 09:34:39 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0026, Content=0200160026008500000000019c07635fceff00463603
+2026-01-29 09:34:39 - LASCommunication - INFO - Received ACK for SeqID=0x0085, ReturnCode=0x00
+2026-01-29 09:34:39 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0085
+2026-01-29 09:34:39 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0036
+2026-01-29 09:34:39 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0086
+2026-01-29 09:34:39 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0027, Content=0200160027008600000000019c07636128ff00353403
+2026-01-29 09:34:39 - LASCommunication - INFO - Received ACK for SeqID=0x0086, ReturnCode=0x00
+2026-01-29 09:34:39 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0086
+2026-01-29 09:34:39 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0028, Content=0200160028008600000000019c076361c4ff00463103
+2026-01-29 09:34:39 - LASCommunication - INFO - Received ACK for SeqID=0x0086, ReturnCode=0x00
+2026-01-29 09:34:39 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0037
+2026-01-29 09:34:39 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0038
+2026-01-29 09:34:39 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0039
+2026-01-29 09:34:39 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0087
+2026-01-29 09:34:39 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0088
+2026-01-29 09:34:39 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0089
+2026-01-29 09:34:40 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0029, Content=0200160029008900000000019c076363b7ff00454103
+2026-01-29 09:34:40 - LASCommunication - INFO - Received ACK for SeqID=0x0089, ReturnCode=0x00
+2026-01-29 09:34:40 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0089
+2026-01-29 09:34:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003a
+2026-01-29 09:34:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008a
+2026-01-29 09:34:40 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x002a, Content=020016002a008a00000000019c07636511ff00343803
+2026-01-29 09:34:40 - LASCommunication - INFO - Received ACK for SeqID=0x008a, ReturnCode=0x00
+2026-01-29 09:34:40 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x008a
+2026-01-29 09:34:40 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x002b, Content=020016002b008a00000000019c076365adff00453503
+2026-01-29 09:34:40 - LASCommunication - INFO - Received ACK for SeqID=0x008a, ReturnCode=0x00
+2026-01-29 09:34:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003b
+2026-01-29 09:34:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003c
+2026-01-29 09:34:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003d
+2026-01-29 09:34:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008b
+2026-01-29 09:34:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008c
+2026-01-29 09:34:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008d
+2026-01-29 09:34:41 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x002c, Content=020016002c008d00000000019c076367a2ff00453003
+2026-01-29 09:34:41 - LASCommunication - INFO - Received ACK for SeqID=0x008d, ReturnCode=0x00
+2026-01-29 09:34:41 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x008d
+2026-01-29 09:34:41 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003e
+2026-01-29 09:34:41 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008e
+2026-01-29 09:34:41 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x002d, Content=020016002d008e00000000019c076368fbff00334303
+2026-01-29 09:34:41 - LASCommunication - INFO - Received ACK for SeqID=0x008e, ReturnCode=0x00
+2026-01-29 09:34:41 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x008e
+2026-01-29 09:34:41 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x002e, Content=020016002e008e00000000019c07636997ff00444103
+2026-01-29 09:34:41 - LASCommunication - INFO - Received ACK for SeqID=0x008e, ReturnCode=0x00
+2026-01-29 09:34:41 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003f
+2026-01-29 09:34:41 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0040
+2026-01-29 09:34:41 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0041
+2026-01-29 09:34:41 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008f
+2026-01-29 09:34:41 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0090
+2026-01-29 09:34:41 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0091
+2026-01-29 09:34:42 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x002f, Content=020016002f009100000000019c07636b8dff00443603
+2026-01-29 09:34:42 - LASCommunication - INFO - Received ACK for SeqID=0x0091, ReturnCode=0x00
+2026-01-29 09:34:42 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0091
+2026-01-29 09:34:42 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0042
+2026-01-29 09:34:42 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0092
+2026-01-29 09:34:42 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0030, Content=0200160030009200000000019c07636ce5ff00333103
+2026-01-29 09:34:42 - LASCommunication - INFO - Received ACK for SeqID=0x0092, ReturnCode=0x00
+2026-01-29 09:34:42 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0092
+2026-01-29 09:34:42 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0031, Content=0200160031009200000000019c07636d83ff00443103
+2026-01-29 09:34:42 - LASCommunication - INFO - Received ACK for SeqID=0x0092, ReturnCode=0x00
+2026-01-29 09:34:42 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0043
+2026-01-29 09:34:42 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0044
+2026-01-29 09:34:42 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0045
+2026-01-29 09:34:42 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0093
+2026-01-29 09:34:42 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0094
+2026-01-29 09:34:42 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0095
+2026-01-29 09:34:43 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0032, Content=0200160032009500000000019c07636f79ff00434403
+2026-01-29 09:34:43 - LASCommunication - INFO - Received ACK for SeqID=0x0095, ReturnCode=0x00
+2026-01-29 09:34:43 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0095
+2026-01-29 09:34:43 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0046
+2026-01-29 09:34:43 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0033, Content=0200160033004600000000019c076370ccff00443303
+2026-01-29 09:34:43 - LASCommunication - INFO - Received ACK for SeqID=0x0046, ReturnCode=0x00
+2026-01-29 09:34:43 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0046
+2026-01-29 09:34:43 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0034, Content=0200160034004600000000019c0763716eff00373703
+2026-01-29 09:34:43 - LASCommunication - INFO - Received ACK for SeqID=0x0046, ReturnCode=0x00
+2026-01-29 09:34:43 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0035, Content=0200160035004600000000019c07637171ff00374203
+2026-01-29 09:34:43 - LASCommunication - INFO - Received ACK for SeqID=0x0046, ReturnCode=0x00
+2026-01-29 09:34:43 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0036, Content=0200160036004600000000019c0763718fff00394103
+2026-01-29 09:34:43 - LASCommunication - INFO - Received ACK for SeqID=0x0046, ReturnCode=0x00
+2026-01-29 09:34:43 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0015
+2026-01-29 09:34:43 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0016
+2026-01-29 09:34:43 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0047
+2026-01-29 09:34:43 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0048
+2026-01-29 09:34:43 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0049
+2026-01-29 09:34:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0037, Content=0200160037004900000000019c07637363ff00373403
+2026-01-29 09:34:44 - LASCommunication - INFO - Received ACK for SeqID=0x0049, ReturnCode=0x00
+2026-01-29 09:34:44 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0049
+2026-01-29 09:34:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0038, Content=0200160038004900000000019c076374b6ff00433903
+2026-01-29 09:34:44 - LASCommunication - INFO - Received ACK for SeqID=0x0049, ReturnCode=0x00
+2026-01-29 09:34:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0039, Content=0200160039004900000000019c07637559ff00364503
+2026-01-29 09:34:44 - LASCommunication - INFO - Received ACK for SeqID=0x0049, ReturnCode=0x00
+2026-01-29 09:34:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x003a, Content=020016003a004900000000019c0763755eff00373403
+2026-01-29 09:34:44 - LASCommunication - INFO - Received ACK for SeqID=0x0049, ReturnCode=0x00
+2026-01-29 09:34:44 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x003b, Content=020016003b004900000000019c07637560ff00373703
+2026-01-29 09:34:44 - LASCommunication - INFO - Received ACK for SeqID=0x0049, ReturnCode=0x00
+2026-01-29 09:34:44 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0017
+2026-01-29 09:34:44 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0018
+2026-01-29 09:34:44 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004b
+2026-01-29 09:34:44 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004c
+2026-01-29 09:34:44 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004d
+2026-01-29 09:34:45 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x003c, Content=020016003c004d00000000019c07637750ff00364503
+2026-01-29 09:34:45 - LASCommunication - INFO - Received ACK for SeqID=0x004d, ReturnCode=0x00
+2026-01-29 09:34:45 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x004d
+2026-01-29 09:34:45 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x003d, Content=020016003d004d00000000019c0763789fff00424603
+2026-01-29 09:34:45 - LASCommunication - INFO - Received ACK for SeqID=0x004d, ReturnCode=0x00
+2026-01-29 09:34:45 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x003e, Content=020016003e004d00000000019c07637948ff00364103
+2026-01-29 09:34:45 - LASCommunication - INFO - Received ACK for SeqID=0x004d, ReturnCode=0x00
+2026-01-29 09:34:45 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x003f, Content=020016003f004d00000000019c0763794cff00364603
+2026-01-29 09:34:45 - LASCommunication - INFO - Received ACK for SeqID=0x004d, ReturnCode=0x00
+2026-01-29 09:34:45 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0040, Content=0200160040004d00000000019c07637968ff00384303
+2026-01-29 09:34:45 - LASCommunication - INFO - Received ACK for SeqID=0x004d, ReturnCode=0x00
+2026-01-29 09:34:45 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0019
+2026-01-29 09:34:45 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001a
+2026-01-29 09:34:45 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004f
+2026-01-29 09:34:45 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0050
+2026-01-29 09:34:45 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0051
+2026-01-29 09:34:46 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0041, Content=0200160041005100000000019c07637b3bff00363603
+2026-01-29 09:34:46 - LASCommunication - INFO - Received ACK for SeqID=0x0051, ReturnCode=0x00
+2026-01-29 09:34:46 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0051
+2026-01-29 09:34:46 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0042, Content=0200160042005100000000019c07637c87ff00423403
+2026-01-29 09:34:46 - LASCommunication - INFO - Received ACK for SeqID=0x0051, ReturnCode=0x00
+2026-01-29 09:34:46 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0043, Content=0200160043005100000000019c07637d2fff00354503
+2026-01-29 09:34:46 - LASCommunication - INFO - Received ACK for SeqID=0x0051, ReturnCode=0x00
+2026-01-29 09:34:46 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0044, Content=0200160044005100000000019c07637d33ff00363303
+2026-01-29 09:34:46 - LASCommunication - INFO - Received ACK for SeqID=0x0051, ReturnCode=0x00
+2026-01-29 09:34:46 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0045, Content=0200160045005100000000019c07637d37ff00363803
+2026-01-29 09:34:46 - LASCommunication - INFO - Received ACK for SeqID=0x0051, ReturnCode=0x00
+2026-01-29 09:34:46 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001b
+2026-01-29 09:34:46 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001c
+2026-01-29 09:34:46 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0053
+2026-01-29 09:34:46 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0054
+2026-01-29 09:34:46 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0055
+2026-01-29 09:34:47 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0046, Content=0200160046005500000000019c07637f26ff00354503
+2026-01-29 09:34:47 - LASCommunication - INFO - Received ACK for SeqID=0x0055, ReturnCode=0x00
+2026-01-29 09:34:47 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0055
+2026-01-29 09:34:47 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0047, Content=0200160047005500000000019c07638070ff00414103
+2026-01-29 09:34:47 - LASCommunication - INFO - Received ACK for SeqID=0x0055, ReturnCode=0x00
+2026-01-29 09:34:47 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0048, Content=0200160048005500000000019c0763811fff00354203
+2026-01-29 09:34:47 - LASCommunication - INFO - Received ACK for SeqID=0x0055, ReturnCode=0x00
+2026-01-29 09:34:47 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0049, Content=0200160049005500000000019c07638125ff00363203
+2026-01-29 09:34:47 - LASCommunication - INFO - Received ACK for SeqID=0x0055, ReturnCode=0x00
+2026-01-29 09:34:47 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x004a, Content=020016004a005500000000019c07638149ff00383703
+2026-01-29 09:34:47 - LASCommunication - INFO - Received ACK for SeqID=0x0055, ReturnCode=0x00
+2026-01-29 09:34:47 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001d
+2026-01-29 09:34:47 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001e
+2026-01-29 09:34:47 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0057
+2026-01-29 09:34:47 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0058
+2026-01-29 09:34:47 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0059
+2026-01-29 09:34:48 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x004b, Content=020016004b005900000000019c07638314ff00353903
+2026-01-29 09:34:48 - LASCommunication - INFO - Received ACK for SeqID=0x0059, ReturnCode=0x00
+2026-01-29 09:34:48 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0059
+2026-01-29 09:34:48 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x004c, Content=020016004c005900000000019c0763845aff00413103
+2026-01-29 09:34:48 - LASCommunication - INFO - Received ACK for SeqID=0x0059, ReturnCode=0x00
+2026-01-29 09:34:48 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x004d, Content=020016004d005900000000019c07638506ff00344603
+2026-01-29 09:34:48 - LASCommunication - INFO - Received ACK for SeqID=0x0059, ReturnCode=0x00
+2026-01-29 09:34:48 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x004e, Content=020016004e005900000000019c0763850bff00353503
+2026-01-29 09:34:48 - LASCommunication - INFO - Received ACK for SeqID=0x0059, ReturnCode=0x00
+2026-01-29 09:34:48 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x004f, Content=020016004f005900000000019c0763850fff00354103
+2026-01-29 09:34:48 - LASCommunication - INFO - Received ACK for SeqID=0x0059, ReturnCode=0x00
+2026-01-29 09:34:48 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001f
+2026-01-29 09:34:48 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0020
+2026-01-29 09:34:48 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005b
+2026-01-29 09:34:48 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005c
+2026-01-29 09:34:48 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005d
+2026-01-29 09:34:49 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0050, Content=0200160050005d00000000019c07638701ff00353303
+2026-01-29 09:34:49 - LASCommunication - INFO - Received ACK for SeqID=0x005d, ReturnCode=0x00
+2026-01-29 09:34:49 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x005d
+2026-01-29 09:34:49 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0051, Content=0200160051005d00000000019c07638845ff00393903
+2026-01-29 09:34:49 - LASCommunication - INFO - Received ACK for SeqID=0x005d, ReturnCode=0x00
+2026-01-29 09:34:49 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0052, Content=0200160052005d00000000019c076388f3ff00343803
+2026-01-29 09:34:49 - LASCommunication - INFO - Received ACK for SeqID=0x005d, ReturnCode=0x00
+2026-01-29 09:34:49 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0053, Content=0200160053005d00000000019c076388faff00353003
+2026-01-29 09:34:49 - LASCommunication - INFO - Received ACK for SeqID=0x005d, ReturnCode=0x00
+2026-01-29 09:34:49 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0054, Content=0200160054005d00000000019c076388feff00353503
+2026-01-29 09:34:49 - LASCommunication - INFO - Received ACK for SeqID=0x005d, ReturnCode=0x00
+2026-01-29 09:34:49 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0021
+2026-01-29 09:34:49 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0022
+2026-01-29 09:34:49 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005f
+2026-01-29 09:34:49 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0060
+2026-01-29 09:34:49 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0061
+2026-01-29 09:34:50 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0055, Content=0200160055006100000000019c07638ae9ff00343703
+2026-01-29 09:34:50 - LASCommunication - INFO - Received ACK for SeqID=0x0061, ReturnCode=0x00
+2026-01-29 09:34:50 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0061
+2026-01-29 09:34:50 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0056, Content=0200160056006100000000019c07638c2fff00393003
+2026-01-29 09:34:50 - LASCommunication - INFO - Received ACK for SeqID=0x0061, ReturnCode=0x00
+2026-01-29 09:34:50 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0057, Content=0200160057006100000000019c07638cdfff00343103
+2026-01-29 09:34:50 - LASCommunication - INFO - Received ACK for SeqID=0x0061, ReturnCode=0x00
+2026-01-29 09:34:50 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0058, Content=0200160058006100000000019c07638ce4ff00343703
+2026-01-29 09:34:50 - LASCommunication - INFO - Received ACK for SeqID=0x0061, ReturnCode=0x00
+2026-01-29 09:34:50 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0059, Content=0200160059006100000000019c07638cecff00353003
+2026-01-29 09:34:50 - LASCommunication - INFO - Received ACK for SeqID=0x0061, ReturnCode=0x00
+2026-01-29 09:34:50 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0023
+2026-01-29 09:34:50 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0024
+2026-01-29 09:34:50 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0063
+2026-01-29 09:34:50 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0064
+2026-01-29 09:34:50 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0065
+2026-01-29 09:34:51 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x005a, Content=020016005a006500000000019c07638ed2ff00334403
+2026-01-29 09:34:51 - LASCommunication - INFO - Received ACK for SeqID=0x0065, ReturnCode=0x00
+2026-01-29 09:34:51 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0065
+2026-01-29 09:34:51 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x005b, Content=020016005b006500000000019c07639016ff00383403
+2026-01-29 09:34:51 - LASCommunication - INFO - Received ACK for SeqID=0x0065, ReturnCode=0x00
+2026-01-29 09:34:51 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x005c, Content=020016005c006500000000019c076390c9ff00333803
+2026-01-29 09:34:51 - LASCommunication - INFO - Received ACK for SeqID=0x0065, ReturnCode=0x00
+2026-01-29 09:34:51 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x005d, Content=020016005d006500000000019c076390ceff00334503
+2026-01-29 09:34:51 - LASCommunication - INFO - Received ACK for SeqID=0x0065, ReturnCode=0x00
+2026-01-29 09:34:51 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x005e, Content=020016005e006500000000019c076390d2ff00343303
+2026-01-29 09:34:51 - LASCommunication - INFO - Received ACK for SeqID=0x0065, ReturnCode=0x00
+2026-01-29 09:34:51 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0025
+2026-01-29 09:34:51 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0026
+2026-01-29 09:34:51 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0067
+2026-01-29 09:34:51 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0068
+2026-01-29 09:34:51 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0069
+2026-01-29 09:34:52 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x005f, Content=020016005f006900000000019c076392c2ff00334103
+2026-01-29 09:34:52 - LASCommunication - INFO - Received ACK for SeqID=0x0069, ReturnCode=0x00
+2026-01-29 09:34:52 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0069
+2026-01-29 09:34:52 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0060, Content=0200160060006900000000019c076393feff00373803
+2026-01-29 09:34:52 - LASCommunication - INFO - Received ACK for SeqID=0x0069, ReturnCode=0x00
+2026-01-29 09:34:52 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0061, Content=0200160061006900000000019c076394b6ff00333203
+2026-01-29 09:34:52 - LASCommunication - INFO - Received ACK for SeqID=0x0069, ReturnCode=0x00
+2026-01-29 09:34:52 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0062, Content=0200160062006900000000019c076394c1ff00334503
+2026-01-29 09:34:52 - LASCommunication - INFO - Received ACK for SeqID=0x0069, ReturnCode=0x00
+2026-01-29 09:34:52 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0063, Content=0200160063006900000000019c076394c5ff00343303
+2026-01-29 09:34:52 - LASCommunication - INFO - Received ACK for SeqID=0x0069, ReturnCode=0x00
+2026-01-29 09:34:52 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0027
+2026-01-29 09:34:52 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0028
+2026-01-29 09:34:52 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006b
+2026-01-29 09:34:52 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006c
+2026-01-29 09:34:52 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006d
+2026-01-29 09:34:53 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0064, Content=0200160064006d00000000019c076396abff00333003
+2026-01-29 09:34:53 - LASCommunication - INFO - Received ACK for SeqID=0x006d, ReturnCode=0x00
+2026-01-29 09:34:53 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x006d
+2026-01-29 09:34:53 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0065, Content=0200160065006d00000000019c076397e7ff00364503
+2026-01-29 09:34:53 - LASCommunication - INFO - Received ACK for SeqID=0x006d, ReturnCode=0x00
+2026-01-29 09:34:53 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0066, Content=0200160066006d00000000019c076398a2ff00324203
+2026-01-29 09:34:53 - LASCommunication - INFO - Received ACK for SeqID=0x006d, ReturnCode=0x00
+2026-01-29 09:34:53 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0067, Content=0200160067006d00000000019c076398a5ff00324603
+2026-01-29 09:34:53 - LASCommunication - INFO - Received ACK for SeqID=0x006d, ReturnCode=0x00
+2026-01-29 09:34:53 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0068, Content=0200160068006d00000000019c076398a8ff00333303
+2026-01-29 09:34:53 - LASCommunication - INFO - Received ACK for SeqID=0x006d, ReturnCode=0x00
+2026-01-29 09:34:53 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0029
+2026-01-29 09:34:53 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002a
+2026-01-29 09:34:53 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006f
+2026-01-29 09:34:53 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0070
+2026-01-29 09:34:53 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0071
+2026-01-29 09:34:54 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0069, Content=0200160069007100000000019c07639a98ff00324103
+2026-01-29 09:34:54 - LASCommunication - INFO - Received ACK for SeqID=0x0071, ReturnCode=0x00
+2026-01-29 09:34:54 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0071
+2026-01-29 09:34:54 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x006a, Content=020016006a007100000000019c07639bd1ff00363503
+2026-01-29 09:34:54 - LASCommunication - INFO - Received ACK for SeqID=0x0071, ReturnCode=0x00
+2026-01-29 09:34:54 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x006b, Content=020016006b007100000000019c07639c8cff00323203
+2026-01-29 09:34:54 - LASCommunication - INFO - Received ACK for SeqID=0x0071, ReturnCode=0x00
+2026-01-29 09:34:54 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x006c, Content=020016006c007100000000019c07639c8fff00323603
+2026-01-29 09:34:54 - LASCommunication - INFO - Received ACK for SeqID=0x0071, ReturnCode=0x00
+2026-01-29 09:34:54 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x006d, Content=020016006d007100000000019c07639c93ff00324203
+2026-01-29 09:34:54 - LASCommunication - INFO - Received ACK for SeqID=0x0071, ReturnCode=0x00
+2026-01-29 09:34:54 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002b
+2026-01-29 09:34:54 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002c
+2026-01-29 09:34:54 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0073
+2026-01-29 09:34:54 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0074
+2026-01-29 09:34:54 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0075
+2026-01-29 09:34:55 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x006e, Content=020016006e007500000000019c07639e83ff00323203
+2026-01-29 09:34:55 - LASCommunication - INFO - Received ACK for SeqID=0x0075, ReturnCode=0x00
+2026-01-29 09:34:55 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0075
+2026-01-29 09:34:55 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x006f, Content=020016006f007500000000019c07639fb9ff00354103
+2026-01-29 09:34:55 - LASCommunication - INFO - Received ACK for SeqID=0x0075, ReturnCode=0x00
+2026-01-29 09:34:55 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0070, Content=0200160070007500000000019c0763a077ff00314103
+2026-01-29 09:34:55 - LASCommunication - INFO - Received ACK for SeqID=0x0075, ReturnCode=0x00
+2026-01-29 09:34:55 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0071, Content=0200160071007500000000019c0763a07cff00323003
+2026-01-29 09:34:55 - LASCommunication - INFO - Received ACK for SeqID=0x0075, ReturnCode=0x00
+2026-01-29 09:34:55 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0072, Content=0200160072007500000000019c0763a07fff00323403
+2026-01-29 09:34:55 - LASCommunication - INFO - Received ACK for SeqID=0x0075, ReturnCode=0x00
+2026-01-29 09:34:55 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002d
+2026-01-29 09:34:55 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002e
+2026-01-29 09:34:55 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0077
+2026-01-29 09:34:55 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0078
+2026-01-29 09:34:55 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0079
+2026-01-29 09:34:56 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0073, Content=0200160073007900000000019c0763a26dff00313903
+2026-01-29 09:34:56 - LASCommunication - INFO - Received ACK for SeqID=0x0079, ReturnCode=0x00
+2026-01-29 09:34:56 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0079
+2026-01-29 09:34:56 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0074, Content=0200160074007900000000019c0763a3a2ff00353003
+2026-01-29 09:34:56 - LASCommunication - INFO - Received ACK for SeqID=0x0079, ReturnCode=0x00
+2026-01-29 09:34:56 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0075, Content=0200160075007900000000019c0763a463ff00313303
+2026-01-29 09:34:56 - LASCommunication - INFO - Received ACK for SeqID=0x0079, ReturnCode=0x00
+2026-01-29 09:34:56 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0076, Content=0200160076007900000000019c0763a46eff00314603
+2026-01-29 09:34:56 - LASCommunication - INFO - Received ACK for SeqID=0x0079, ReturnCode=0x00
+2026-01-29 09:34:56 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0077, Content=0200160077007900000000019c0763a472ff00323403
+2026-01-29 09:34:56 - LASCommunication - INFO - Received ACK for SeqID=0x0079, ReturnCode=0x00
+2026-01-29 09:34:56 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002f
+2026-01-29 09:34:56 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0030
+2026-01-29 09:34:56 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007b
+2026-01-29 09:34:56 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007c
+2026-01-29 09:34:56 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007d
+2026-01-29 09:34:57 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0078, Content=0200160078007d00000000019c0763a658ff00313103
+2026-01-29 09:34:57 - LASCommunication - INFO - Received ACK for SeqID=0x007d, ReturnCode=0x00
+2026-01-29 09:34:57 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x007d
+2026-01-29 09:34:57 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0079, Content=0200160079007d00000000019c0763a78cff00343703
+2026-01-29 09:34:57 - LASCommunication - INFO - Received ACK for SeqID=0x007d, ReturnCode=0x00
+2026-01-29 09:34:57 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x007a, Content=020016007a007d00000000019c0763a84eff00304203
+2026-01-29 09:34:57 - LASCommunication - INFO - Received ACK for SeqID=0x007d, ReturnCode=0x00
+2026-01-29 09:34:57 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x007b, Content=020016007b007d00000000019c0763a853ff00313103
+2026-01-29 09:34:57 - LASCommunication - INFO - Received ACK for SeqID=0x007d, ReturnCode=0x00
+2026-01-29 09:34:57 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x007c, Content=020016007c007d00000000019c0763a856ff00313503
+2026-01-29 09:34:57 - LASCommunication - INFO - Received ACK for SeqID=0x007d, ReturnCode=0x00
+2026-01-29 09:34:57 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0031
+2026-01-29 09:34:57 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0032
+2026-01-29 09:34:57 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007f
+2026-01-29 09:34:57 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0080
+2026-01-29 09:34:57 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0081
+2026-01-29 09:34:58 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x007d, Content=020016007d008100000000019c0763aa45ff00304203
+2026-01-29 09:34:58 - LASCommunication - INFO - Received ACK for SeqID=0x0081, ReturnCode=0x00
+2026-01-29 09:34:58 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0081
+2026-01-29 09:34:58 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x007e, Content=020016007e008100000000019c0763ab76ff00334503
+2026-01-29 09:34:58 - LASCommunication - INFO - Received ACK for SeqID=0x0081, ReturnCode=0x00
+2026-01-29 09:34:58 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x007f, Content=020016007f008100000000019c0763ac39ff00303303
+2026-01-29 09:34:58 - LASCommunication - INFO - Received ACK for SeqID=0x0081, ReturnCode=0x00
+2026-01-29 09:34:58 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0080, Content=0200160080008100000000019c0763ac3cff00303703
+2026-01-29 09:34:58 - LASCommunication - INFO - Received ACK for SeqID=0x0081, ReturnCode=0x00
+2026-01-29 09:34:58 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0081, Content=0200160081008100000000019c0763ac41ff00304403
+2026-01-29 09:34:58 - LASCommunication - INFO - Received ACK for SeqID=0x0081, ReturnCode=0x00
+2026-01-29 09:34:58 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0082, Content=0200160082008100000000019c0763ac47ff00313403
+2026-01-29 09:34:58 - LASCommunication - INFO - Received ACK for SeqID=0x0081, ReturnCode=0x00
+2026-01-29 09:34:58 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0033
+2026-01-29 09:34:58 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0034
+2026-01-29 09:34:58 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0035
+2026-01-29 09:34:58 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0083
+2026-01-29 09:34:58 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0084
+2026-01-29 09:34:59 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0083, Content=0200160083008400000000019c0763ae30ff00303303
+2026-01-29 09:34:59 - LASCommunication - INFO - Received ACK for SeqID=0x0084, ReturnCode=0x00
+2026-01-29 09:34:59 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0084
+2026-01-29 09:34:59 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0084, Content=0200160084008400000000019c0763ae35ff00303903
+2026-01-29 09:34:59 - LASCommunication - INFO - Received ACK for SeqID=0x0084, ReturnCode=0x00
+2026-01-29 09:34:59 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0036
+2026-01-29 09:34:59 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0085, Content=0200160085003600000000019c0763af62ff00454103
+2026-01-29 09:34:59 - LASCommunication - INFO - Received ACK for SeqID=0x0036, ReturnCode=0x00
+2026-01-29 09:34:59 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0036
+2026-01-29 09:34:59 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0086, Content=0200160086003600000000019c0763b04eff00443803
+2026-01-29 09:34:59 - LASCommunication - INFO - Received ACK for SeqID=0x0036, ReturnCode=0x00
+2026-01-29 09:34:59 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0087, Content=0200160087003600000000019c0763b053ff00444503
+2026-01-29 09:34:59 - LASCommunication - INFO - Received ACK for SeqID=0x0036, ReturnCode=0x00
+2026-01-29 09:34:59 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0088, Content=0200160088003600000000019c0763b05aff00453603
+2026-01-29 09:34:59 - LASCommunication - INFO - Received ACK for SeqID=0x0036, ReturnCode=0x00
+2026-01-29 09:34:59 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0089, Content=0200160089003600000000019c0763b060ff00454403
+2026-01-29 09:34:59 - LASCommunication - INFO - Received ACK for SeqID=0x0036, ReturnCode=0x00
+2026-01-29 09:34:59 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0037
+2026-01-29 09:34:59 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0038
+2026-01-29 09:34:59 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0039
+2026-01-29 09:34:59 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0087
+2026-01-29 09:34:59 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0088
+2026-01-29 09:35:00 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x008a, Content=020016008a008800000000019c0763b23dff00314603
+2026-01-29 09:35:00 - LASCommunication - INFO - Received ACK for SeqID=0x0088, ReturnCode=0x00
+2026-01-29 09:35:00 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x0088
+2026-01-29 09:35:00 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x008b, Content=020016008b008800000000019c0763b249ff00324303
+2026-01-29 09:35:00 - LASCommunication - INFO - Received ACK for SeqID=0x0088, ReturnCode=0x00
+2026-01-29 09:35:00 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003a
+2026-01-29 09:35:00 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x008c, Content=020016008c003a00000000019c0763b34eff00453503
+2026-01-29 09:35:00 - LASCommunication - INFO - Received ACK for SeqID=0x003a, ReturnCode=0x00
+2026-01-29 09:35:00 - LASCommunication - INFO - Removed completed message from pending list: SeqID=0x003a
+2026-01-29 09:35:00 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x008d, Content=020016008d003a00000000019c0763b433ff00434303
+2026-01-29 09:35:00 - LASCommunication - INFO - Received ACK for SeqID=0x003a, ReturnCode=0x00
+2026-01-29 09:35:00 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x008e, Content=020016008e003a00000000019c0763b436ff00443003
+2026-01-29 09:35:00 - LASCommunication - INFO - Received ACK for SeqID=0x003a, ReturnCode=0x00
+2026-01-29 09:35:00 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x008f, Content=020016008f003a00000000019c0763b43cff00443703
+2026-01-29 09:35:00 - LASCommunication - INFO - Received ACK for SeqID=0x003a, ReturnCode=0x00
+2026-01-29 09:35:00 - LASCommunication - INFO - Received message from 127.0.0.1:51219: Type=0x0000, SeqID=0x0090, Content=0200160090003a00000000019c0763b442ff00444503
+2026-01-29 09:35:00 - LASCommunication - INFO - Received ACK for SeqID=0x003a, ReturnCode=0x00
+2026-01-29 09:35:00 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003b
+2026-01-29 09:35:00 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003c
+2026-01-29 09:35:00 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003d
+2026-01-29 09:35:00 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008b
+2026-01-29 09:35:00 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008c
+2026-01-29 09:35:01 - LASCommunication - INFO - Connection closed: 127.0.0.1:51219, ConnectionID=127.0.0.1:51219:1769650363
+2026-01-29 09:35:11 - LASCommunication - INFO - Connection established: 127.0.0.1:51274, ConnectionID=127.0.0.1:51274:1769650511
+2026-01-29 09:35:11 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0025
+2026-01-29 09:35:11 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0026
+2026-01-29 09:35:11 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0067
+2026-01-29 09:35:11 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0068
+2026-01-29 09:35:12 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0027
+2026-01-29 09:35:12 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0028
+2026-01-29 09:35:12 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006b
+2026-01-29 09:35:12 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006c
+2026-01-29 09:35:13 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0029
+2026-01-29 09:35:13 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002a
+2026-01-29 09:35:13 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006f
+2026-01-29 09:35:13 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0070
+2026-01-29 09:35:14 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002b
+2026-01-29 09:35:14 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002c
+2026-01-29 09:35:14 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0073
+2026-01-29 09:35:14 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0074
+2026-01-29 09:35:15 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002d
+2026-01-29 09:35:15 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002e
+2026-01-29 09:35:15 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0077
+2026-01-29 09:35:15 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0078
+2026-01-29 09:35:16 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002f
+2026-01-29 09:35:16 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0030
+2026-01-29 09:35:16 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007b
+2026-01-29 09:35:16 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007c
+2026-01-29 09:35:17 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0031
+2026-01-29 09:35:17 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0032
+2026-01-29 09:35:17 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007f
+2026-01-29 09:35:17 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0080
+2026-01-29 09:35:18 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0033
+2026-01-29 09:35:18 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0034
+2026-01-29 09:35:18 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0035
+2026-01-29 09:35:18 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0083
+2026-01-29 09:35:19 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0037
+2026-01-29 09:35:19 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0038
+2026-01-29 09:35:19 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0039
+2026-01-29 09:35:19 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0087
+2026-01-29 09:35:20 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003b
+2026-01-29 09:35:20 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003c
+2026-01-29 09:35:20 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003d
+2026-01-29 09:35:20 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008b
+2026-01-29 09:35:20 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008c
+2026-01-29 09:35:21 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003e
+2026-01-29 09:35:21 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003f
+2026-01-29 09:35:21 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0040
+2026-01-29 09:35:21 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0041
+2026-01-29 09:35:21 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008f
+2026-01-29 09:35:21 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0090
+2026-01-29 09:35:22 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0042
+2026-01-29 09:35:22 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0043
+2026-01-29 09:35:22 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0044
+2026-01-29 09:35:22 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0045
+2026-01-29 09:35:22 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0093
+2026-01-29 09:35:22 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0094
+2026-01-29 09:35:23 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0015
+2026-01-29 09:35:23 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0016
+2026-01-29 09:35:23 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0047
+2026-01-29 09:35:23 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0048
+2026-01-29 09:35:24 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0017
+2026-01-29 09:35:24 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0018
+2026-01-29 09:35:24 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004b
+2026-01-29 09:35:24 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004c
+2026-01-29 09:35:25 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0019
+2026-01-29 09:35:25 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001a
+2026-01-29 09:35:25 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x004f
+2026-01-29 09:35:25 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0050
+2026-01-29 09:35:26 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001b
+2026-01-29 09:35:26 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001c
+2026-01-29 09:35:26 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0053
+2026-01-29 09:35:26 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0054
+2026-01-29 09:35:27 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001d
+2026-01-29 09:35:27 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001e
+2026-01-29 09:35:27 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0057
+2026-01-29 09:35:27 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0058
+2026-01-29 09:35:28 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x001f
+2026-01-29 09:35:28 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0020
+2026-01-29 09:35:28 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005b
+2026-01-29 09:35:28 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005c
+2026-01-29 09:35:29 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0021
+2026-01-29 09:35:29 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0022
+2026-01-29 09:35:29 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x005f
+2026-01-29 09:35:29 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0060
+2026-01-29 09:35:30 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0023
+2026-01-29 09:35:30 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0024
+2026-01-29 09:35:30 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0063
+2026-01-29 09:35:30 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0064
+2026-01-29 09:35:31 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0025
+2026-01-29 09:35:31 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0026
+2026-01-29 09:35:31 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0067
+2026-01-29 09:35:31 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0068
+2026-01-29 09:35:32 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0027
+2026-01-29 09:35:32 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0028
+2026-01-29 09:35:32 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006b
+2026-01-29 09:35:32 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006c
+2026-01-29 09:35:33 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0029
+2026-01-29 09:35:33 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002a
+2026-01-29 09:35:33 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x006f
+2026-01-29 09:35:33 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0070
+2026-01-29 09:35:34 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002b
+2026-01-29 09:35:34 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002c
+2026-01-29 09:35:34 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0073
+2026-01-29 09:35:34 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0074
+2026-01-29 09:35:35 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002d
+2026-01-29 09:35:35 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002e
+2026-01-29 09:35:35 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0077
+2026-01-29 09:35:35 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0078
+2026-01-29 09:35:36 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x002f
+2026-01-29 09:35:36 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0030
+2026-01-29 09:35:36 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007b
+2026-01-29 09:35:36 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007c
+2026-01-29 09:35:37 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0031
+2026-01-29 09:35:37 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0032
+2026-01-29 09:35:37 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x007f
+2026-01-29 09:35:37 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0080
+2026-01-29 09:35:38 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0033
+2026-01-29 09:35:38 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0034
+2026-01-29 09:35:38 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0035
+2026-01-29 09:35:38 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0083
+2026-01-29 09:35:39 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0037
+2026-01-29 09:35:39 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0038
+2026-01-29 09:35:39 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0039
+2026-01-29 09:35:39 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x0087
+2026-01-29 09:35:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003b
+2026-01-29 09:35:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003c
+2026-01-29 09:35:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003d
+2026-01-29 09:35:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008b
+2026-01-29 09:35:40 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x008c
+2026-01-29 09:35:41 - LASCommunication - INFO - Received message from 127.0.0.1:51274: Type=0x0001, SeqID=0x0001, Content=0200270001000000010000019c0764521bff033000000104ffffff084154454c4c494341314203
+2026-01-29 09:35:41 - LASCommunication - INFO - Invalid message type 1 in connected state
+2026-01-29 09:35:41 - LASCommunication - INFO - Sent NACK for SeqID=0x0001, ReturnCode=0x03
+2026-01-29 09:35:41 - LASCommunication - INFO - Retried Keep-Alive message sent: SeqID=0x003e
+2026-01-29 09:35:41 - LASCommunication - INFO - Handshake timeout: ConnectionID=127.0.0.1:51274:1769650511, Address=127.0.0.1:51274, ErrorType=HandshakeTimeout
+2026-01-29 09:35:41 - LASCommunication - INFO - Connection closed: 127.0.0.1:51274, ConnectionID=127.0.0.1:51274:1769650511
+2026-01-29 09:35:51 - LASCommunication - INFO - Connection established: 127.0.0.1:51286, ConnectionID=127.0.0.1:51286:1769650551
+2026-01-29 09:35:53 - LASCommunication - INFO - Connection closed: 127.0.0.1:51286, ConnectionID=127.0.0.1:51286:1769650551
+2026-01-29 09:35:57 - LASCommunication - INFO - Connection established: 127.0.0.1:51288, ConnectionID=127.0.0.1:51288:1769650557
+2026-01-29 09:36:23 - LASCommunication - INFO - Connection established: 127.0.0.1:51295, ConnectionID=127.0.0.1:51295:1769650583
+2026-01-29 09:36:27 - LASCommunication - INFO - Received message from 127.0.0.1:51295: Type=0x0001, SeqID=0x0001, Content=0200270001000000010000019c076506f5ff033000000104ffffff084154454c4c494341414103
+2026-01-29 09:36:27 - LASCommunication - INFO - Invalid message type 1 in connected state
+2026-01-29 09:36:27 - LASCommunication - INFO - Sent NACK for SeqID=0x0001, ReturnCode=0x03
+2026-01-29 09:36:53 - LASCommunication - INFO - Received message from 127.0.0.1:51295: Type=0x0001, SeqID=0x0002, Content=0200270002000000010000019c07656e35ff033000000104ffffff084154454c4c494341353303
+2026-01-29 09:36:53 - LASCommunication - INFO - Invalid message type 1 in connected state
+2026-01-29 09:36:53 - LASCommunication - INFO - Sent NACK for SeqID=0x0002, ReturnCode=0x03
