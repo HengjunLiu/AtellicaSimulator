@@ -30,3 +30,7 @@ ui/UI.png
 
 # Trae AI files
 .trae/
+
+# Database files
+data/
+*.db

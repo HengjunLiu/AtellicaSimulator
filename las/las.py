@@ -225,10 +225,6 @@ class LASServer:
             return
         
         try:
-            # 1. Wait Period Prior to Entering Listening Mode - 15秒
-            self.logger.info(f"Entering Wait Period Prior to Listening Mode: {self.keep_alive_inactivity_timeout} seconds")
-            time.sleep(self.keep_alive_inactivity_timeout)
-            
             # 创建TCP服务器 socket
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -248,9 +244,20 @@ class LASServer:
             self.timeout_check_thread = threading.Thread(target=self._run_timeout_check, daemon=True)
             self.timeout_check_thread.start()
             
+            # 启动等待期线程（后台执行，不阻塞UI）
+            wait_thread = threading.Thread(target=self._wait_period, daemon=True)
+            wait_thread.start()
+            
         except Exception as e:
             self.logger.error(f"Failed to start LASServer: {str(e)}")
             self.is_running = False
+    
+    def _wait_period(self):
+        """等待期执行方法"""
+        # 1. Wait Period Prior to Entering Listening Mode - 15秒
+        self.logger.info(f"Entering Wait Period Prior to Listening Mode: {self.keep_alive_inactivity_timeout} seconds")
+        time.sleep(self.keep_alive_inactivity_timeout)
+        self.logger.info("Wait Period completed, ready for connections")
     
     def stop(self):
         """停止LAS服务器"""
@@ -2227,6 +2234,11 @@ class LASServer:
                 load_result = {'sample_id': sample_id, 'status': 1}  # 默认使用请求中的样本ID
             if unload_result is None:
                 unload_result = {'sample_id': '', 'status': 1}
+            
+            # 转换ready_to_load为整数（struct.pack需要整数）
+            if isinstance(ready_to_load, dict):
+                # 如果是字典，检查是否有任何接口位置就绪
+                ready_to_load = 1 if any(ready_to_load.values()) else 0
             
             # 确保load_result包含sample_id，如果没有则使用请求中的样本ID
             if 'sample_id' not in load_result or not load_result['sample_id']:
