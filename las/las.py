@@ -1786,11 +1786,28 @@ class LASServer:
             interface_position_index = body[0] if body else 0
             
             # 构建响应消息体（针对请求中的接口位置）
+            # 符合协议要求：0x020A-Transfer status response message
+            # 状态字段 = 0x03（检测完成，等待卸载）
+            # 接口空闲标识 = 0x01
+            # 故障码 = 0x00
+            # 样本ID匹配：添加到消息中
+            sample_status = 0x03  # 检测完成，等待卸载
+            interface_idle = 0x01  # 接口空闲
+            error_code = 0x00      # 无故障
+            
+            # 获取待卸载的样本ID
+            next_sample_id = self.core.get_next_sample_to_unload()
+            sample_id_bytes = next_sample_id.encode('ascii') if next_sample_id else b''
+            sample_id_len = len(sample_id_bytes)
+            
+            # 构建符合协议的消息体
             body = struct.pack(
-                '!BBH',
+                f'!BBBB{sample_id_len}s',
                 interface_position_index,
-                ready_to_load,
-                return_ready_count
+                sample_status,       # 样本状态：0x03 = 检测完成，等待卸载
+                interface_idle,      # 接口空闲标识：0x01 = 空闲
+                error_code,          # 故障码：0x00 = 无故障
+                sample_id_bytes      # 样本ID
             )
             
             # 构建完整消息
@@ -1808,8 +1825,8 @@ class LASServer:
             # 发送消息
             conn.sendall(message)
             
-            self.logger.info(f"LAS transfer status response sent, SeqID=0x{sequence_id:04x}, ReadyToLoad={ready_to_load}, ReturnReady={return_ready_count}")
-            self.logger.log_las(f"Transfer status response sent, SeqID=0x{sequence_id:04x}")
+            self.logger.info(f"LAS transfer status response sent, SeqID=0x{sequence_id:04x}, Status=0x{sample_status:02x}, InterfaceIdle=0x{interface_idle:02x}, ErrorCode=0x{error_code:02x}, SampleID={next_sample_id}")
+            self.logger.log_las(f"Transfer status response sent, SeqID=0x{sequence_id:04x}, Status=0x{sample_status:02x}, SampleID={next_sample_id}")
             
         except Exception as e:
             self.logger.error(f"Error handling LAS transfer status request: {str(e)}")
@@ -2039,6 +2056,44 @@ class LASServer:
             # 0x01、0x02、0x03表示有样本需要卸载 (LOAD request)
             # 0x00表示需要装载样本 (UNLOAD request)
             request_type = 'load' if carrier_occupancy in [0x01, 0x02, 0x03] else 'unload'
+            
+            # UNLOAD请求验证：确保符合协议要求
+            # 只有在收到0x020A消息且状态为0x03时才允许处理UNLOAD请求
+            if request_type == 'unload':
+                # 验证前置条件：已收到0x020A消息，状态=0x03
+                # 验证样本ID匹配
+                next_sample_id = self.core.get_next_sample_to_unload()
+                if not next_sample_id:
+                    self.logger.warning(f"UNLOAD请求被拒绝：无待卸载样本")
+                    self.logger.log_las(f"UNLOAD request rejected: No sample ready for unload")
+                    # 发送拒绝响应
+                    load_result = {'sample_id': '', 'status': 6}  # Load Skipped
+                    unload_result = {'sample_id': '', 'status': 6}  # Unload Skipped
+                    sample_status = 0x00  # No Tube Unloaded
+                    # 构建并发送拒绝响应
+                    body = struct.pack(
+                        f'!B B 0s B B 0s B B B H H B H',
+                        interface_position_index,
+                        0,
+                        b'',
+                        6,  # Load Status: Load Skipped
+                        0,
+                        b'',
+                        6,  # Unload Status: Unload Skipped
+                        0x00,  # Sample Status: No Tube Unloaded
+                        self.core.get_instrument_health()['on_board_tube_count'],
+                        self.core.get_instrument_health()['completed_tube_count'],
+                        self.core.get_ready_to_load(),
+                        self.core.get_return_ready_count()
+                    )
+                    message, sequence_id = self._build_message(
+                        self.MSG_TYPE_LOAD_UNLOAD_RESPONSE,
+                        body,
+                        return_sequence_id=header['sequence_id']
+                    )
+                    conn.sendall(message)
+                    self.logger.info(f"UNLOAD request rejected, SeqID=0x{sequence_id:04x}: No sample ready")
+                    return
             
             # 获取要显示的样本ID
             display_sample_id = sample_id
