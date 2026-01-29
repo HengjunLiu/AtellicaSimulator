@@ -356,10 +356,13 @@ class AtellicaCore:
             # 根据状态值更新装载命令状态
             if status == 1:
                 self.update_load_command_status(1)
+                self.update_unload_command_status(1)
             elif status == 3:
                 self.update_load_command_status(3)
+                self.update_unload_command_status(3)
             elif status == 4:
                 self.update_load_command_status(2)
+                self.update_unload_command_status(2)
         
         # 调用LAS服务器的send_instrument_health_response方法
         if hasattr(self, 'las_server') and self.las_server:
@@ -1224,25 +1227,56 @@ class AtellicaCore:
                 # 空carrier
                 load_result = {'sample_id': '', 'status': 1}  # Success
                 
-                # 检查是否有样本需要卸载到空carrier
-                if self.return_ready_count > 0:
-                    # 查找已完成且准备好UNLOAD的样本
-                    for sid, sample in self.samples.items():
-                        if sample['status'] == 'completed' and 'unloaded' not in sample and sample.get('ready_for_unload', False):
-                            sample['unloaded'] = True
-                            self.return_ready_count -= 1
-                            self.completed_tube_count -= 1
-                            unload_result = {'sample_id': sid, 'status': 1}  # Success
-                            sample_status = 0x01  # Sample Processed successfully
-                            
-                            # 从数据库中删除样本
-                            self._delete_sample_from_db(sid)
-                            
-                            self.logger.info(f"Sample {sid}: 已成功UNLOAD")
-                            break
-                        elif sample['status'] == 'completed' and 'unloaded' not in sample:
-                            # 样本已完成但尚未准备好UNLOAD
-                            self.logger.info(f"Sample {sid}: 已完成但尚未准备好UNLOAD，跳过")
+                # 处理Unload操作
+                if remote_status in [5, 3]:  # Unloading Only or Exchange mode
+                    # 执行卸载操作
+                    if self.locked_carriers[interface_position_index] is None:
+                        # 锁定carrier用于卸载
+                        self.locked_carriers[interface_position_index] = {
+                            'sample_id': '',
+                            'carrier_occupancy': carrier_occupancy
+                        }
+                        
+                        # 持久化存储锁定状态到数据库
+                        interface_positions = f"IP{interface_position_index}"
+                        self._save_locked_carrier(interface_positions, '', carrier_occupancy)
+                        
+                        # 检查是否有样本需要卸载到空carrier
+                        if self.return_ready_count > 0:
+                            # 查找已完成且准备好UNLOAD的样本
+                            for sid, sample in self.samples.items():
+                                if sample['status'] == 'completed' and 'unloaded' not in sample and sample.get('ready_for_unload', False):
+                                    # 确定unload_result['status']的值
+                                    unload_result_status = self.unload_command_status
+                                    
+                                    # 标记样本为已卸载
+                                    sample['unloaded'] = True
+                                    sample_status = 0x01  # Sample Processed successfully
+                                    
+                                    unload_result = {'sample_id': sid, 'status': unload_result_status}
+                                    
+                                    # 根据status执行相应操作
+                                    if unload_result_status in [1, 2, 3]:
+                                        self.return_ready_count -= 1
+                                        self.completed_tube_count -= 1
+                                    
+                                    # 从数据库中删除样本
+                                    self._delete_sample_from_db(sid)
+                                    
+                                    self.logger.info(f"Sample {sid}: 已成功UNLOAD")
+                                    break
+                                elif sample['status'] == 'completed' and 'unloaded' not in sample:
+                                    # 样本已完成但尚未准备好UNLOAD
+                                    self.logger.info(f"Sample {sid}: 已完成但尚未准备好UNLOAD，跳过")
+                        else:
+                            # 没有样本需要卸载
+                            unload_result = {'sample_id': '', 'status': 6}  # Unload Skipped
+                    else:
+                        # carrier已被锁定
+                        unload_result = {'sample_id': '', 'status': 2}  # Error: Lock Carrier in place
+                else:
+                    # 远程控制状态不允许卸载
+                    unload_result = {'sample_id': '', 'status': 6}  # Unload Skipped
             
             # 释放锁定的carrier
             if self.locked_carriers[interface_position_index] is not None:
