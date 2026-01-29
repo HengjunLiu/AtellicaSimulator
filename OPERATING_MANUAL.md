@@ -319,7 +319,7 @@ python -m pytest tests/test_las.py::TestLASModule::test_initialization -v
 
 ## 13. 版本历史
 
-- v1.3.8：当前版本
+- v1.3.9：当前版本
   - 修复手动处理LOAD标本后在线试管数量不增加的问题
   - 修复IP0队列长度不减少的问题
   - 优化手动处理提示，添加样本ID显示
@@ -347,5 +347,5 @@ python -m pytest tests/test_las.py::TestLASModule::test_initialization -v
 ---
 
 **版权所有 © 2026 西门子医疗**
-**文档版本：v1.3.8**
+**文档版本：v1.3.9**
 **发布日期：2026-01-26**
