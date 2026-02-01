@@ -377,6 +377,10 @@ class AtellicaCore:
                 return
             self.lis_connection_status = status
             self.logger.info(f"Updated LIS connection status to {status}")
+
+        # 调用LAS服务器的send_instrument_health_response方法
+        if hasattr(self, 'las_server') and self.las_server:
+            self.las_server.send_instrument_health_response()
     
     def update_remote_control_status(self, ip_index, status):
         """更新远程控制状态
@@ -391,6 +395,10 @@ class AtellicaCore:
                     return
                 self.remote_control_status[ip_index] = status
                 self.logger.info(f"Updated remote control status for IP{ip_index} to {status}")
+
+        # 调用LAS服务器的send_instrument_health_response方法
+        if hasattr(self, 'las_server') and self.las_server:
+            self.las_server.send_instrument_health_response()
     
     def update_lock_ownership(self, ip_index, ownership):
         """更新锁所有权
@@ -1113,7 +1121,7 @@ class AtellicaCore:
             if interface_position_index >= health_status['interface_positions']:
                 # 接口位置不存在
                 load_result = {'sample_id': '', 'status': 5}  # Interface position is offline
-                return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, self.ready_to_load, self.return_ready_count
+                return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, get_ready_to_load(interface_position_index), self.return_ready_count
             
             # 检查远程控制状态
             remote_status = health_status['remote_control_status'][interface_position_index]
@@ -1162,10 +1170,10 @@ class AtellicaCore:
                                 if load_result_status == 1:
                                     self.on_board_tube_count += 1
                                 
-                                # 将样本信息插入数据库
-                                load_time = sample.get('load_time', time.time())
-                                test = ','.join(sample.get('tests', []))
-                                self._insert_sample_to_db(sample_id, 'processing', test, load_time)
+                                    # 将样本信息插入数据库
+                                    load_time = sample.get('load_time', time.time())
+                                    test = ','.join(sample.get('tests', []))
+                                    self._insert_sample_to_db(sample_id, 'processing', test, load_time)
                             else:
                                 load_result = {'sample_id': sample_id, 'status': 7}  # Instrument Skipped Loading
                                 
@@ -1197,8 +1205,8 @@ class AtellicaCore:
                             if load_result_status == 1:
                                 self.on_board_tube_count += 1
                             
-                            # 将样本信息插入数据库
-                            self._insert_sample_to_db(sample_id, 'processing', '', current_time)
+                                # 将样本信息插入数据库
+                                self._insert_sample_to_db(sample_id, 'processing', '', current_time)
                             
                             # 启动标本处理流程
                             threading.Thread(target=self._process_sample_workflow, args=(sample_id,), daemon=True).start()
@@ -1245,8 +1253,8 @@ class AtellicaCore:
                                         self.return_ready_count -= 1
                                         self.completed_tube_count -= 1
                                     
-                                    # 从数据库中删除样本
-                                    self._delete_sample_from_db(sid)
+                                        # 从数据库中删除样本
+                                        self._delete_sample_from_db(sid)
                                     
                                     self.logger.info(f"Sample {sid}: 已成功UNLOAD")
                                     break
@@ -1271,4 +1279,4 @@ class AtellicaCore:
                 # 释放锁定
                 self.locked_carriers[interface_position_index] = None
             
-            return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, self.ready_to_load, self.return_ready_count
+            return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, get_ready_to_load(interface_position_index), self.return_ready_count

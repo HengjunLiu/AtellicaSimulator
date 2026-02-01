@@ -154,11 +154,11 @@ class AtellicaUI:
         self.ip1_locked_label.grid(row=3, column=3, padx=5, pady=2)
         
         # 命令状态显示
-        ttk.Label(status_grid, text="装载命令状态:").grid(row=4, column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Label(status_grid, text="IP0命令状态:").grid(row=4, column=0, sticky=tk.W, padx=5, pady=2)
         self.load_command_status_var = tk.StringVar()
         ttk.Label(status_grid, textvariable=self.load_command_status_var, width=15).grid(row=4, column=1, padx=5, pady=2)
         
-        ttk.Label(status_grid, text="卸载命令状态:").grid(row=4, column=2, sticky=tk.W, padx=5, pady=2)
+        ttk.Label(status_grid, text="IP1命令状态:").grid(row=4, column=2, sticky=tk.W, padx=5, pady=2)
         self.unload_command_status_var = tk.StringVar()
         ttk.Label(status_grid, textvariable=self.unload_command_status_var, width=15).grid(row=4, column=3, padx=5, pady=2)
         
@@ -456,8 +456,8 @@ class AtellicaUI:
             
             # 在详细状态中添加命令状态信息
             detail_text += f"\n命令状态详细信息：\n"
-            detail_text += f"装载命令状态：{load_status_map.get(load_status, load_status)}\n"
-            detail_text += f"卸载命令状态：{unload_status_map.get(unload_status, unload_status)}\n"
+            detail_text += f"IP0命令状态：{load_status_map.get(load_status, load_status)}\n"
+            detail_text += f"IP1命令状态：{unload_status_map.get(unload_status, unload_status)}\n"
             
             # IP0队列详细信息
             detail_text += f"\nIP0队列 (长度: {len(ip0_queue)})：\n"

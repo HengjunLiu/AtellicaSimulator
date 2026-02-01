@@ -2237,8 +2237,8 @@ class LASServer:
             
             # 转换ready_to_load为整数（struct.pack需要整数）
             if isinstance(ready_to_load, dict):
-                # 如果是字典，检查是否有任何接口位置就绪
-                ready_to_load = 1 if any(ready_to_load.values()) else 0
+                # 如果 ready_to_load 是字典，则检查指定接口位置是否就绪（1 表示就绪，0 表示未就绪）
+                ready_to_load = 1 if ready_to_load[interface_position_index] else 0
             
             # 确保load_result包含sample_id，如果没有则使用请求中的样本ID
             if 'sample_id' not in load_result or not load_result['sample_id']:
