@@ -10,6 +10,7 @@ import random
 from collections import defaultdict
 import sqlite3
 import os
+import datetime
 
 
 class AtellicaCore:
@@ -75,6 +76,9 @@ class AtellicaCore:
         # 初始化SQLite数据库
         self._init_database()
         
+        # 从数据库初始化样本数据
+        self._initialize_from_database()
+        
         self.logger.info("AtellicaCore initialized successfully")
     
     def _init_database(self):
@@ -97,8 +101,6 @@ class AtellicaCore:
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS on_board_samples (
                     sample_id TEXT PRIMARY KEY,
-                    status TEXT NOT NULL,
-                    test TEXT NOT NULL,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                     load_time DATETIME NOT NULL
                 )
@@ -123,6 +125,117 @@ class AtellicaCore:
             self.logger.error(f"Error initializing database: {str(e)}")
         except Exception as e:
             self.logger.error(f"Unexpected error initializing database: {str(e)}")
+    
+    def _initialize_from_database(self):
+        """从数据库初始化样本数据
+        
+        应用启动时，查询on_board_samples表，初始化样本数据和相关变量
+        """
+        try:
+            self.logger.info("开始从数据库初始化样本数据...")
+            
+            # 建立数据库连接
+            conn = self._get_db_connection()
+            cursor = conn.cursor()
+            
+            # 查询on_board_samples表
+            cursor.execute("SELECT sample_id, load_time FROM on_board_samples")
+            records = cursor.fetchall()
+            
+            # 处理查询结果
+            if records:
+                self.logger.info(f"发现 {len(records)} 条样本记录")
+                
+                # 提取所有sample_id并存储到self.samples
+                for record in records:
+                    sample_id = record[0]
+                    load_time = record[1]
+                    
+                    # 尝试将load_time转换为时间戳
+                    try:
+                        if isinstance(load_time, str):
+                            # 解析时间字符串
+                            load_time_obj = datetime.datetime.strptime(load_time, '%Y-%m-%d %H:%M:%S')
+                            load_time_timestamp = load_time_obj.timestamp()
+                        else:
+                            load_time_timestamp = load_time
+                    except Exception as e:
+                        self.logger.warning(f"解析load_time失败: {e}，使用当前时间")
+                        load_time_timestamp = time.time()
+                    
+                    # 存储样本信息
+                    self.samples[sample_id] = {
+                        'sample_id': sample_id,
+                        'status': 'completed',
+                        'ready_for_unload': True,
+                        'load_time': load_time_timestamp,
+                        'timestamp': load_time_timestamp
+                    }
+                
+                # 初始化变量
+                total_records = len(records)
+                self.on_board_tube_count = total_records
+                self.completed_tube_count = total_records
+                
+                self.logger.info(f"初始化完成: on_board_tube_count={self.on_board_tube_count}, completed_tube_count={self.completed_tube_count}")
+            else:
+                self.logger.info("on_board_samples表中无记录")
+                # 确保变量初始化为0
+                self.on_board_tube_count = 0
+                self.completed_tube_count = 0
+            
+            # 查询locked_carrier_info表，初始化lock_ownership
+            self.logger.info("开始初始化lock_ownership...")
+            
+            try:
+                # 查询locked_carrier_info表
+                cursor.execute("SELECT interface_positions FROM locked_carrier_info")
+                locked_records = cursor.fetchall()
+                
+                # 提取所有锁定的接口位置
+                locked_positions = []
+                for record in locked_records:
+                    # 从interface_positions中提取数字部分，如"IP0" -> 0
+                    try:
+                        position_str = record[0]
+                        if position_str.startswith('IP'):
+                            position_idx = int(position_str[2:])
+                            locked_positions.append(position_idx)
+                    except (ValueError, IndexError) as e:
+                        self.logger.warning(f"解析接口位置失败: {e}")
+                
+                # 初始化lock_ownership
+                interface_count = self.interface_positions
+                new_lock_ownership = []
+                
+                for i in range(interface_count):
+                    if i in locked_positions:
+                        new_lock_ownership.append(1)
+                    else:
+                        new_lock_ownership.append(2)
+                
+                self.lock_ownership = new_lock_ownership
+                self.logger.info(f"初始化lock_ownership完成: {self.lock_ownership}")
+                
+            except Exception as e:
+                self.logger.warning(f"初始化lock_ownership失败: {e}，使用默认值")
+                # 保持默认值不变
+            
+            # 关闭连接
+            conn.close()
+            
+            self.logger.info("从数据库初始化样本数据完成")
+            
+        except sqlite3.Error as e:
+            self.logger.error(f"数据库初始化错误: {str(e)}")
+            # 确保变量初始化为默认值
+            self.on_board_tube_count = 0
+            self.completed_tube_count = 0
+        except Exception as e:
+            self.logger.error(f"初始化过程中的意外错误: {str(e)}")
+            # 确保变量初始化为默认值
+            self.on_board_tube_count = 0
+            self.completed_tube_count = 0
     
     def set_lis_client(self, lis_client):
         """设置LIS客户端实例
@@ -936,9 +1049,6 @@ class AtellicaCore:
                         # 增加已完成试管数量
                         self.completed_tube_count += 1
                         
-                        # 减少在线试管数量
-                        self.on_board_tube_count -= 1
-                        
                         # 增加可返回样本数量
                         self.return_ready_count += 1
                         
@@ -981,13 +1091,11 @@ class AtellicaCore:
         db_path = os.path.join(db_dir, 'atellica.db')
         return sqlite3.connect(db_path)
     
-    def _insert_sample_to_db(self, sample_id, status, test, load_time):
+    def _insert_sample_to_db(self, sample_id, load_time):
         """将样本插入数据库
         
         Args:
             sample_id: 样本ID
-            status: 样本状态
-            test: 测试项目
             load_time: 装载时间
         """
         try:
@@ -1000,9 +1108,9 @@ class AtellicaCore:
             # 插入样本记录
             cursor.execute('''
                 INSERT OR REPLACE INTO on_board_samples 
-                (sample_id, status, test, load_time)
-                VALUES (?, ?, ?, ?)
-            ''', (sample_id, status, test, load_time_str))
+                (sample_id, load_time)
+                VALUES (?, ?)
+            ''', (sample_id, load_time_str))
             
             conn.commit()
             conn.close()
@@ -1170,10 +1278,9 @@ class AtellicaCore:
                                 if load_result_status == 1:
                                     self.on_board_tube_count += 1
                                 
-                                    # 将样本信息插入数据库
-                                    load_time = sample.get('load_time', time.time())
-                                    test = ','.join(sample.get('tests', []))
-                                    self._insert_sample_to_db(sample_id, 'processing', test, load_time)
+                                # 将样本信息插入数据库
+                                load_time = sample.get('load_time', time.time())
+                                self._insert_sample_to_db(sample_id, load_time)
                             else:
                                 load_result = {'sample_id': sample_id, 'status': 7}  # Instrument Skipped Loading
                                 
@@ -1205,8 +1312,8 @@ class AtellicaCore:
                             if load_result_status == 1:
                                 self.on_board_tube_count += 1
                             
-                                # 将样本信息插入数据库
-                                self._insert_sample_to_db(sample_id, 'processing', '', current_time)
+                            # 将样本信息插入数据库
+                            self._insert_sample_to_db(sample_id, current_time)
                             
                             # 启动标本处理流程
                             threading.Thread(target=self._process_sample_workflow, args=(sample_id,), daemon=True).start()
