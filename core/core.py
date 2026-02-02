@@ -1229,7 +1229,7 @@ class AtellicaCore:
             if interface_position_index >= health_status['interface_positions']:
                 # 接口位置不存在
                 load_result = {'sample_id': '', 'status': 5}  # Interface position is offline
-                return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, get_ready_to_load(interface_position_index), self.return_ready_count
+                return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, self.get_ready_to_load(interface_position_index), self.return_ready_count
             
             # 检查远程控制状态
             remote_status = health_status['remote_control_status'][interface_position_index]
@@ -1386,4 +1386,4 @@ class AtellicaCore:
                 # 释放锁定
                 self.locked_carriers[interface_position_index] = None
             
-            return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, get_ready_to_load(interface_position_index), self.return_ready_count
+            return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, self.get_ready_to_load(interface_position_index), self.return_ready_count
