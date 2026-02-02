@@ -2375,6 +2375,15 @@ class LASServer:
                 elapsed_time
             )
             
+            # 确定请求类型
+            request_type = 'load' if carrier_occupancy in [0x01, 0x02, 0x03] else 'unload'
+            
+            if request_type == 'unload':
+                # UNLOAD时，RESPONSE需要在手工标本按钮点击完成后10秒后发出
+                self.logger.info(f"UNLOAD请求：手工操作完成，等待10秒后发送RESPONSE")
+                time.sleep(10)
+                self.logger.info(f"UNLOAD请求：等待10秒完成，开始发送RESPONSE")
+            
             # 继续处理原始请求
             self._handle_load_unload_request(conn, header, body, manual_complete=True)
     
