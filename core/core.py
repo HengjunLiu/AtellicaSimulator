@@ -426,8 +426,8 @@ class AtellicaCore:
             
             sample = self.samples[sample_id]
             
-            # 检查样本状态
-            if sample['status'] in ['completed', 'unloaded', 'ejected']:
+            # 检查样本状态 - 允许弹出completed状态的样本
+            if sample['status'] in ['unloaded', 'ejected']:
                 return False
             
             # 更新样本状态 - 标记为已弹出（标本已离开ATS，不在LAS上）
@@ -440,16 +440,50 @@ class AtellicaCore:
                 # 更新计数器 - 手工弹出的样本不计入可返回数量
                 self.on_board_tube_count -= 1
             
+            # 从数据库中删除样本记录
+            self._delete_sample_from_db(sample_id)
+            
             return True
     
     def get_all_samples(self):
-        """获取所有样本信息
+        """获取所有样本信息（从SQLite数据库查询）
         
         Returns:
             dict: 所有样本信息
         """
-        with self.sample_lock:
-            return self.samples.copy()
+        try:
+            conn = self._get_db_connection()
+            cursor = conn.cursor()
+            # on_board_samples表没有status字段，只有sample_id, timestamp, load_time
+            cursor.execute("SELECT sample_id, load_time FROM on_board_samples")
+            rows = cursor.fetchall()
+            conn.close()
+            
+            samples = {}
+            for row in rows:
+                sample_id = row[0]
+                load_time = row[1]
+                # 将load_time转换为时间戳
+                try:
+                    if isinstance(load_time, str):
+                        load_time_obj = datetime.datetime.strptime(load_time, '%Y-%m-%d %H:%M:%S')
+                        load_time_timestamp = load_time_obj.timestamp()
+                    else:
+                        load_time_timestamp = load_time
+                except:
+                    load_time_timestamp = time.time()
+                
+                samples[sample_id] = {
+                    'sample_id': sample_id,
+                    'status': 'received',  # 数据库中没有status字段，默认给'received'状态
+                    'load_time': load_time_timestamp
+                }
+            return samples
+        except Exception as e:
+            self.logger.error(f"Error getting samples from database: {str(e)}")
+            # 如果数据库查询失败，返回内存中的样本
+            with self.sample_lock:
+                return self.samples.copy()
     
     def update_automation_interface_status(self, status):
         """更新自动化接口状态
@@ -1386,4 +1420,7 @@ class AtellicaCore:
                 # 释放锁定
                 self.locked_carriers[interface_position_index] = None
             
-            return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, self.get_ready_to_load(interface_position_index), self.return_ready_count
+            # 在锁内部直接获取ready_to_load值，避免调用get_ready_to_load导致死锁
+            ready_to_load_value = 1 if self.ready_to_load.get(interface_position_index, False) else 0
+            
+            return load_result, unload_result, sample_status, self.on_board_tube_count, self.completed_tube_count, ready_to_load_value, self.return_ready_count

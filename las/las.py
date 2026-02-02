@@ -112,6 +112,10 @@ class LASServer:
         self.pending_requests = []
         self.ui = None
         
+        # 已移除标本管理
+        self.removed_samples = []  # 存储已手工移除的标本ID
+        self.removed_samples_lock = threading.Lock()
+        
         # 超时检查线程
         self.timeout_check_thread = None
         self.timeout_check_interval = 0.5  # 秒
@@ -1740,8 +1744,17 @@ class LASServer:
                                   len(sample_id),
                                   sample_id)
             
-            # 添加已移除样本数量（这里简化处理，返回0）
-            body += struct.pack('!H', 0)
+            # 添加已移除样本数量和ID
+            with self.removed_samples_lock:
+                removed_count = len(self.removed_samples)
+                body += struct.pack('!H', removed_count)
+                
+                # 添加每个已移除样本
+                for removed_sample_id in self.removed_samples:
+                    sample_id_bytes = removed_sample_id.encode('ascii')
+                    body += struct.pack(f'!B {len(sample_id_bytes)}s',
+                                      len(sample_id_bytes),
+                                      sample_id_bytes)
             
             # 构建完整消息
             message, sequence_id = self._build_message(
@@ -1769,6 +1782,60 @@ class LASServer:
         except Exception as e:
             self.logger.error(f"Error handling LAS onboard sample info request: {str(e)}")
             self.logger.log_las(f"Error handling onboard sample info request: {str(e)}")
+    
+    def _send_onboard_sample_info_notification(self):
+        """发送Onboard Sample Info通知（非请求式）- 用于标本移除后通知LAS"""
+        try:
+            with self.connection_lock:
+                if not self.connections:
+                    self.logger.warning("No LAS connections available, cannot send onboard sample info notification")
+                    return
+                
+                # 获取所有样本
+                samples = self.core.get_all_samples()
+                onboard_samples = [sample for sample in samples.values() if sample['status'] != 'completed']
+                onboard_count = len(onboard_samples)
+                
+                # 构建响应消息体
+                body = struct.pack('!H', onboard_count)
+                
+                # 添加每个在线样本
+                for sample in onboard_samples:
+                    sample_id = sample['sample_id'].encode('ascii')
+                    body += struct.pack(f'!B {len(sample_id)}s',
+                                      len(sample_id),
+                                      sample_id)
+                
+                # 添加已移除样本数量和ID
+                with self.removed_samples_lock:
+                    removed_count = len(self.removed_samples)
+                    body += struct.pack('!H', removed_count)
+                    
+                    # 添加每个已移除样本
+                    for removed_sample_id in self.removed_samples:
+                        sample_id_bytes = removed_sample_id.encode('ascii')
+                        body += struct.pack(f'!B {len(sample_id_bytes)}s',
+                                          len(sample_id_bytes),
+                                          sample_id_bytes)
+                
+                # 发送到所有连接的客户端
+                for conn in self.connections:
+                    # 构建完整消息（非请求式，不设置return_sequence_id）
+                    message, sequence_id = self._build_message(
+                        self.MSG_TYPE_ONBOARD_SAMPLE_INFO_RESPONSE,
+                        body,
+                        track_message=True
+                    )
+                    
+                    # 发送消息
+                    conn.sendall(message)
+                    
+                    self.logger.info(f"LAS onboard sample info notification sent, SeqID=0x{sequence_id:04x}, Samples={onboard_count}, Removed={removed_count}")
+                    self.logger.log_las(f"Onboard sample info notification sent, SeqID=0x{sequence_id:04x}, Samples={onboard_count}, Removed={removed_count}")
+                    
+        except Exception as e:
+            self.logger.error(f"Error sending onboard sample info notification: {str(e)}")
+            self.logger.log_las(f"Error sending onboard sample info notification: {str(e)}")
     
     def _handle_consumable_inventory_request(self, conn, header):
         """处理耗材库存请求
@@ -2152,7 +2219,10 @@ class LASServer:
             # 确定请求类型
             # 0x01、0x02、0x03表示有样本需要卸载 (LOAD request)
             # 0x00表示需要装载样本 (UNLOAD request)
-            request_type = 'load' if carrier_occupancy in [0x01, 0x02, 0x03] else 'unload'
+            # 根据协议：0x01=Empty Carrier(空载波), 0x02=Uncapped Tube(有样本), 0x03=Capped Tube(有样本)
+            # 有样本(0x02,0x03)时是LOAD请求(从LAS取走样本)
+            # 空载波(0x01)时是UNLOAD请求(向LAS放入样本)
+            request_type = 'load' if carrier_occupancy in [0x02, 0x03] else 'unload'
             
             # UNLOAD请求验证：确保符合协议要求
             # 只有在收到0x020A消息且状态为0x03时才允许处理UNLOAD请求
@@ -2326,6 +2396,8 @@ class LASServer:
         Args:
             request: 请求信息，包含type、interface_position、sample_id
         """
+        self.logger.info(f"on_manual_operation_complete called, pending_requests count: {len(self.pending_requests)}")
+        
         if self.pending_requests:
             # 获取第一个待处理请求
             pending_request = self.pending_requests.pop(0)
@@ -2358,34 +2430,94 @@ class LASServer:
             
             elapsed_time = struct.unpack_from('!H', body, offset)[0]
             
-            # 构建新的body，使用UI传递的样本ID
-            new_sample_id = request['sample_id']
-            new_sample_id_bytes = new_sample_id.encode('ascii')
-            new_sample_id_len = len(new_sample_id_bytes)
-            
-            # 重新构建body
-            body = struct.pack(
-                f'!BBB{new_sample_id_len}sBBH',
-                interface_position_index,
-                carrier_occupancy,
-                new_sample_id_len,
-                new_sample_id_bytes,
-                tube_height,
-                tube_diameter,
-                elapsed_time
-            )
-            
             # 确定请求类型
-            request_type = 'load' if carrier_occupancy in [0x01, 0x02, 0x03] else 'unload'
+            # 根据协议：0x01=Empty Carrier(空载波), 0x02=Uncapped Tube(有样本), 0x03=Capped Tube(有样本)
+            # 有样本(0x02,0x03)时是LOAD请求(从LAS取走样本)
+            # 空载波(0x01)时是UNLOAD请求(向LAS放入样本)
+            request_type = 'load' if carrier_occupancy in [0x02, 0x03] else 'unload'
             
+            # 根据请求类型处理样本ID
             if request_type == 'unload':
-                # UNLOAD时，RESPONSE需要在手工标本按钮点击完成后10秒后发出
-                self.logger.info(f"UNLOAD请求：手工操作完成，等待10秒后发送RESPONSE")
-                time.sleep(10)
-                self.logger.info(f"UNLOAD请求：等待10秒完成，开始发送RESPONSE")
+                # 对于UNLOAD请求，使用UI传递的样本ID（用户输入的要卸载的样本ID）
+                new_sample_id = request['sample_id']
+                new_sample_id_bytes = new_sample_id.encode('ascii')
+                new_sample_id_len = len(new_sample_id_bytes)
+                
+                # 重新构建body，使用UI传递的样本ID
+                body = struct.pack(
+                    f'!BBB{new_sample_id_len}sBBH',
+                    interface_position_index,
+                    carrier_occupancy,
+                    new_sample_id_len,
+                    new_sample_id_bytes,
+                    tube_height,
+                    tube_diameter,
+                    elapsed_time
+                )
+                self.logger.info(f"UNLOAD请求：使用UI传递的样本ID: {new_sample_id}")
+            else:
+                # 对于LOAD请求，使用原始请求中的样本ID（来自LAS）
+                # 不需要重新构建body，使用原始body
+                self.logger.info(f"LOAD请求：使用原始请求中的样本ID: {original_sample_id}")
+            
+            # 在后台线程中等待并发送响应，避免阻塞UI
+            self.logger.info(f"{request_type.upper()}请求：手工操作完成，将在10秒后发送RESPONSE")
+            threading.Thread(
+                target=self._send_load_unload_response_after_delay,
+                args=(conn, header, body, request_type),
+                daemon=True
+            ).start()
+    
+    def _send_load_unload_response_after_delay(self, conn, header, body, request_type):
+        """在延迟后发送LOAD/UNLOAD响应（在后台线程中执行）
+        
+        Args:
+            conn: 连接socket
+            header: 消息头
+            body: 消息体
+            request_type: 请求类型('load'或'unload')
+        """
+        try:
+            # 等待10秒
+            self.logger.info(f"{request_type.upper()}请求：后台线程开始等待10秒...")
+            time.sleep(10)
+            self.logger.info(f"{request_type.upper()}请求：等待10秒完成，准备发送RESPONSE")
+            
+            # 检查连接是否仍然有效
+            with self.connection_lock:
+                if conn not in self.connections:
+                    self.logger.warning(f"{request_type.upper()}请求：连接已断开，无法发送响应")
+                    return
+                
+                # 测试连接是否有效
+                try:
+                    # 设置非阻塞模式测试连接
+                    conn.setblocking(0)
+                    # 尝试接收数据（不实际接收）
+                    import select
+                    ready = select.select([conn], [], [], 0)
+                    conn.setblocking(1)
+                    
+                    if ready[0]:
+                        # 有数据可读，可能是连接断开
+                        data = conn.recv(1, socket.MSG_PEEK)
+                        if not data:
+                            self.logger.warning(f"{request_type.upper()}请求：连接已关闭")
+                            return
+                except Exception as conn_err:
+                    self.logger.warning(f"{request_type.upper()}请求：连接测试失败: {str(conn_err)}")
+                    return
+            
+            self.logger.info(f"{request_type.upper()}请求：连接有效，开始处理请求")
             
             # 继续处理原始请求
             self._handle_load_unload_request(conn, header, body, manual_complete=True)
+            
+            self.logger.info(f"{request_type.upper()}请求：响应发送完成")
+        except Exception as e:
+            self.logger.error(f"Error sending delayed load/unload response: {str(e)}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
     
     def manual_eject_sample(self, sample_id, interface_position=0):
         """手动弹出样本并通知LAS
@@ -2397,12 +2529,12 @@ class LASServer:
         Returns:
             bool: 是否成功
         """
+        success = False
         try:
             # 1. 更新核心样本状态
             success = self.core.manual_eject_sample(sample_id)
             if not success:
                 self.logger.error(f"Failed to manually eject sample {sample_id}: Sample not found or already completed")
-                return False
             
             # 2. 发送LOAD_UNLOAD_RESPONSE消息到所有连接的客户端
             with self.connection_lock:
@@ -2415,16 +2547,22 @@ class LASServer:
                     
                     unload_sample_id_bytes = sample_id.encode('ascii')
                     unload_sample_id_len = len(unload_sample_id_bytes)
-                    unload_status = 0x01  # Success (成功处理手工弹出)
                     
-                    sample_status = 0x03  # Sample Ejected (样本被手工弹出，符合LAS协议)
+                    # 根据操作结果设置状态
+                    if success:
+                        unload_status = 0x01  # Success (成功处理手工弹出)
+                        sample_status = 0x03  # Sample Ejected (样本被手工弹出，符合LAS协议)
+                    else:
+                        unload_status = 0x06  # Load Skipped (手工弹出失败)
+                        sample_status = 0x00  # No Tube Unloaded (无样本被卸载)
+                    
                     onboard_count = self.core.get_instrument_health()['on_board_tube_count']
                     completed_count = self.core.get_instrument_health()['completed_tube_count']
                     ready_to_load = self.core.get_ready_to_load()
                     return_ready_count = self.core.get_return_ready_count()
                     
                     body = struct.pack(
-                        f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B B B H H B H',
+                        f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B B H H B H',
                         interface_position,
                         load_sample_id_len,
                         load_sample_id_bytes,
@@ -2462,10 +2600,25 @@ class LASServer:
                     # 发送消息
                     conn.sendall(message)
                     
-                    self.logger.info(f"LAS manual eject response sent, SeqID=0x{sequence_id:04x}, SampleID={sample_id}")
-                    self.logger.log_las(f"Manual eject response sent: SampleID={sample_id}, SeqID=0x{sequence_id:04x}")
+                    if success:
+                        self.logger.info(f"LAS manual eject response sent, SeqID=0x{sequence_id:04x}, SampleID={sample_id}")
+                        self.logger.log_las(f"Manual eject response sent: SampleID={sample_id}, SeqID=0x{sequence_id:04x}")
+                    else:
+                        self.logger.warning(f"LAS manual eject failed response sent, SeqID=0x{sequence_id:04x}, SampleID={sample_id}, Status=0x06 (Load Skipped)")
+                        self.logger.log_las(f"Manual eject failed response sent: SampleID={sample_id}, SeqID=0x{sequence_id:04x}, Status=0x06 (Load Skipped)")
             
-            return True
+            # 3. 如果成功，记录已移除的标本并发送通知
+            if success:
+                with self.removed_samples_lock:
+                    if sample_id not in self.removed_samples:
+                        self.removed_samples.append(sample_id)
+                        self.logger.info(f"Sample {sample_id} added to removed samples list")
+                
+                # 发送 Onboard Sample Info 消息通知 LAS 标本已被移除
+                self._send_onboard_sample_info_notification()
+                self.logger.info(f"Sent Onboard Sample Info notification with removed sample {sample_id}")
+            
+            return success
         except Exception as e:
             self.logger.error(f"Error in manual_eject_sample: {str(e)}")
             self.logger.log_las(f"Error in manual eject: {str(e)}")

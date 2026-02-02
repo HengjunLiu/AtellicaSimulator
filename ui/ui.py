@@ -11,7 +11,7 @@ import time
 
 from .lisui import LisUI
 
-APP_VERSION = "v1.4.0"
+APP_VERSION = "v1.5.0"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""
@@ -966,18 +966,21 @@ class AtellicaUI:
         self.prompt_canvas.delete("all")
         
         # 保存请求类型和颜色信息
+        # 注意：在手工模式下，LOAD和UNLOAD的实际操作与字面意思相反
+        # LOAD请求：实际是从LAS取走样本（对LAS来说是卸载）
+        # UNLOAD请求：实际是向LAS放入样本（对LAS来说是装载）
         if request_type == 'load':
             self.circle_color = "lightgreen"
             self.circle_outline = "green"
             self.text_color = "green"
-            prompt_text = f"请手工装载IP{interface_position}的标本"
+            prompt_text = f"请从LAS的IP{interface_position}卸载标本"
             if sample_id:
                 prompt_text += f" (样本ID: {sample_id})"
         else:
             self.circle_color = "lightyellow"
             self.circle_outline = "yellow"
             self.text_color = "orange"
-            prompt_text = f"请手工卸载IP{interface_position}的标本"
+            prompt_text = f"请向LAS的IP{interface_position}装载标本"
             if sample_id:
                 prompt_text += f" (样本ID: {sample_id})"
         
@@ -1106,8 +1109,8 @@ class AtellicaUI:
         # 填充数据
         for sample in onboard_samples:
             load_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(sample['load_time']))
-            tree.insert('', tk.END, values=(sample['sample_id'], sample['status'], load_time), 
-                      tags=('sample',), sample_id=sample['sample_id'])
+            tree.insert('', tk.END, iid=sample['sample_id'], 
+                      values=(sample['sample_id'], sample['status'], load_time))
         
         # 布局
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -1121,8 +1124,8 @@ class AtellicaUI:
         def on_eject_sample():
             selection = tree.selection()
             if selection:
-                item = tree.item(selection[0])
-                sample_id = item['tags'][1] if len(item['tags']) > 1 else item['values'][0]
+                # 直接使用 selection[0] 作为 sample_id (即 iid)
+                sample_id = selection[0]
                 
                 # 执行手工弹出
                 self._manual_eject_sample(sample_id)
