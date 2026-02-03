@@ -1039,6 +1039,239 @@ class AtellicaCore:
                     self.logger.info(f"Sample {sample_id}: 已取消工作流步骤 {step_name} 的定时器")
                 del self.sample_timers[sample_id]
     
+    def _workflow_step_lis_query(self, sample_id):
+        """工作流步骤1: 询问LIS工单
+        
+        Args:
+            sample_id: 样本ID
+        """
+        try:
+            self.logger.info(f"Sample {sample_id}: 开始执行LIS工单查询步骤")
+            
+            with self.sample_lock:
+                if sample_id not in self.samples:
+                    self.logger.warning(f"Sample {sample_id}: 样本不存在，跳过LIS查询")
+                    return
+                
+                selected_tests = []
+                
+                # 检查是否有LIS服务器实例
+                if self.lis_server:
+                    # 调用LIS服务器的query_worklist方法查询工单
+                    self.logger.info(f"Sample {sample_id}: 使用真实ASTM协议询问LIS工单")
+                    
+                    # 发送查询请求
+                    self.lis_server.query_worklist(sample_id)
+                    
+                    # 等待LIS回复，超时30秒
+                    self.logger.info(f"Sample {sample_id}: 等待LIS回复工单")
+                    selected_tests = self.lis_server.get_query_result(sample_id, timeout=30)
+                    
+                    if selected_tests:
+                        self.logger.info(f"Sample {sample_id}: 收到LIS真实工单，测试项目: {selected_tests}")
+                    else:
+                        self.logger.warning(f"Sample {sample_id}: 未收到LIS工单，使用模拟数据")
+                        # 使用模拟数据
+                        test_items = list(self.test_inventory['tests'].keys())[:10]
+                        selected_tests = random.sample(test_items, random.randint(3, 5))
+                else:
+                    # 没有LIS服务器实例，使用模拟数据
+                    self.logger.info(f"Sample {sample_id}: 没有LIS服务器实例，使用模拟工单")
+                    test_items = list(self.test_inventory['tests'].keys())[:10]
+                    selected_tests = random.sample(test_items, random.randint(3, 5))
+                
+                # 检查测试项目是否可以开展
+                valid_tests = []
+                invalid_tests = []
+                
+                for test in selected_tests:
+                    # 检查项目是否定义
+                    test_exists = test in self.test_inventory['tests']
+                    if not test_exists:
+                        invalid_tests.append((test, '未定义的测试项目'))
+                        continue
+                    
+                    # 检查试剂是否充足
+                    test_info = self.test_inventory['tests'][test]
+                    if test_info['count'] <= 0:
+                        invalid_tests.append((test, '试剂不足'))
+                        continue
+                    
+                    # 检查项目状态
+                    if test_info['status'] != 1:  # 状态不是Green
+                        invalid_tests.append((test, '项目状态异常'))
+                        continue
+                    
+                    # 项目可以开展
+                    valid_tests.append(test)
+                
+                # 更新样本的测试项目
+                self.samples[sample_id]['tests'] = valid_tests
+                self.samples[sample_id]['invalid_tests'] = invalid_tests
+                self.samples[sample_id]['lis_asked'] = True
+                
+                if valid_tests:
+                    self.logger.info(f"Sample {sample_id}: 有效测试项目: {valid_tests}")
+                
+                if invalid_tests:
+                    self.logger.warning(f"Sample {sample_id}: 无效测试项目: {invalid_tests}")
+                    
+                    # 对于无效项目，立即生成ERROR结果
+                    error_results = {}
+                    for test, reason in invalid_tests:
+                        error_results[test] = {
+                            'value': 'ERROR',
+                            'status': 'error',
+                            'timestamp': time.time(),
+                            'error_reason': reason,
+                            'unit': '',
+                            'flags': 'E'
+                        }
+                    
+                    # 更新样本结果
+                    self.samples[sample_id]['results'] = error_results
+                    self.samples[sample_id]['status'] = 'completed_with_errors'
+                    
+                    # 标记样本为已完成
+                    self.samples[sample_id]['completed_time'] = time.time()
+                    
+                    # 通知LIS结果已生成
+                    if hasattr(self, 'result_callback') and callable(self.result_callback):
+                        try:
+                            self.result_callback(sample_id, error_results)
+                            self.logger.info(f"Sample {sample_id}: 已发送无效项目的ERROR结果给LIS")
+                        except Exception as e:
+                            self.logger.error(f"Error calling result callback: {str(e)}")
+                
+                # 记录最终的测试项目
+                self.logger.info(f"Sample {sample_id}: 最终测试项目: {valid_tests}")
+                
+                # 保存valid_tests和invalid_tests供下一步使用
+                has_valid_tests = len(valid_tests) > 0
+            
+            # 调度下一步: 5分钟后生成结果（如果有有效测试项目）
+            if has_valid_tests:
+                self._schedule_workflow_step(
+                    sample_id,
+                    'generate_results',
+                    300,  # 5分钟
+                    lambda: self._workflow_step_generate_results(sample_id, valid_tests, invalid_tests)
+                )
+            else:
+                self.logger.info(f"Sample {sample_id}: 没有有效测试项目，跳过结果生成步骤")
+                # 直接调度准备UNLOAD步骤（2分钟后）
+                self._schedule_workflow_step(
+                    sample_id,
+                    'ready_for_unload',
+                    120,  # 2分钟
+                    lambda: self._workflow_step_ready_for_unload(sample_id)
+                )
+                
+        except Exception as e:
+            self.logger.error(f"Sample {sample_id}: LIS查询步骤出错: {str(e)}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
+    
+    def _workflow_step_generate_results(self, sample_id, valid_tests, invalid_tests):
+        """工作流步骤2: 生成测试结果
+        
+        Args:
+            sample_id: 样本ID
+            valid_tests: 有效测试项目列表
+            invalid_tests: 无效测试项目列表
+        """
+        try:
+            self.logger.info(f"Sample {sample_id}: 开始执行结果生成步骤")
+            
+            with self.sample_lock:
+                if sample_id not in self.samples:
+                    self.logger.warning(f"Sample {sample_id}: 样本不存在，跳过结果生成")
+                    return
+                
+                # 生成随机测试结果
+                results = {}
+                
+                for test in valid_tests:
+                    # 为每个测试项目生成随机结果
+                    results[test] = {
+                        'value': round(random.uniform(10, 100), 2),
+                        'status': 'completed',
+                        'timestamp': time.time(),
+                        'unit': self.test_inventory['tests'][test]['unit'],
+                        'flags': ''
+                    }
+                
+                # 更新样本结果，合并之前的ERROR结果
+                if invalid_tests:
+                    # 如果之前有无效项目的ERROR结果，合并它们
+                    existing_results = self.samples[sample_id].get('results', {})
+                    results.update(existing_results)
+                    self.samples[sample_id]['status'] = 'completed_with_errors'
+                else:
+                    self.samples[sample_id]['status'] = 'completed'
+                
+                self.samples[sample_id]['results'] = results
+                
+                # 增加已完成试管数量
+                self.completed_tube_count += 1
+                
+                # 增加可返回样本数量
+                self.return_ready_count += 1
+                
+                # 标记样本为已完成
+                self.samples[sample_id]['completed_time'] = time.time()
+                
+                self.logger.info(f"Sample {sample_id}: 生成测试结果成功，结果: {results}")
+                
+                # 通知LIS结果已生成
+                if hasattr(self, 'result_callback') and callable(self.result_callback):
+                    try:
+                        self.result_callback(sample_id, results)
+                        self.logger.info(f"Sample {sample_id}: 已发送有效项目的结果给LIS")
+                    except Exception as e:
+                        self.logger.error(f"Error calling result callback: {str(e)}")
+            
+            # 调度下一步: 2分钟后准备UNLOAD
+            self._schedule_workflow_step(
+                sample_id,
+                'ready_for_unload',
+                120,  # 2分钟
+                lambda: self._workflow_step_ready_for_unload(sample_id)
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Sample {sample_id}: 结果生成步骤出错: {str(e)}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
+    
+    def _workflow_step_ready_for_unload(self, sample_id):
+        """工作流步骤3: 准备UNLOAD
+        
+        Args:
+            sample_id: 样本ID
+        """
+        try:
+            self.logger.info(f"Sample {sample_id}: 开始执行准备UNLOAD步骤")
+            
+            with self.sample_lock:
+                if sample_id not in self.samples:
+                    self.logger.warning(f"Sample {sample_id}: 样本不存在，跳过准备UNLOAD")
+                    return
+                
+                # 更新样本状态为准备UNLOAD
+                self.samples[sample_id]['ready_for_unload'] = True
+                self.logger.info(f"Sample {sample_id}: 已准备好UNLOAD")
+            
+            # 工作流完成，清理定时器记录
+            with self.sample_timers_lock:
+                if sample_id in self.sample_timers:
+                    del self.sample_timers[sample_id]
+                    
+        except Exception as e:
+            self.logger.error(f"Sample {sample_id}: 准备UNLOAD步骤出错: {str(e)}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
+    
     def _process_sample_workflow(self, sample_id):
         """处理标本完整工作流 - 使用定时器调度，避免阻塞线程
         
@@ -1051,6 +1284,8 @@ class AtellicaCore:
             sample_id: 样本ID
         """
         try:
+            self.logger.info(f"Sample {sample_id}: 开始工作流处理（使用定时器调度）")
+            
             # 步骤1: 调度5秒后询问LIS工单
             self._schedule_workflow_step(
                 sample_id, 
@@ -1058,168 +1293,6 @@ class AtellicaCore:
                 5, 
                 lambda: self._workflow_step_lis_query(sample_id)
             )
-            
-            # 使用真实的LIS查询功能
-            with self.sample_lock:
-                if sample_id in self.samples:
-                    selected_tests = []
-                    
-                    # 检查是否有LIS服务器实例
-                    if self.lis_server:
-                        # 调用LIS服务器的query_worklist方法查询工单
-                        self.logger.info(f"Sample {sample_id}: 使用真实ASTM协议询问LIS工单")
-                        
-                        # 发送查询请求
-                        self.lis_server.query_worklist(sample_id)
-                        
-                        # 等待LIS回复，超时30秒
-                        self.logger.info(f"Sample {sample_id}: 等待LIS回复工单")
-                        selected_tests = self.lis_server.get_query_result(sample_id, timeout=30)
-                        
-                        if selected_tests:
-                            self.logger.info(f"Sample {sample_id}: 收到LIS真实工单，测试项目: {selected_tests}")
-                        else:
-                            self.logger.warning(f"Sample {sample_id}: 未收到LIS工单，使用模拟数据")
-                            # 使用模拟数据
-                            test_items = list(self.test_inventory['tests'].keys())[:10]  # 取前10个测试项目
-                            selected_tests = random.sample(test_items, random.randint(3, 5))
-                    else:
-                        # 没有LIS服务器实例，使用模拟数据
-                        self.logger.info(f"Sample {sample_id}: 没有LIS服务器实例，使用模拟工单")
-                        test_items = list(self.test_inventory['tests'].keys())[:10]  # 取前10个测试项目
-                        selected_tests = random.sample(test_items, random.randint(3, 5))
-                    
-                    # 检查测试项目是否可以开展
-                    valid_tests = []
-                    invalid_tests = []
-                    
-                    for test in selected_tests:
-                        # 检查项目是否定义
-                        test_exists = test in self.test_inventory['tests']
-                        if not test_exists:
-                            invalid_tests.append((test, '未定义的测试项目'))
-                            continue
-                        
-                        # 检查试剂是否充足
-                        test_info = self.test_inventory['tests'][test]
-                        if test_info['count'] <= 0:
-                            invalid_tests.append((test, '试剂不足'))
-                            continue
-                        
-                        # 检查项目状态
-                        if test_info['status'] != 1:  # 状态不是Green
-                            invalid_tests.append((test, '项目状态异常'))
-                            continue
-                        
-                        # 项目可以开展
-                        valid_tests.append(test)
-                    
-                    # 更新样本的测试项目
-                    self.samples[sample_id]['tests'] = valid_tests
-                    self.samples[sample_id]['invalid_tests'] = invalid_tests
-                    self.samples[sample_id]['lis_asked'] = True
-                    
-                    if valid_tests:
-                        self.logger.info(f"Sample {sample_id}: 有效测试项目: {valid_tests}")
-                    
-                    if invalid_tests:
-                        self.logger.warning(f"Sample {sample_id}: 无效测试项目: {invalid_tests}")
-                        
-                        # 对于无效项目，立即生成ERROR结果
-                        error_results = {}
-                        for test, reason in invalid_tests:
-                            error_results[test] = {
-                                'value': 'ERROR',
-                                'status': 'error',
-                                'timestamp': time.time(),
-                                'error_reason': reason,
-                                'unit': '',
-                                'flags': 'E'
-                            }
-                        
-                        # 更新样本结果
-                        self.samples[sample_id]['results'] = error_results
-                        self.samples[sample_id]['status'] = 'completed_with_errors'
-                        
-                        # 标记样本为已完成
-                        self.samples[sample_id]['completed_time'] = time.time()
-                        
-                        # 通知LIS结果已生成
-                        if hasattr(self, 'result_callback') and callable(self.result_callback):
-                            try:
-                                self.result_callback(sample_id, error_results)
-                                self.logger.info(f"Sample {sample_id}: 已发送无效项目的ERROR结果给LIS")
-                            except Exception as e:
-                                self.logger.error(f"Error calling result callback: {str(e)}")
-                    
-                    # 记录最终的测试项目
-                    self.logger.info(f"Sample {sample_id}: 最终测试项目: {valid_tests}")
-            
-            # 只有有效测试项目时才需要等待5分钟生成结果
-            with self.sample_lock:
-                if sample_id in self.samples:
-                    if valid_tests:
-                        # 步骤2: 等待5分钟后生成测试结果
-                        self.logger.info(f"Sample {sample_id}: 有效测试项目存在，等待5分钟后生成测试结果")
-                        time.sleep(300)  # 5分钟
-                        
-                        self.logger.info(f"Sample {sample_id}: 等待5分钟后，开始生成测试结果")
-                        
-                        # 生成随机测试结果
-                        results = {}
-                        
-                        for test in valid_tests:
-                            # 为每个测试项目生成随机结果
-                            results[test] = {
-                                'value': round(random.uniform(10, 100), 2),
-                                'status': 'completed',
-                                'timestamp': time.time(),
-                                'unit': self.test_inventory['tests'][test]['unit'],
-                                'flags': ''
-                            }
-                        
-                        # 更新样本结果，合并之前的ERROR结果
-                        if invalid_tests:
-                            # 如果之前有无效项目的ERROR结果，合并它们
-                            existing_results = sample.get('results', {})
-                            results.update(existing_results)
-                            sample['status'] = 'completed_with_errors'
-                        else:
-                            sample['status'] = 'completed'
-                        
-                        sample['results'] = results
-                        
-                        # 增加已完成试管数量
-                        self.completed_tube_count += 1
-                        
-                        # 增加可返回样本数量
-                        self.return_ready_count += 1
-                        
-                        # 标记样本为已完成
-                        sample['completed_time'] = time.time()
-                        
-                        self.logger.info(f"Sample {sample_id}: 生成测试结果成功，结果: {results}")
-                        
-                        # 通知LIS结果已生成
-                        if hasattr(self, 'result_callback') and callable(self.result_callback):
-                            try:
-                                self.result_callback(sample_id, results)
-                                self.logger.info(f"Sample {sample_id}: 已发送有效项目的结果给LIS")
-                            except Exception as e:
-                                self.logger.error(f"Error calling result callback: {str(e)}")
-                    else:
-                        self.logger.info(f"Sample {sample_id}: 没有有效测试项目，跳过5分钟等待")
-            
-            # 步骤3: 等待2分钟后准备UNLOAD
-            time.sleep(120)  # 2分钟
-            
-            self.logger.info(f"Sample {sample_id}: 等待2分钟后，准备UNLOAD流程")
-            
-            # 更新样本状态为准备UNLOAD
-            with self.sample_lock:
-                if sample_id in self.samples:
-                    self.samples[sample_id]['ready_for_unload'] = True
-                    self.logger.info(f"Sample {sample_id}: 已准备好UNLOAD")
             
         except Exception as e:
             self.logger.error(f"Error processing sample workflow for {sample_id}: {str(e)}")
