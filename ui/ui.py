@@ -1053,7 +1053,7 @@ class AtellicaUI:
         # 创建弹窗
         dialog = tk.Toplevel(self.root)
         dialog.title("选择样本处理状态 (Sample Processing Status)")
-        dialog.geometry("500x400")
+        dialog.geometry("500x500")  # 增加高度以确保按钮正常显示
         dialog.transient(self.root)  # 设置为模态对话框
         dialog.grab_set()
         
@@ -1130,19 +1130,22 @@ class AtellicaUI:
                 actual_sample_id = self.sample_id_entry.get().strip()
                 if actual_sample_id:
                     request['sample_id'] = actual_sample_id
-            
-            # 显示Sample Processing Status选择弹窗
-            sample_status = self._show_sample_status_dialog()
-            if sample_status is None:
-                # 用户取消了选择，不继续处理
-                self.logger.info("用户取消了Sample Processing Status选择，停止处理")
-                # 重新启动闪烁效果
-                self._start_flash()
-                return
-            
-            # 将选择的状态添加到请求中
-            request['sample_status'] = sample_status
-            self.logger.info(f"用户选择的Sample Processing Status: 0x{sample_status:02x}")
+                
+                # 对于UNLOAD请求，显示Sample Processing Status选择弹窗
+                sample_status = self._show_sample_status_dialog()
+                if sample_status is None:
+                    # 用户取消了选择，不继续处理
+                    self.logger.info("用户取消了Sample Processing Status选择，停止处理")
+                    # 重新启动闪烁效果
+                    self._start_flash()
+                    return
+                
+                # 将选择的状态添加到请求中
+                request['sample_status'] = sample_status
+                self.logger.info(f"用户选择的Sample Processing Status: 0x{sample_status:02x}")
+            else:
+                # 对于LOAD请求，不显示弹窗，使用默认状态
+                self.logger.info("LOAD请求：使用默认Sample Processing Status")
             
             # 通知LAS服务器完成处理
             self.las_server.on_manual_operation_complete(request)
