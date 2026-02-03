@@ -69,6 +69,19 @@ class AtellicaCore:
         self.sample_lock = threading.Lock()
         self.inventory_lock = threading.Lock()
         
+        # 样本工作流队列 - 用于优化线程使用
+        self.sample_workflow_queue = []
+        self.sample_workflow_lock = threading.Lock()
+        self.sample_workflow_event = threading.Event()
+        
+        # 样本工作流处理线程 - 单个线程处理所有样本的工作流
+        self.sample_workflow_thread = threading.Thread(target=self._process_sample_workflow_loop, daemon=True)
+        self.sample_workflow_thread.start()
+        
+        # 样本工作流定时器管理 - 避免使用time.sleep阻塞线程
+        self.sample_timers = {}
+        self.sample_timers_lock = threading.Lock()
+        
         # 结果生成线程
         self.result_thread = threading.Thread(target=self._generate_results_loop, daemon=True)
         self.result_thread.start()
@@ -933,8 +946,101 @@ class AtellicaCore:
                         return sid
             return ""
     
+    def _process_sample_workflow_loop(self):
+        """样本工作流处理循环 - 单个线程处理所有样本的工作流
+        
+        从队列中获取样本ID，依次处理每个样本的工作流
+        避免为每个样本创建单独的线程
+        """
+        self.logger.info("样本工作流处理线程已启动")
+        
+        while True:
+            try:
+                # 等待队列中有样本
+                self.sample_workflow_event.wait(timeout=1.0)
+                
+                with self.sample_workflow_lock:
+                    if not self.sample_workflow_queue:
+                        self.sample_workflow_event.clear()
+                        continue
+                    # 获取队列中的第一个样本
+                    sample_id = self.sample_workflow_queue.pop(0)
+                
+                # 处理样本工作流
+                self.logger.info(f"工作流线程开始处理样本: {sample_id}")
+                self._process_sample_workflow(sample_id)
+                
+            except Exception as e:
+                self.logger.error(f"样本工作流处理循环出错: {str(e)}")
+                import traceback
+                self.logger.error(f"Traceback: {traceback.format_exc()}")
+    
+    def _add_sample_to_workflow_queue(self, sample_id):
+        """将样本添加到工作流队列
+        
+        Args:
+            sample_id: 样本ID
+        """
+        with self.sample_workflow_lock:
+            # 检查样本是否已在队列中
+            if sample_id not in self.sample_workflow_queue:
+                self.sample_workflow_queue.append(sample_id)
+                self.sample_workflow_event.set()
+                self.logger.info(f"样本 {sample_id} 已添加到工作流队列，当前队列长度: {len(self.sample_workflow_queue)}")
+            else:
+                self.logger.warning(f"样本 {sample_id} 已在工作流队列中，跳过")
+    
+    def _schedule_workflow_step(self, sample_id, step_name, delay_seconds, step_func):
+        """调度工作流步骤 - 使用定时器替代time.sleep
+        
+        Args:
+            sample_id: 样本ID
+            step_name: 步骤名称
+            delay_seconds: 延迟秒数
+            step_func: 步骤执行函数
+        """
+        def timer_callback():
+            try:
+                # 清除定时器记录
+                with self.sample_timers_lock:
+                    if sample_id in self.sample_timers and step_name in self.sample_timers[sample_id]:
+                        del self.sample_timers[sample_id][step_name]
+                # 执行步骤
+                step_func()
+            except Exception as e:
+                self.logger.error(f"Sample {sample_id}: 工作流步骤 {step_name} 执行出错: {str(e)}")
+                import traceback
+                self.logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # 创建定时器
+        timer = threading.Timer(delay_seconds, timer_callback)
+        timer.daemon = True
+        
+        # 记录定时器
+        with self.sample_timers_lock:
+            if sample_id not in self.sample_timers:
+                self.sample_timers[sample_id] = {}
+            self.sample_timers[sample_id][step_name] = timer
+        
+        # 启动定时器
+        timer.start()
+        self.logger.info(f"Sample {sample_id}: 已调度工作流步骤 {step_name}，延迟 {delay_seconds} 秒")
+    
+    def _cancel_sample_timers(self, sample_id):
+        """取消样本的所有定时器
+        
+        Args:
+            sample_id: 样本ID
+        """
+        with self.sample_timers_lock:
+            if sample_id in self.sample_timers:
+                for step_name, timer in self.sample_timers[sample_id].items():
+                    timer.cancel()
+                    self.logger.info(f"Sample {sample_id}: 已取消工作流步骤 {step_name} 的定时器")
+                del self.sample_timers[sample_id]
+    
     def _process_sample_workflow(self, sample_id):
-        """处理标本完整工作流
+        """处理标本完整工作流 - 使用定时器调度，避免阻塞线程
         
         流程：
         1. 标本LOAD后5秒，询问LIS工单
@@ -945,10 +1051,13 @@ class AtellicaCore:
             sample_id: 样本ID
         """
         try:
-            # 步骤1: 等待5秒后询问LIS工单
-            time.sleep(5)
-            
-            self.logger.info(f"Sample {sample_id}: 等待5秒后，开始询问LIS工单")
+            # 步骤1: 调度5秒后询问LIS工单
+            self._schedule_workflow_step(
+                sample_id, 
+                'lis_query', 
+                5, 
+                lambda: self._workflow_step_lis_query(sample_id)
+            )
             
             # 使用真实的LIS查询功能
             with self.sample_lock:
@@ -1349,8 +1458,8 @@ class AtellicaCore:
                             # 将样本信息插入数据库
                             self._insert_sample_to_db(sample_id, current_time)
                             
-                            # 启动标本处理流程
-                            threading.Thread(target=self._process_sample_workflow, args=(sample_id,), daemon=True).start()
+                            # 将样本添加到工作流队列（使用单个工作线程处理，避免创建大量线程）
+                            self._add_sample_to_workflow_queue(sample_id)
                     else:
                         # carrier已被锁定
                         load_result = {'sample_id': sample_id, 'status': 2}  # Error: Lock Carrier in place
