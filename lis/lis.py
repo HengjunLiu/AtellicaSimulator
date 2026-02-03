@@ -45,6 +45,10 @@ class LISClient:
         self.response_cache = {}
         self.response_cache_lock = threading.Lock()
         
+        # 待发送结果缓存，用于LIS未连接时缓存结果
+        self.pending_results = []
+        self.pending_results_lock = threading.Lock()
+        
         # ASTM协议常量
         self.RECORD_SEP = '\x0d'  # 记录分隔符（CR）
         self.FIELD_SEP = '|'       # 字段分隔符
@@ -127,6 +131,10 @@ class LISClient:
             self.core.update_lis_connection_status(1)  # 1: Connected
             # 记录连接成功到LIS通讯日志
             self.logger.log_lis(f"Connection established to {self.host}:{self.port}")
+            
+            # 发送缓存的结果
+            self._send_pending_results()
+            
             return True
         except Exception as e:
             self.logger.error(f"Connection error: {str(e)}")
@@ -388,8 +396,50 @@ class LISClient:
         # 构建ASTM结果消息
         result_msg = self._build_result_message(sample_info)
         
+        # 检查LIS连接状态
+        if not self.is_connected:
+            # LIS未连接，缓存结果待后续发送
+            with self.pending_results_lock:
+                self.pending_results.append({
+                    'sample_id': sample_id,
+                    'result_msg': result_msg,
+                    'timestamp': time.time()
+                })
+            self.logger.warning(f"LIS not connected, result for sample {sample_id} cached. Pending results count: {len(self.pending_results)}")
+            self.logger.log_lis(f"Result cached for sample {sample_id} - LIS not connected")
+            return
+        
         # 发送结果到LIS服务器
         self._send_message(result_msg)
+    
+    def _send_pending_results(self):
+        """发送缓存的结果到LIS服务器"""
+        with self.pending_results_lock:
+            if not self.pending_results:
+                return
+            
+            # 复制缓存列表并清空原列表
+            results_to_send = self.pending_results.copy()
+            self.pending_results = []
+        
+        self.logger.info(f"Sending {len(results_to_send)} pending results to LIS")
+        self.logger.log_lis(f"Sending {len(results_to_send)} pending results to LIS")
+        
+        # 发送每个缓存的结果
+        for result_info in results_to_send:
+            try:
+                sample_id = result_info['sample_id']
+                result_msg = result_info['result_msg']
+                
+                self._send_message(result_msg)
+                self.logger.info(f"Pending result for sample {sample_id} sent successfully")
+                self.logger.log_lis(f"Pending result for sample {sample_id} sent successfully")
+                
+                # 添加短暂延迟，避免发送过快
+                time.sleep(0.5)
+            except Exception as e:
+                self.logger.error(f"Error sending pending result for sample {result_info.get('sample_id', 'unknown')}: {str(e)}")
+                self.logger.log_lis(f"Error sending pending result: {str(e)}")
     
     def get_apply(self, barcode):
         """获取申请项目

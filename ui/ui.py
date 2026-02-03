@@ -5,7 +5,7 @@ UI模块 - 图形用户界面
 """
 
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox, simpledialog
+from tkinter import ttk, scrolledtext
 import threading
 import time
 
@@ -1044,77 +1044,6 @@ class AtellicaUI:
         # 继续闪烁，每500毫秒切换一次
         self.flash_job = self.root.after(500, self._toggle_flash)
     
-    def _show_sample_status_dialog(self):
-        """显示Sample Processing Status选择弹窗
-        
-        Returns:
-            int: 选择的Sample Processing Status码，如果取消则返回None
-        """
-        # 创建弹窗
-        dialog = tk.Toplevel(self.root)
-        dialog.title("选择样本处理状态 (Sample Processing Status)")
-        dialog.geometry("500x500")  # 增加高度以确保按钮正常显示
-        dialog.transient(self.root)  # 设置为模态对话框
-        dialog.grab_set()
-        
-        # 居中显示
-        dialog.update_idletasks()
-        x = (dialog.winfo_screenwidth() - dialog.winfo_width()) // 2
-        y = (dialog.winfo_screenheight() - dialog.winfo_height()) // 2
-        dialog.geometry(f"+{x}+{y}")
-        
-        # 说明文字
-        ttk.Label(dialog, text="请选择样本处理状态：", font=("Arial", 12, "bold")).pack(pady=10)
-        ttk.Label(dialog, text="（此状态将包含在Load/Unload Response中发送给LAS）", 
-                 font=("Arial", 9), foreground="gray").pack(pady=(0, 10))
-        
-        # 状态选项
-        status_options = [
-            ("0x01 - 样本处理成功", 0x01, "吸样正常完成，后续分析流程无异常"),
-            ("0x11 - 仪器故障", 0x11, "可能因吸样相关硬件（如探针）故障导致吸样未执行"),
-            ("0x23 - 样本堵塞", 0x23, "吸样过程中出现样本堵塞（如样本黏稠、纤维过多），吸样失败"),
-            ("0x27 - HIL问题/标本类型异常", 0x27, "标本存在溶血（H）、黄疸（I）、脂血（L）或标本类型不支持"),
-            ("0x22 - 样本量不足", 0x22, "吸样前检测到标本量不足以完成所有订单测试，未执行吸样"),
-            ("0x18 - 带盖试管", 0x18, "若系统无开盖模块（Decapper），带盖标本无法开盖，吸样无法执行"),
-        ]
-        
-        # 使用IntVar来存储选择的状态
-        selected_status = tk.IntVar(value=0x01)  # 默认选择0x01
-        
-        # 创建单选按钮
-        for text, value, description in status_options:
-            frame = ttk.Frame(dialog)
-            frame.pack(fill=tk.X, padx=20, pady=5)
-            
-            rb = ttk.Radiobutton(frame, text=text, variable=selected_status, value=value)
-            rb.pack(anchor=tk.W)
-            
-            desc_label = ttk.Label(frame, text=description, font=("Arial", 8), foreground="gray")
-            desc_label.pack(anchor=tk.W, padx=20)
-        
-        # 结果变量
-        result = [None]
-        
-        def on_ok():
-            result[0] = selected_status.get()
-            dialog.destroy()
-        
-        def on_cancel():
-            result[0] = None
-            dialog.destroy()
-        
-        # 按钮区域
-        button_frame = ttk.Frame(dialog)
-        button_frame.pack(pady=20)
-        
-        ttk.Button(button_frame, text="确定", command=on_ok, width=10).pack(side=tk.LEFT, padx=10)
-        ttk.Button(button_frame, text="取消", command=on_cancel, width=10).pack(side=tk.LEFT, padx=10)
-        
-        # 等待对话框关闭
-        self.root.wait_window(dialog)
-        
-        return result[0]
-    
     def _on_complete_button_click(self):
         """完成按钮点击事件"""
         if hasattr(self, 'current_request'):
@@ -1130,22 +1059,6 @@ class AtellicaUI:
                 actual_sample_id = self.sample_id_entry.get().strip()
                 if actual_sample_id:
                     request['sample_id'] = actual_sample_id
-                
-                # 对于UNLOAD请求，显示Sample Processing Status选择弹窗
-                sample_status = self._show_sample_status_dialog()
-                if sample_status is None:
-                    # 用户取消了选择，不继续处理
-                    self.logger.info("用户取消了Sample Processing Status选择，停止处理")
-                    # 重新启动闪烁效果
-                    self._start_flash()
-                    return
-                
-                # 将选择的状态添加到请求中
-                request['sample_status'] = sample_status
-                self.logger.info(f"用户选择的Sample Processing Status: 0x{sample_status:02x}")
-            else:
-                # 对于LOAD请求，不显示弹窗，使用默认状态
-                self.logger.info("LOAD请求：使用默认Sample Processing Status")
             
             # 通知LAS服务器完成处理
             self.las_server.on_manual_operation_complete(request)
