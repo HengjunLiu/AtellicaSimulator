@@ -2182,7 +2182,7 @@ class LASServer:
             self.logger.error(f"Error handling LAS clear queue request: {str(e)}")
             self.logger.log_las(f"Error handling clear queue request: {str(e)}")
     
-    def _handle_load_unload_request(self, conn, header, body, manual_complete=False):
+    def _handle_load_unload_request(self, conn, header, body, manual_complete=False, manual_sample_status=None):
         """处理装载/卸载请求
         
         Args:
@@ -2190,6 +2190,7 @@ class LASServer:
             header: 消息头
             body: 消息体
             manual_complete: 是否已通过手动操作完成
+            manual_sample_status: 用户手动选择的Sample Processing Status（可选）
         """
         try:
             # 解析请求消息体
@@ -2299,6 +2300,11 @@ class LASServer:
                 elapsed_time
             )
             
+            # 如果用户手动选择了Sample Processing Status，则使用用户选择的值
+            if manual_sample_status is not None:
+                self.logger.info(f"使用用户手动选择的Sample Processing Status: 0x{manual_sample_status:02x} (覆盖原值: 0x{sample_status:02x})")
+                sample_status = manual_sample_status
+            
             # 确保load_result和unload_result被正确初始化
             if load_result is None:
                 load_result = {'sample_id': sample_id, 'status': 1}  # 默认使用请求中的样本ID
@@ -2394,7 +2400,7 @@ class LASServer:
         """手动操作完成回调
         
         Args:
-            request: 请求信息，包含type、interface_position、sample_id
+            request: 请求信息，包含type、interface_position、sample_id、sample_status
         """
         self.logger.info(f"on_manual_operation_complete called, pending_requests count: {len(self.pending_requests)}")
         
@@ -2460,15 +2466,20 @@ class LASServer:
                 # 不需要重新构建body，使用原始body
                 self.logger.info(f"LOAD请求：使用原始请求中的样本ID: {original_sample_id}")
             
+            # 获取用户选择的Sample Processing Status（如果有）
+            sample_status = request.get('sample_status', None)
+            if sample_status is not None:
+                self.logger.info(f"使用用户选择的Sample Processing Status: 0x{sample_status:02x}")
+            
             # 在后台线程中等待并发送响应，避免阻塞UI
             self.logger.info(f"{request_type.upper()}请求：手工操作完成，将在10秒后发送RESPONSE")
             threading.Thread(
                 target=self._send_load_unload_response_after_delay,
-                args=(conn, header, body, request_type),
+                args=(conn, header, body, request_type, sample_status),
                 daemon=True
             ).start()
     
-    def _send_load_unload_response_after_delay(self, conn, header, body, request_type):
+    def _send_load_unload_response_after_delay(self, conn, header, body, request_type, sample_status=None):
         """在延迟后发送LOAD/UNLOAD响应（在后台线程中执行）
         
         Args:
@@ -2476,6 +2487,7 @@ class LASServer:
             header: 消息头
             body: 消息体
             request_type: 请求类型('load'或'unload')
+            sample_status: 用户选择的Sample Processing Status（可选）
         """
         try:
             # 等待10秒
@@ -2510,8 +2522,8 @@ class LASServer:
             
             self.logger.info(f"{request_type.upper()}请求：连接有效，开始处理请求")
             
-            # 继续处理原始请求
-            self._handle_load_unload_request(conn, header, body, manual_complete=True)
+            # 继续处理原始请求，传递sample_status
+            self._handle_load_unload_request(conn, header, body, manual_complete=True, manual_sample_status=sample_status)
             
             self.logger.info(f"{request_type.upper()}请求：响应发送完成")
         except Exception as e:
