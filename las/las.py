@@ -1916,14 +1916,14 @@ class LASServer:
             return_ready_count = self.core.get_return_ready_count()
             
             # 构建响应消息体（针对请求中的接口位置）
-            # 符合协议要求：0x020A-Transfer status response message
-            # 状态字段 = 0x03（检测完成，等待卸载）
-            # 接口空闲标识 = 0x01
-            # 故障码 = 0x00
-            # 样本ID匹配：添加到消息中
-            sample_status = 0x03  # 检测完成，等待卸载
-            interface_idle = 0x01  # 接口空闲
-            error_code = 0x00      # 无故障
+            # 消息类型：0x020A - Transfer status response message
+            # 注意：当前实现的消息格式与协议文档有差异
+            # 协议定义：Interface Position Index + Ready to Load + Return Ready Tube Count
+            # 当前实现：Interface Position Index + Status + Interface Idle + Error Code + Sample ID
+            # TODO: 需要根据实际LAS系统要求调整消息格式
+            sample_status = 0x03  # 样本状态（自定义实现，协议未定义此字段）
+            interface_idle = 0x01  # 接口空闲标识
+            error_code = 0x00      # 故障码
             
             # 获取待卸载的样本ID
             next_sample_id = self.core.get_next_sample_to_unload()
@@ -2182,7 +2182,7 @@ class LASServer:
             self.logger.error(f"Error handling LAS clear queue request: {str(e)}")
             self.logger.log_las(f"Error handling clear queue request: {str(e)}")
     
-    def _handle_load_unload_request(self, conn, header, body, manual_complete=False, manual_sample_status=None):
+    def _handle_load_unload_request(self, conn, header, body, manual_complete=False):
         """处理装载/卸载请求
         
         Args:
@@ -2190,7 +2190,6 @@ class LASServer:
             header: 消息头
             body: 消息体
             manual_complete: 是否已通过手动操作完成
-            manual_sample_status: 用户手动选择的Sample Processing Status（可选）
         """
         try:
             # 解析请求消息体
@@ -2218,18 +2217,19 @@ class LASServer:
             elapsed_time = struct.unpack_from('!H', body, offset)[0]
             
             # 确定请求类型
-            # 0x01、0x02、0x03表示有样本需要卸载 (LOAD request)
-            # 0x00表示需要装载样本 (UNLOAD request)
-            # 根据协议：0x01=Empty Carrier(空载波), 0x02=Uncapped Tube(有样本), 0x03=Capped Tube(有样本)
-            # 有样本(0x02,0x03)时是LOAD请求(从LAS取走样本)
-            # 空载波(0x01)时是UNLOAD请求(向LAS放入样本)
+            # 根据协议(Atellica Solution LAS Interface Guide)：
+            # - 0x01 = Empty Carrier（空载波，无样本）
+            # - 0x02 = Uncapped Tube（无盖试管，有样本）
+            # - 0x03 = Capped Tube（有盖试管，有样本）
+            # 判断逻辑：
+            # - 有样本(0x02,0x03)时：LAS请求Atellica从LAS取走样本 → LOAD请求
+            # - 空载波(0x01)时：LAS请求Atellica向LAS放入样本 → UNLOAD请求
             request_type = 'load' if carrier_occupancy in [0x02, 0x03] else 'unload'
             
-            # UNLOAD请求验证：确保符合协议要求
-            # 只有在收到0x020A消息且状态为0x03时才允许处理UNLOAD请求
+            # UNLOAD请求验证：业务逻辑检查
+            # 检查是否有待卸载的样本（业务规则，非协议要求）
             if request_type == 'unload':
-                # 验证前置条件：已收到0x020A消息，状态=0x03
-                # 验证样本ID匹配
+                # 验证：是否有待卸载的样本
                 next_sample_id = self.core.get_next_sample_to_unload()
                 if not next_sample_id:
                     self.logger.warning(f"UNLOAD请求被拒绝：无待卸载样本")
@@ -2299,11 +2299,6 @@ class LASServer:
                 tube_diameter,
                 elapsed_time
             )
-            
-            # 如果用户手动选择了Sample Processing Status，则使用用户选择的值
-            if manual_sample_status is not None:
-                self.logger.info(f"使用用户手动选择的Sample Processing Status: 0x{manual_sample_status:02x} (覆盖原值: 0x{sample_status:02x})")
-                sample_status = manual_sample_status
             
             # 确保load_result和unload_result被正确初始化
             if load_result is None:
@@ -2400,7 +2395,7 @@ class LASServer:
         """手动操作完成回调
         
         Args:
-            request: 请求信息，包含type、interface_position、sample_id、sample_status
+            request: 请求信息，包含type、interface_position、sample_id
         """
         self.logger.info(f"on_manual_operation_complete called, pending_requests count: {len(self.pending_requests)}")
         
@@ -2437,9 +2432,13 @@ class LASServer:
             elapsed_time = struct.unpack_from('!H', body, offset)[0]
             
             # 确定请求类型
-            # 根据协议：0x01=Empty Carrier(空载波), 0x02=Uncapped Tube(有样本), 0x03=Capped Tube(有样本)
-            # 有样本(0x02,0x03)时是LOAD请求(从LAS取走样本)
-            # 空载波(0x01)时是UNLOAD请求(向LAS放入样本)
+            # 根据协议(Atellica Solution LAS Interface Guide)：
+            # - 0x01 = Empty Carrier（空载波，无样本）
+            # - 0x02 = Uncapped Tube（无盖试管，有样本）
+            # - 0x03 = Capped Tube（有盖试管，有样本）
+            # 判断逻辑：
+            # - 有样本(0x02,0x03)时：LAS请求Atellica从LAS取走样本 → LOAD请求
+            # - 空载波(0x01)时：LAS请求Atellica向LAS放入样本 → UNLOAD请求
             request_type = 'load' if carrier_occupancy in [0x02, 0x03] else 'unload'
             
             # 根据请求类型处理样本ID
@@ -2466,20 +2465,15 @@ class LASServer:
                 # 不需要重新构建body，使用原始body
                 self.logger.info(f"LOAD请求：使用原始请求中的样本ID: {original_sample_id}")
             
-            # 获取用户选择的Sample Processing Status（如果有）
-            sample_status = request.get('sample_status', None)
-            if sample_status is not None:
-                self.logger.info(f"使用用户选择的Sample Processing Status: 0x{sample_status:02x}")
-            
             # 在后台线程中等待并发送响应，避免阻塞UI
             self.logger.info(f"{request_type.upper()}请求：手工操作完成，将在10秒后发送RESPONSE")
             threading.Thread(
                 target=self._send_load_unload_response_after_delay,
-                args=(conn, header, body, request_type, sample_status),
+                args=(conn, header, body, request_type),
                 daemon=True
             ).start()
     
-    def _send_load_unload_response_after_delay(self, conn, header, body, request_type, sample_status=None):
+    def _send_load_unload_response_after_delay(self, conn, header, body, request_type):
         """在延迟后发送LOAD/UNLOAD响应（在后台线程中执行）
         
         Args:
@@ -2487,7 +2481,6 @@ class LASServer:
             header: 消息头
             body: 消息体
             request_type: 请求类型('load'或'unload')
-            sample_status: 用户选择的Sample Processing Status（可选）
         """
         try:
             # 等待10秒
@@ -2522,8 +2515,8 @@ class LASServer:
             
             self.logger.info(f"{request_type.upper()}请求：连接有效，开始处理请求")
             
-            # 继续处理原始请求，传递sample_status
-            self._handle_load_unload_request(conn, header, body, manual_complete=True, manual_sample_status=sample_status)
+            # 继续处理原始请求
+            self._handle_load_unload_request(conn, header, body, manual_complete=True)
             
             self.logger.info(f"{request_type.upper()}请求：响应发送完成")
         except Exception as e:
@@ -2561,11 +2554,12 @@ class LASServer:
                     unload_sample_id_len = len(unload_sample_id_bytes)
                     
                     # 根据操作结果设置状态
+                    # 注意：以下状态码为自定义实现，协议文档未明确定义
                     if success:
                         unload_status = 0x01  # Success (成功处理手工弹出)
-                        sample_status = 0x03  # Sample Ejected (样本被手工弹出，符合LAS协议)
+                        sample_status = 0x03  # Sample Ejected (样本被手工弹出)
                     else:
-                        unload_status = 0x06  # Load Skipped (手工弹出失败)
+                        unload_status = 0x06  # Unload Skipped (手工弹出失败/跳过)
                         sample_status = 0x00  # No Tube Unloaded (无样本被卸载)
                     
                     onboard_count = self.core.get_instrument_health()['on_board_tube_count']
