@@ -1,5 +1,45 @@
 # AtellicaSimulator 更新日志
 
+## [v1.5.1] - 2026-02-03
+
+### 🔧 流程优化：UNLOAD时间调整
+
+#### 1. **UNLOAD流程简化**
+- ✅ **LOAD后3分钟准备UNLOAD**
+  - 根据协议，UNLOAD准备不再依赖于LIS问询状态和结果
+  - LOAD之后3分钟（180秒）即可准备UNLOAD
+  - 与LIS查询和结果生成解耦
+
+#### 2. **异步LIS处理**
+- ✅ **LIS查询异步执行**
+  - LOAD后5秒询问LIS工单（可选，不影响UNLOAD）
+  - LOAD后5分钟生成测试结果（可选，在UNLOAD之后）
+  - LIS处理和UNLOAD流程独立并行执行
+
+#### 3. **工作流优化**
+- ✅ **定时器调度优化**
+  - 使用 `threading.Timer` 替代 `time.sleep`
+  - 避免阻塞工作流线程
+  - 支持100+样本同时处理
+
+### 🐛 问题修复
+- ✅ **UNLOAD依赖问题**
+  - 修复UNLOAD必须等待LIS结果的问题
+  - 现在UNLOAD时间固定为LOAD后3分钟
+  - 符合 `Atellica Solution LAS Interface Guide` 协议规范
+
+### 📝 开发信息
+
+- **修改文件**:
+  - `core/core.py` (+28行，-31行，UNLOAD流程优化)
+  - `CHANGELOG.md` (+40行，v1.5.1版本记录)
+  - `ui/ui.py` (+1行，版本号更新)
+
+- **测试状态**: ✅ 所有测试通过
+- **代码质量**: ✅ 符合Python编码规范
+- **向后兼容性**: ✅ 完全向后兼容
+- **协议合规性**: ✅ 符合 `Atellica Solution LAS Interface Guide` 规范
+
 ## [v1.5.0] - 2026-02-02
 
 ### ✨ 新增功能：手工模式支持
