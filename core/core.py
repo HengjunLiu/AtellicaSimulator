@@ -457,9 +457,6 @@ class AtellicaCore:
             
             # 从self.samples列表中移除样本
             del self.samples[sample_id]
-                # 如果样本已完成，减少completed_tube_count
-                if was_completed:
-                    self.completed_tube_count -= 1
             
             # 从数据库中删除样本记录
             self._delete_sample_from_db(sample_id)
