@@ -59,8 +59,8 @@ class AtellicaCore:
             1: None   # IP1锁定的carrier
         }
         self.ready_to_load = {
-            0: False,  # IP0是否就绪装载
-            1: False   # IP1是否就绪装载
+            0: True,  # IP0是否就绪装载
+            1: True   # IP1是否就绪装载
         }
         self.return_ready_count = 0
         
@@ -457,6 +457,9 @@ class AtellicaCore:
             
             # 从self.samples列表中移除样本
             del self.samples[sample_id]
+                # 如果样本已完成，减少completed_tube_count
+                if was_completed:
+                    self.completed_tube_count -= 1
             
             # 从数据库中删除样本记录
             self._delete_sample_from_db(sample_id)
@@ -1076,28 +1079,31 @@ class AtellicaCore:
                         self.logger.info(f"Sample {sample_id}: 收到LIS真实工单，测试项目: {selected_tests}")
                     else:
                         self.logger.warning(f"Sample {sample_id}: 未收到LIS工单，使用模拟数据")
-                        # 使用模拟数据
-                        test_items = list(self.test_inventory['tests'].keys())[:10]
-                        selected_tests = random.sample(test_items, random.randint(3, 5))
+                        # 使用模拟数据 - test_inventory['tests']是列表，不是字典
+                        test_items = [test['name'] for test in self.test_inventory['tests']][:10]
+                        selected_tests = random.sample(test_items, min(random.randint(3, 5), len(test_items)))
                 else:
                     # 没有LIS服务器实例，使用模拟数据
                     self.logger.info(f"Sample {sample_id}: 没有LIS服务器实例，使用模拟工单")
-                    test_items = list(self.test_inventory['tests'].keys())[:10]
-                    selected_tests = random.sample(test_items, random.randint(3, 5))
+                    # test_inventory['tests']是列表，不是字典
+                    test_items = [test['name'] for test in self.test_inventory['tests']][:10]
+                    selected_tests = random.sample(test_items, min(random.randint(3, 5), len(test_items)))
                 
                 # 检查测试项目是否可以开展
                 valid_tests = []
                 invalid_tests = []
                 
+                # 将test_inventory['tests']列表转换为字典，便于查找
+                test_inventory_dict = {test['name']: test for test in self.test_inventory['tests']}
+                
                 for test in selected_tests:
                     # 检查项目是否定义
-                    test_exists = test in self.test_inventory['tests']
-                    if not test_exists:
+                    test_info = test_inventory_dict.get(test)
+                    if not test_info:
                         invalid_tests.append((test, '未定义的测试项目'))
                         continue
                     
                     # 检查试剂是否充足
-                    test_info = self.test_inventory['tests'][test]
                     if test_info['count'] <= 0:
                         invalid_tests.append((test, '试剂不足'))
                         continue
@@ -1154,16 +1160,8 @@ class AtellicaCore:
                 # 保存valid_tests和invalid_tests供下一步使用
                 has_valid_tests = len(valid_tests) > 0
             
-            # 调度下一步: 3分钟后准备UNLOAD（不依赖于LIS结果）
-            # 根据协议，LOAD之后3分钟即可准备UNLOAD
-            self._schedule_workflow_step(
-                sample_id,
-                'ready_for_unload',
-                180,  # 3分钟 = 180秒
-                lambda: self._workflow_step_ready_for_unload(sample_id)
-            )
-            
             # 可选：如果有有效测试项目，异步生成结果（不影响UNLOAD流程）
+            # 注意：准备UNLOAD步骤已在 _process_sample_workflow 中调度（3分钟后）
             if has_valid_tests:
                 self._schedule_workflow_step(
                     sample_id,
@@ -1196,13 +1194,15 @@ class AtellicaCore:
                 # 生成随机测试结果
                 results = {}
                 
+                # 使用之前创建的字典来查找测试项目信息
                 for test in valid_tests:
                     # 为每个测试项目生成随机结果
+                    test_info = test_inventory_dict.get(test, {})
                     results[test] = {
                         'value': round(random.uniform(10, 100), 2),
                         'status': 'completed',
                         'timestamp': time.time(),
-                        'unit': self.test_inventory['tests'][test]['unit'],
+                        'unit': test_info.get('unit', ''),
                         'flags': ''
                     }
                 
@@ -1217,11 +1217,8 @@ class AtellicaCore:
                 
                 self.samples[sample_id]['results'] = results
                 
-                # 增加已完成试管数量
-                self.completed_tube_count += 1
-                
-                # 增加可返回样本数量
-                self.return_ready_count += 1
+                # 注意：completed_tube_count 和 return_ready_count 已在 _workflow_step_ready_for_unload 中增加
+                # 这里不再重复增加，只更新样本状态和结果
                 
                 # 标记样本为已完成
                 self.samples[sample_id]['completed_time'] = time.time()
@@ -1264,7 +1261,25 @@ class AtellicaCore:
                 
                 # 更新样本状态为准备UNLOAD
                 self.samples[sample_id]['ready_for_unload'] = True
-                self.logger.info(f"Sample {sample_id}: 已准备好UNLOAD（不依赖LIS结果）")
+                
+                # 增加已完成试管数量和可返回样本数量
+                # 注意：这里假设样本在3分钟后即视为完成，不等待实际结果生成
+                self.completed_tube_count += 1
+                self.return_ready_count += 1
+                
+                self.logger.info(f"Sample {sample_id}: 已准备好UNLOAD（不依赖LIS结果），completed_tube_count={self.completed_tube_count}, return_ready_count={self.return_ready_count}")
+            
+            # 发送Transfer Status Response通知LAS
+            if hasattr(self, 'las_server') and self.las_server:
+                try:
+                    self.las_server.send_transfer_status_response(
+                        interface_position_index=0,  # 默认使用IP0
+                        ready_to_load=self.get_ready_to_load(0),
+                        return_ready_count=self.return_ready_count
+                    )
+                    self.logger.info(f"Sample {sample_id}: 已发送Transfer Status Response，return_ready_count={self.return_ready_count}")
+                except Exception as e:
+                    self.logger.error(f"Sample {sample_id}: 发送Transfer Status Response失败: {str(e)}")
             
             # 注意：不清理定时器记录，因为结果生成可能还在进行中
             # 结果生成步骤会自己清理定时器
@@ -1278,8 +1293,8 @@ class AtellicaCore:
         """处理标本完整工作流 - 使用定时器调度，避免阻塞线程
         
         流程（根据协议，UNLOAD不依赖于LIS结果）：
-        1. 标本LOAD后5秒，询问LIS工单（可选，异步执行）
-        2. 标本LOAD后3分钟，准备UNLOAD（不依赖LIS结果）
+        1. 标本LOAD后5秒，询问LIS工单（可选，异步执行，失败不影响后续步骤）
+        2. 标本LOAD后3分钟，准备UNLOAD（必须执行，不依赖LIS结果）
         3. 标本LOAD后5分钟，生成测试结果（可选，异步执行）
         
         Args:
@@ -1288,12 +1303,21 @@ class AtellicaCore:
         try:
             self.logger.info(f"Sample {sample_id}: 开始工作流处理（使用定时器调度，UNLOAD不依赖LIS结果）")
             
-            # 步骤1: 调度5秒后询问LIS工单
+            # 步骤1: 调度5秒后询问LIS工单（可选，失败不影响UNLOAD）
             self._schedule_workflow_step(
                 sample_id, 
                 'lis_query', 
                 5, 
                 lambda: self._workflow_step_lis_query(sample_id)
+            )
+            
+            # 步骤2: 调度3分钟后准备UNLOAD（必须执行，独立于LIS查询）
+            # 无论LIS查询成功或失败，3分钟后都必须准备UNLOAD
+            self._schedule_workflow_step(
+                sample_id,
+                'ready_for_unload',
+                180,  # 3分钟 = 180秒
+                lambda: self._workflow_step_ready_for_unload(sample_id)
             )
             
         except Exception as e:

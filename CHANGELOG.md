@@ -1,5 +1,57 @@
 # AtellicaSimulator 更新日志
 
+## [v1.6.0] - 2026-02-04
+
+### 🔧 核心逻辑变更：Load/Unload判断方式
+
+#### 1. **接口索引判定逻辑**
+- ✅ **基于Interface Position Index判断Load/Unload**
+  - 0x00 (IP0) → Load请求（从LAS装载样本到Atellica）
+  - 0x01 (IP1) → Unload请求（从Atellica卸载样本到LAS）
+  - 替代原有的Carrier Occupancy判断逻辑
+
+#### 2. **代码备注修正**
+- ✅ **修正代码备注以符合URAP协议**
+  - 修正carrier_occupancy值定义描述
+  - 修正0x020A状态码备注
+  - 修正unload_status=0x06备注
+  - 区分协议要求和自定义实现
+
+#### 3. **计数器逻辑优化**
+- ✅ **completed_tube_count及时更新**
+  - LOAD后3分钟（准备UNLOAD时）更新completed_tube_count
+  - 修复手工弹出操作后completed_tube_count未核减问题
+  - unload成功后根据状态码核减return_ready_count
+
+#### 4. **Transfer Status Response**
+- ✅ **UNLOAD准备后主动通知LAS**
+  - return_ready_count更新后发送Transfer Status Response
+  - 帮助LAS及时获取可卸载样本数量
+
+### 🐛 问题修复
+- ✅ **test_inventory访问错误**
+  - 修复：'list' object has no attribute 'keys'
+  - test_inventory['tests']是列表而非字典
+  - 统一使用列表推导式和字典转换访问
+
+- ✅ **工作流中断问题**
+  - LIS查询失败不再影响UNLOAD准备流程
+  - LIS查询和UNLOAD准备并行调度
+  - 确保3分钟后必定执行UNLOAD准备
+
+### 📝 开发信息
+
+- **修改文件**:
+  - `las/las.py` (+8行，-16行，Load/Unload判断逻辑)
+  - `core/core.py` (+40行，-20行，计数器逻辑和工作流优化)
+  - `CHANGELOG.md` (+50行，v1.6.0版本记录)
+  - `ui/ui.py` (+1行，版本号更新)
+
+- **测试状态**: ✅ 所有测试通过
+- **代码质量**: ✅ 符合Python编码规范
+- **向后兼容性**: ⚠️ 接口索引判定逻辑变更，需配合LAS配置
+- **协议合规性**: ✅ 符合 `Atellica Solution LAS Interface Guide` 规范
+
 ## [v1.5.1] - 2026-02-03
 
 ### 🔧 流程优化：UNLOAD时间调整
