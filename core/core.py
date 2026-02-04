@@ -1158,16 +1158,8 @@ class AtellicaCore:
                 # 保存valid_tests和invalid_tests供下一步使用
                 has_valid_tests = len(valid_tests) > 0
             
-            # 调度下一步: 3分钟后准备UNLOAD（不依赖于LIS结果）
-            # 根据协议，LOAD之后3分钟即可准备UNLOAD
-            self._schedule_workflow_step(
-                sample_id,
-                'ready_for_unload',
-                180,  # 3分钟 = 180秒
-                lambda: self._workflow_step_ready_for_unload(sample_id)
-            )
-            
             # 可选：如果有有效测试项目，异步生成结果（不影响UNLOAD流程）
+            # 注意：准备UNLOAD步骤已在 _process_sample_workflow 中调度（3分钟后）
             if has_valid_tests:
                 self._schedule_workflow_step(
                     sample_id,
@@ -1287,8 +1279,8 @@ class AtellicaCore:
         """处理标本完整工作流 - 使用定时器调度，避免阻塞线程
         
         流程（根据协议，UNLOAD不依赖于LIS结果）：
-        1. 标本LOAD后5秒，询问LIS工单（可选，异步执行）
-        2. 标本LOAD后3分钟，准备UNLOAD（不依赖LIS结果）
+        1. 标本LOAD后5秒，询问LIS工单（可选，异步执行，失败不影响后续步骤）
+        2. 标本LOAD后3分钟，准备UNLOAD（必须执行，不依赖LIS结果）
         3. 标本LOAD后5分钟，生成测试结果（可选，异步执行）
         
         Args:
@@ -1297,12 +1289,21 @@ class AtellicaCore:
         try:
             self.logger.info(f"Sample {sample_id}: 开始工作流处理（使用定时器调度，UNLOAD不依赖LIS结果）")
             
-            # 步骤1: 调度5秒后询问LIS工单
+            # 步骤1: 调度5秒后询问LIS工单（可选，失败不影响UNLOAD）
             self._schedule_workflow_step(
                 sample_id, 
                 'lis_query', 
                 5, 
                 lambda: self._workflow_step_lis_query(sample_id)
+            )
+            
+            # 步骤2: 调度3分钟后准备UNLOAD（必须执行，独立于LIS查询）
+            # 无论LIS查询成功或失败，3分钟后都必须准备UNLOAD
+            self._schedule_workflow_step(
+                sample_id,
+                'ready_for_unload',
+                180,  # 3分钟 = 180秒
+                lambda: self._workflow_step_ready_for_unload(sample_id)
             )
             
         except Exception as e:
