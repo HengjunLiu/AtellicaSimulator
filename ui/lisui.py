@@ -80,7 +80,7 @@ class LisUI:
         
         # 显示申请项目
         self.apply_text.delete(1.0, tk.END)
-        self.apply_text.insert(tk.END, f"条码 {barcode} 的申请项目:\n")
+    
         for item in apply_items:
             self.apply_text.insert(tk.END, item + "\n")
     

@@ -40,6 +40,14 @@ class LISClient:
         self.receive_thread = None
         self.buffer = ''
         self.connection_lock = threading.Lock()
+        # 状态管理
+        self.state = 'idle'  # 状态：idle（空闲）, sending（发送）, receiving（接收）
+        self.last_activity_time = time.time()  # 最后一次操作的时间
+        self.state_check_thread = None  # 状态检查线程
+        # 记录发送的查询条码
+        self.current_query_barcode = None
+        # 错误回调函数，用于通知UI条码不一致等错误
+        self.error_callback = None
         
         # 响应缓存，用于存储LIS服务器的响应
         self.response_cache = {}
@@ -81,6 +89,10 @@ class LISClient:
         # 启动连接线程
         connect_thread = threading.Thread(target=self._connect_loop, daemon=True)
         connect_thread.start()
+        
+        # 启动状态检查线程
+        self.state_check_thread = threading.Thread(target=self._state_check_loop, daemon=True)
+        self.state_check_thread.start()
     
     def stop(self):
         """停止LIS客户端"""
@@ -160,19 +172,38 @@ class LISClient:
                     self.core.update_lis_connection_status(2)  # 2: Disconnected
                     break
                 
+                # 更新最后操作时间
+                self.last_activity_time = time.time()
+                
                 # 立即显示收到的数据到日志
-                self.logger.log_lis(f"Received data: {repr(data)}")
+                self.logger.log_lis(f"R: {repr(data)}")
                 
                 # 转换为字符串并添加到缓冲区
-                self.buffer += data.decode('ascii', errors='replace')
-                
-                # 收到消息后立即回复ACK
-                self._send_ack()
+                data_str = data.decode('ascii', errors='replace')
+                self.buffer += data_str
                 
                 # 检查是否包含EOT字符(0x04)
-                if '\x04' in self.buffer:
+                if '\x04' in data_str:
+                    # 收到EOT，不回消息
+                    self.logger.log_lis("R: " + '\x04')
+                    # 结束接收状态，进入空闲状态
+                    if self.state == 'receiving':
+                        self.state = 'idle'
+                        self.logger.log_lis("Exited receiving state, entered idle state")
                     # 处理包含EOT的完整消息
                     self._process_buffer_with_eot()
+            
+                elif '\x05' in data_str:
+                    # 收到ENQ，回ACK
+                    self.logger.log_lis("R: ENQ")
+                    # 进入接收状态
+                    self.state = 'receiving'
+                    self.logger.log_lis("Entered receiving state")
+                    self._send_ack()
+                else:
+                    # 如果在接收状态，回复ACK
+                    if self.state == 'receiving':
+                        self._send_ack()
                 
             except socket.timeout:
                 # 超时异常，不断开连接，继续等待数据
@@ -222,13 +253,36 @@ class LISClient:
             message: ASTM消息
         """
         try:
-            # 记录接收到的消息
+            # 记录接收到的原始消息
             self.logger.log_lis(f"Received message from LIS server")
-            self.logger.log_lis(f"Message content: {repr(message)}")
+            self.logger.log_lis(f"Raw message content: {repr(message)}")
             
-            # 解析消息
+            # 忽略功能字符：EOT(0x04), ENQ(0x05), ACK(0x06), CR(0x0d), LF(0x0a)
+            # 以及校验和部分（通常在ETX之后）
+            functional_chars = ['\x04', '\x05', '\x06', '\x0d', '\x0a']
+            filtered_message = message
+            
+            # 移除功能字符
+            for char in functional_chars:
+                filtered_message = filtered_message.replace(char, '')
+            
+            # 移除ETX之后的校验和部分
+            etx_pos = filtered_message.find('\x03')
+            if etx_pos != -1:
+                filtered_message = filtered_message[:etx_pos]
+            
+            # 记录过滤后的消息
+            self.logger.log_lis(f"Filtered message content: {repr(filtered_message)}")
+            
+            # 如果过滤后消息为空，直接返回
+            if not filtered_message.strip():
+                self.logger.log_lis("Filtered message is empty, skipping processing")
+                return
+            
+            # 解析消息（使用原始消息进行记录分离，因为过滤可能会影响记录边界）
             records = message.split(self.RECORD_SEP)
             if not records:
+                self.logger.log_lis("No records found in message")
                 return
             
             # 处理每个记录
@@ -237,13 +291,54 @@ class LISClient:
             test_orders = []
             is_query_response = False
             
-            for record in records:
-                record = record.strip()
-                if not record:
+            self.logger.log_lis(f"Found {len(records)} records in message")
+            
+            for i, record in enumerate(records):
+                # 对每个记录也进行过滤
+                filtered_record = record
+                for char in functional_chars:
+                    filtered_record = filtered_record.replace(char, '')
+                
+                # 移除ETX之后的校验和部分
+                etx_pos = filtered_record.find('\x03')
+                if etx_pos != -1:
+                    filtered_record = filtered_record[:etx_pos]
+                    
+                filtered_record = filtered_record.replace('\x02', '')
+                filtered_record = filtered_record.strip()
+                if not filtered_record:
                     continue
                 
-                record_type = record[0]
-                fields = record.split(self.FIELD_SEP)
+                self.logger.log_lis(f"Processing record {i}: {repr(filtered_record)}")
+                
+                # 提取记录类型，处理可能的数字前缀
+                record_type = filtered_record[0]
+                # 如果第一个字符是数字，找到第一个非数字字符作为记录类型
+                if record_type.isdigit():
+                    for char in filtered_record:
+                        if not char.isdigit():
+                            record_type = char
+                            break
+                
+                fields = filtered_record.split(self.FIELD_SEP)
+                
+                self.logger.log_lis(f"Record type: {record_type}, Fields count: {len(fields)}")
+                
+                # 处理第一个字段（可能包含记录类型和数字前缀）
+                if fields:
+                    # 去掉第一个字段中的数字前缀，保留记录类型
+                    first_field = fields[0]
+                    if first_field:
+                        # 找到第一个非数字字符
+                        non_digit_start = 0
+                        while non_digit_start < len(first_field) and first_field[non_digit_start].isdigit():
+                            non_digit_start += 1
+                        # 如果有非数字字符，提取出来作为新的第一个字段
+                        if non_digit_start < len(first_field):
+                            fields[0] = first_field[non_digit_start:]
+                        else:
+                            # 如果全是数字，保持原样
+                            pass
                 
                 if record_type == self.RECORD_TYPE_HEADER:
                     # 处理头记录
@@ -251,6 +346,9 @@ class LISClient:
                     # 检查是否是查询响应（消息控制ID为Q）
                     if len(fields) >= 5 and fields[4] == 'Q':
                         is_query_response = True
+                        self.logger.log_lis("Message identified as query response")
+                    else:
+                        self.logger.log_lis(f"Header fields: {fields[:10]}")  # 只显示前10个字段
                         
                 elif record_type == self.RECORD_TYPE_PATIENT:
                     # 处理患者记录
@@ -262,18 +360,82 @@ class LISClient:
                     if order_info:
                         current_sample = order_info['sample_id']
                         test_orders = order_info['tests']
+                        self.logger.log_lis(f"Order info: sample_id={current_sample}, tests={test_orders}")
+                        
+                        # 检查收到的样本ID是否与发送的查询条码一致
+                        barcode_match = True
+                        if self.current_query_barcode and current_sample:
+                            if self.current_query_barcode != current_sample:
+                                # 条码不一致，提示报错
+                                error_msg = f"条码不一致: 发送查询 {self.current_query_barcode}, 收到订单 {current_sample}"
+                                self.logger.error(error_msg)
+                                self.logger.log_lis(f"ERROR: {error_msg}")
+                                # 调用错误回调函数通知UI
+                                if self.error_callback:
+                                    self.error_callback(error_msg)
+                                # 恢复到空闲状态
+                                self.state = 'idle'
+                                self.logger.log_lis("Exited to idle state due to barcode mismatch")
+                                # 清空当前查询条码
+                                self.current_query_barcode = None
+                                # 标记条码不匹配
+                                barcode_match = False
+                                # 跳过后续处理
+                                continue
+                        
+                        # 只有条码匹配时才继续处理
+                        if not barcode_match:
+                            continue
                         
                 elif record_type == self.RECORD_TYPE_TERMINATOR:
                     # 处理终止记录
-                    if current_sample and test_orders:
-                        # 接收样本
-                        self._receive_sample(current_sample, test_orders, patient_info)
-                        
-                        # 如果是查询响应，将结果存储到响应缓存
-                        if is_query_response:
-                            with self.response_cache_lock:
-                                self.response_cache[current_sample] = test_orders
-                            self.logger.log_lis(f"Stored query response for sample {current_sample}: {test_orders}")
+                    self.logger.log_lis(f"Processing terminator record, current_sample={current_sample}, test_orders={test_orders}, is_query_response={is_query_response}")
+                    if current_sample:
+                        if test_orders:
+                            # 检查条码一致性
+                            barcode_match = True
+                            if self.current_query_barcode:
+                                if self.current_query_barcode != current_sample:
+                                    # 条码不一致，提示报错
+                                    error_msg = f"条码不一致: 发送查询 {self.current_query_barcode}, 收到订单 {current_sample}"
+                                    self.logger.error(error_msg)
+                                    self.logger.log_lis(f"ERROR: {error_msg}")
+                                    # 调用错误回调函数通知UI
+                                    if self.error_callback:
+                                        self.error_callback(error_msg)
+                                    # 恢复到空闲状态
+                                    self.state = 'idle'
+                                    self.logger.log_lis("Exited to idle state due to barcode mismatch")
+                                    # 标记条码不匹配
+                                    barcode_match = False
+                            
+                            # 只有条码匹配时才处理
+                            if barcode_match:
+                                # 接收样本
+                                self._receive_sample(current_sample, test_orders, patient_info)
+                                
+                                # 如果是查询响应，将结果存储到响应缓存
+                                if is_query_response:
+                                    with self.response_cache_lock:
+                                        self.response_cache[current_sample] = test_orders
+                                    self.logger.log_lis(f"Stored query response for sample {current_sample}: {test_orders}")
+                                else:
+                                    # 即使不是查询响应，也存储到缓存，以便get_apply方法可以获取
+                                    with self.response_cache_lock:
+                                        self.response_cache[current_sample] = test_orders
+                                    self.logger.log_lis(f"Stored non-query response for sample {current_sample}: {test_orders}")
+                            
+                            # 处理完成后清空当前查询条码
+                            if self.current_query_barcode:
+                                self.logger.log_lis(f"Clearing current query barcode: {self.current_query_barcode}")
+                                self.current_query_barcode = None
+                                # 恢复到空闲状态
+                                self.state = 'idle'
+                                self.logger.log_lis("Exited to idle state after processing terminator record")
+                        else:
+                            self.logger.log_lis(f"No test orders found for sample {current_sample}")
+                    else:
+                        self.logger.log_lis("No sample ID found in message")
             
             # 不再发送ACK，因为已经在收到数据时立即回复了
             # self._send_ack()
@@ -339,16 +501,72 @@ class LISClient:
             'tests': []
         }
         
-        if len(fields) >= 2:
-            order_info['sample_id'] = fields[1] if fields[1] else ''
+        self.logger.log_lis(f"Order record fields: {fields}")
+        
+        # 按照ASTM标准格式解析订单记录
+        # 格式: O | SeqNo | SampleIdentifier | * | [ Request ] { \ Request } | Priority | * | SampleCollectionTime | * | * ^ * ^ SampleContainerTypeIdentifier | * | ActionCode | * | * | * | SampleTypeIdentifier | PhysicianIdentifier | * | * | * | * | * | * | * | * | * | * | PatientLocationName | * | * | * <CR>
+        
+        # 字段索引（从0开始）
+        # 0: 记录类型 (O)
+        # 1: SeqNo
+        # 2: SampleIdentifier (样本ID)
+        # 3: *
+        # 4: Request (测试请求) [ Request ] { \ Request }
         
         if len(fields) >= 3:
-            # 收集测试订单（重复字段）
-            test_fields = fields[2].split(self.REPEAT_SEP) if fields[2] else []
-            for test_field in test_fields:
-                test_components = test_field.split(self.COMPONENT_SEP)
-                if test_components and test_components[0]:
-                    order_info['tests'].append(test_components[0])
+            # 提取样本ID (SampleIdentifier)
+            sample_id = fields[2].strip()
+            if sample_id:
+                order_info['sample_id'] = sample_id
+                self.logger.log_lis(f"Sample ID from field 2: {sample_id}")
+        
+        if len(fields) >= 5:
+            # 提取测试请求 (Request)
+            request_field = fields[4].strip()
+            if request_field:
+                self.logger.log_lis(f"Request field from field 4: {repr(request_field)}")
+                
+                # 处理重复的测试请求（使用反斜杠分隔）
+                if '\\' in request_field:
+                    requests = request_field.split('\\')
+                    self.logger.log_lis(f"Split by backslash: {requests}")
+                    for req in requests:
+                        req = req.strip()
+                        if req:
+                            # 处理组件分隔符
+                            if self.COMPONENT_SEP in req:
+                                parts = req.split(self.COMPONENT_SEP)
+                                # 测试代码通常在第四部分 (^ ^ ^ Test ^ ...)
+                                if len(parts) >= 4:
+                                    test_code = parts[3].strip()
+                                    if test_code:
+                                        order_info['tests'].append(test_code)
+                                        self.logger.log_lis(f"Added test from component: {test_code}")
+                            else:
+                                order_info['tests'].append(req)
+                                self.logger.log_lis(f"Added test directly: {req}")
+                else:
+                    # 单个测试请求
+                    if self.COMPONENT_SEP in request_field:
+                        parts = request_field.split(self.COMPONENT_SEP)
+                        # 测试代码通常在第四部分 (^ ^ ^ Test ^ ...)
+                        if len(parts) >= 4:
+                            test_code = parts[3].strip()
+                            if test_code:
+                                order_info['tests'].append(test_code)
+                                self.logger.log_lis(f"Added test from component: {test_code}")
+                    else:
+                        order_info['tests'].append(request_field)
+                        self.logger.log_lis(f"Added test directly: {request_field}")
+        
+        # 额外检查：如果没有找到样本ID，尝试其他字段
+        if not order_info['sample_id']:
+            for i, field in enumerate(fields):
+                field = field.strip()
+                if field and field.isdigit() and len(field) >= 5:
+                    order_info['sample_id'] = field
+                    self.logger.log_lis(f"Found sample ID from field {i}: {field}")
+                    break
         
         self.logger.log_lis(f"Parsed order record: {order_info}")
         return order_info
@@ -379,7 +597,7 @@ class LISClient:
                 try:
                     ack_msg = '\x06'  # ACK字符
                     self.client_socket.sendall(ack_msg.encode('ascii'))
-                    self.logger.log_lis(f"Sent ACK to LIS server")
+                    self.logger.log_lis(f"S: ACK")
                 except Exception as e:
                     self.logger.error(f"Error sending ACK: {str(e)}")
     
@@ -456,6 +674,7 @@ class LISClient:
         
         # 检查响应缓存中是否已有结果
         with self.response_cache_lock:
+            # 首先直接使用条码查找
             if barcode in self.response_cache:
                 # 从缓存中获取结果
                 test_orders = self.response_cache[barcode]
@@ -464,56 +683,155 @@ class LISClient:
                 self.logger.log_lis(f"Retrieved apply from cache for barcode: {barcode}")
                 # 转换为显示格式
                 return [f"{test} - {self._get_test_name(test)}" for test in test_orders]
+            
+            # 如果直接查找失败，尝试遍历缓存查找匹配的样本ID
+            # 这是为了处理订单记录中的样本ID与用户输入的条码不一致的情况
+            for sample_id, tests in list(self.response_cache.items()):
+                # 检查样本ID是否与条码相关（可能是相同的，或者包含条码）
+                if sample_id == barcode or barcode in sample_id or sample_id in barcode:
+                    # 从缓存中获取结果
+                    test_orders = tests
+                    # 从缓存中移除，避免重复使用
+                    del self.response_cache[sample_id]
+                    self.logger.log_lis(f"Retrieved apply from cache for sample ID {sample_id} (matched barcode: {barcode})")
+                    # 转换为显示格式
+                    return [f"{test} - {self._get_test_name(test)}" for test in test_orders]
         
         # 检查是否已连接到LIS服务器
         if not self.is_connected:
-            self.logger.warning("Not connected to LIS server, using mock data")
-            # 返回模拟的申请项目
-            return ["TEST001 - 血常规", "TEST002 - 生化常规", "TEST003 - 肝功能", "TEST004 - 肾功能"]
+            self.logger.warning("Not connected to LIS server")
+            return []
         
         try:
-            # 构建ASTM查询消息
-            query_message = self._build_query_message(barcode)
+            # 发送查询消息到LIS服务器（传入barcode以便在发送过程中构建查询消息）
+            self._send_message(barcode)
             
-            # 发送查询消息到LIS服务器
-            self._send_message(query_message)
+            # 等待并接收响应（添加简单的等待机制）
+            self.logger.log_lis(f"Sent query for barcode: {barcode}, waiting for response...")
             
-            # 等待并接收响应（这里简化处理，实际应该使用异步方式）
-            # 注意：这只是一个示例，实际实现需要根据LIS服务器的响应格式进行调整
-            self.logger.log_lis(f"Sent query for barcode: {barcode}")
+            # 等待响应，最多等待5秒
+            start_time = time.time()
+            while time.time() - start_time < 5:
+                with self.response_cache_lock:
+                    if barcode in self.response_cache:
+                        # 从缓存中获取结果
+                        test_orders = self.response_cache[barcode]
+                        # 从缓存中移除，避免重复使用
+                        del self.response_cache[barcode]
+                        self.logger.log_lis(f"Retrieved apply from cache for barcode: {barcode}")
+                        # 转换为显示格式
+                        return [f"{test} - {self._get_test_name(test)}" for test in test_orders]
+                # 短暂延迟，避免CPU占用过高
+                time.sleep(0.1)
             
-            # 由于我们使用的是模拟实现，这里仍然返回模拟数据
-            # 实际项目中应该解析LIS服务器的响应并返回真实的申请项目
-            # 响应会通过_receive_data方法接收并由_process_message方法处理
-            # 这里可以添加逻辑来等待响应或使用回调机制
-            return ["TEST001 - 血常规", "TEST002 - 生化常规", "TEST003 - 肝功能", "TEST004 - 肾功能"]
+            # 超时，返回空列表
+            self.logger.warning(f"Timeout waiting for apply response for barcode: {barcode}")
+            return []
         except Exception as e:
             self.logger.error(f"Error getting apply from LIS server: {str(e)}")
-            # 出错时返回模拟数据
-            return ["TEST001 - 血常规", "TEST002 - 生化常规", "TEST003 - 肝功能", "TEST004 - 肾功能"]
+            return []
     
-    def _send_message(self, message):
+    def _state_check_loop(self):
+        """状态检查循环，用于检查无操作时间并自动回到空闲状态"""
+        while self.is_running:
+            try:
+                current_time = time.time()
+                # 检查是否超过100秒无操作
+                if current_time - self.last_activity_time > 100:
+                    # 如果当前状态不是空闲，设置为空闲
+                    if self.state != 'idle':
+                        self.logger.log_lis(f"Auto reset to idle state after 100s of inactivity")
+                        self.state = 'idle'
+                # 每10秒检查一次
+                time.sleep(10)
+            except Exception as e:
+                self.logger.error(f"Error in state check loop: {str(e)}")
+                time.sleep(10)
+    
+    def _send_message(self, message_or_barcode):
         """发送消息到LIS服务器
         
         Args:
-            message: 要发送的ASTM消息
+            message_or_barcode: 要发送的ASTM消息或样本条码
         """
+        # 更新最后操作时间
+        self.last_activity_time = time.time()
+        
+        # 只在空闲状态时处理发送请求
+        if self.state != 'idle':
+            self.logger.log_lis(f"Cannot send message: current state is {self.state}, expected idle")
+            return
+        
         with self.connection_lock:
             if self.is_connected and self.client_socket:
                 try:
-                    self.client_socket.sendall(message.encode('ascii'))
-                    self.logger.log_lis(f"Sent message to LIS server")
-                    self.logger.log_lis(f"Message content: {repr(message)}")
+                    # 确定要发送的消息
+                    if '|' not in message_or_barcode or '\x0d' not in message_or_barcode:
+                        # 如果传入的是条码，构建查询消息
+                        barcode = message_or_barcode
+                        self.logger.log_lis(f"Building query message for barcode: {barcode}")
+                        # 记录当前查询的条码
+                        self.current_query_barcode = barcode
+                        message = self._build_query_message(barcode)
+                    else:
+                        # 否则直接使用传入的消息
+                        message = message_or_barcode
                     
+                    # 先发送ENQ字符(0x05)
+                    enq_char = '\x05'
+                    self.client_socket.sendall(enq_char.encode('ascii'))
+                    self.logger.log_lis(f"S: ENQ")                   
                     # 等待ACK
                     ack = self.client_socket.recv(1)
                     if ack == b'\x06':  # ACK
-                        self.logger.log_lis("Received ACK from LIS server")
+                        self.logger.log_lis("R: ACK")
+                        
+                        # 收到ACK后，发送实际的ASTM消息
+                        self.logger.log_lis(f"Preparing to send query message, length: {len(message)} bytes")
+                        self.logger.log_lis(f"Query message preview: {repr(message[:100])}...")  # 只显示前100个字符
+                        
+                        encoded_message = message.encode('ascii')
+                        # 一次性发送整个消息
+                        self.client_socket.sendall(encoded_message)
+                        self.logger.log_lis(f"S: {repr(message)}")
+                        self.logger.log_lis(f"S: Sent {len(encoded_message)} bytes at once")
+                        self.logger.log_lis("Query message sent successfully")
+                        
+                        # 等待消息的ACK
+                        message_ack = self.client_socket.recv(1)
+                        if message_ack == b'\x06':  # ACK
+                            self.logger.log_lis("R: ACK")
+                            # 收到ACK后发送EOT
+                            eot_char = '\x04'
+                            self.client_socket.sendall(eot_char.encode('ascii'))
+                            self.logger.log_lis(f"S: EOT")
+                            # 结束接收状态，进入空闲状态
+                            self.state = 'idle'
+                            self.logger.log_lis("Exited receiving state, entered idle state")
+                        else:
+                            self.logger.log_lis(f"Received unexpected response for message: {repr(message_ack)}")
+                            # 结束接收状态，进入空闲状态
+                            self.state = 'idle'
+                            self.logger.log_lis("Exited receiving state due to error, entered idle state")
                     else:
-                        self.logger.log_lis(f"Received unexpected response: {repr(ack)}")
+                        self.logger.log_lis(f"Received unexpected response to ENQ: {repr(ack)}")
+                        # 结束接收状态，进入空闲状态
+                        self.state = 'idle'
+                        self.logger.log_lis("Exited receiving state due to error, entered idle state")
                         
                 except Exception as e:
                     self.logger.error(f"Error sending message to LIS server: {str(e)}")
+                    # 尝试发送EOT，确保连接状态正确
+                    try:
+                        eot_char = '\x04'
+                        self.client_socket.sendall(eot_char.encode('ascii'))
+                        self.logger.log_lis(f"S: EOT (error recovery)")
+                    except:
+                        # 发送EOT失败，忽略错误
+                        pass
+                    # 结束接收状态，进入空闲状态
+                    self.state = 'idle'
+                    self.logger.log_lis("Exited receiving state due to error, entered idle state")
                     self.is_connected = False
     
     def _build_result_message(self, sample_info):
@@ -606,10 +924,44 @@ class LISClient:
         # 组合消息，添加记录分隔符
         astm_message = self.RECORD_SEP.join(message) + self.RECORD_SEP
         
-        self.logger.log_lis(f"Built result message for sample {sample_info['sample_id']}")
-        self.logger.log_lis(f"Result message content: {repr(astm_message)}")
+        # 添加STX、ETX和校验和
+        stx = '\x02'  # 开始传输字符
+        etx = '\x03'  # 结束传输字符
         
-        return astm_message
+        # 计算校验和（Atellica Solution二进制和算法）
+        # 校验和覆盖范围：从头部的第二个字符到校验和本身之前的尾部最后一个字符
+        # 使用二进制和算法，取模256
+        checksum = 0
+        
+        # 计算消息内容和ETX的校验和
+        message_plus_etx = astm_message + etx
+        
+        # 计算拼接后整个字符串的校验和（二进制和，取模256）
+        for char in message_plus_etx:
+            checksum += ord(char)
+        checksum %= 256  # 取模256
+        
+        # 确保校验和是两位十六进制格式
+        checksum_hex = f'{checksum:02X}'
+        
+        # 验证校验和计算
+        self.logger.log_lis(f"Checksum calculation: message='{repr(astm_message)}', checksum={checksum_hex}")
+        
+        # 对于测试消息 "1H|\^&|||UIW_LIS||||||LIS_ID|||P|||20260204142007\rQ|1|^999999999|^999999999|ALL|||||||||O\rL|1|N\r"
+        # 期望的校验和是 D8，确保计算正确
+        if '999999999' in astm_message:
+            self.logger.log_lis(f"Test message checksum: expected D8, calculated {checksum_hex}")
+        
+        # 构建最终消息
+        final_message = stx + astm_message + etx + checksum_hex
+        
+        # 验证校验和计算是否正确
+        self.logger.log_lis(f"Checksum calculation: message length={len(astm_message)}, checksum={checksum_hex}")
+        
+        self.logger.log_lis(f"Built result message for sample {sample_info['sample_id']}")
+        self.logger.log_lis(f"Result message content: {repr(final_message)}")
+        
+        return final_message
     
     def _build_query_message(self, barcode):
         """构建查询申请项目的ASTM消息
@@ -625,50 +977,85 @@ class LISClient:
         # 构建消息
         message = []
         
-        # 添加头记录
+        # 添加头记录（按照示例格式）
         header_record = [
-            self.RECORD_TYPE_HEADER,
-            'ATELLICA',                 # 发送方ID
-            'LIS',                      # 接收方ID
-            date_time_str,              # 消息日期时间
-            'Q',                        # 消息控制ID（Q表示查询）
-            '1',                        # 版本号
-            '1'                         # 字符集
+            '1' + self.RECORD_TYPE_HEADER,  # 在H前面加数字1
+            '\^&',                      # 字段分隔符定义
+            '',                          # 保留字段
+            '',                          # 保留字段
+            'UIW_LIS',                   # 发送方ID（按照示例）
+            '',                          # 保留字段
+            '',                          # 保留字段
+            '',                          # 保留字段
+            '',                          # 保留字段
+            'LIS_ID',                    # 消息控制ID（按照示例）
+            '',                          # 保留字段
+            'P',                         # 处理标志（按照示例）
+            '',                          # 保留字段
+            date_time_str                # 消息日期时间
         ]
         message.append(self.FIELD_SEP.join(header_record))
         
-        # 添加查询记录（使用订单记录类型，实际应该根据ASTM协议使用正确的记录类型）
+        # 添加查询记录（按照示例格式）
         query_record = [
-            self.RECORD_TYPE_ORDER,
-            barcode,  # 样本ID/条码
-            '',  # 测试请求
-            '',  # 采集日期
-            '',  # 采集时间
-            '',  # 采集者ID
-            '',  # 容器类型
-            '',  # 容器状态
-            '',  # 样本状态
-            '',  # 优先级
-            '',  # 医生ID
-            ''   # 科室
+            'Q',                        # 查询记录类型
+            '1',                        # 记录序号
+            '^' + barcode,              # 样本ID/条码（前面加^）
+            '^' + barcode,              # 重复条码（按照示例）
+            'ALL',                      # 测试请求（按照示例）
+            '',                          # 保留字段
+            '',                          # 保留字段
+            '',                          # 保留字段
+            '',                          # 保留字段
+            '',                          # 保留字段
+            '',                          # 保留字段
+            '',                          # 保留字段
+            'O'                          # 订单标志（按照示例）
         ]
         message.append(self.FIELD_SEP.join(query_record))
         
-        # 添加终止记录
+        # 添加终止记录（按照示例格式）
         terminator_record = [
             self.RECORD_TYPE_TERMINATOR,
             '1',  # 消息中的记录数
-            '1'   # 校验和（简化处理）
+            'N'   # 校验和标志（按照示例）
         ]
         message.append(self.FIELD_SEP.join(terminator_record))
         
         # 组合消息，添加记录分隔符
         astm_message = self.RECORD_SEP.join(message) + self.RECORD_SEP
         
-        self.logger.log_lis(f"Built query message for barcode: {barcode}")
-        self.logger.log_lis(f"Query message content: {repr(astm_message)}")
+        # 在1前面加stx，最后加校验
+        stx = '\x02'  # 开始传输字符
+        etx = '\x03'  # 结束传输字符
+        lf = '\x0a'   # 换行符（按照示例）
         
-        return astm_message
+        # 计算校验和（Atellica Solution二进制和算法）
+        # 校验和覆盖范围：从头部的第二个字符到校验和本身之前的尾部最后一个字符
+        # 使用二进制和算法，取模256
+        checksum = 0
+        
+        # 计算消息内容和ETX的校验和
+        message_plus_etx = astm_message + etx
+        
+        # 计算拼接后整个字符串的校验和（二进制和，取模256）
+        for char in message_plus_etx:
+            checksum += ord(char)
+        checksum %= 256  # 取模256
+        
+        # 确保校验和是两位十六进制格式
+        checksum_hex = f'{checksum:02X}'
+        
+        # 记录校验和计算结果
+        self.logger.log_lis(f"Checksum calculation for barcode {barcode}: message+etx length={len(message_plus_etx)}, checksum={checksum_hex}")
+        
+        # 构建最终消息（按照示例格式：STX + 消息 + ETX + 校验和 + CR + LF）
+        final_message = stx + astm_message + etx + checksum_hex + self.RECORD_SEP + lf
+        
+        self.logger.log_lis(f"Built query message for barcode: {barcode}")
+        self.logger.log_lis(f"Query message content: {repr(final_message)}")
+        
+        return final_message
     
     def _get_test_name(self, test_code):
         """根据测试代码获取测试名称
@@ -678,9 +1065,18 @@ class LISClient:
             str: 测试名称
         """
         test_names = {
-            'TEST001': '血常规',
+            'C3': 'C3',
             'TEST002': '生化常规',
             'TEST003': '肝功能',
             'TEST004': '肾功能'
         }
-        return test_names.get(test_code, '未知测试')
+        #return test_names.get(test_code, test_code)
+        return test_names.get(test_code, "未知项目")
+    
+    def set_error_callback(self, callback):
+        """设置错误回调函数
+        
+        Args:
+            callback: 错误回调函数，接收错误信息作为参数
+        """
+        self.error_callback = callback
