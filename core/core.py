@@ -1267,6 +1267,18 @@ class AtellicaCore:
                 
                 self.logger.info(f"Sample {sample_id}: 已准备好UNLOAD（不依赖LIS结果），completed_tube_count={self.completed_tube_count}, return_ready_count={self.return_ready_count}")
             
+            # 发送Transfer Status Response通知LAS
+            if hasattr(self, 'las_server') and self.las_server:
+                try:
+                    self.las_server.send_transfer_status_response(
+                        interface_position_index=0,  # 默认使用IP0
+                        ready_to_load=self.get_ready_to_load(0),
+                        return_ready_count=self.return_ready_count
+                    )
+                    self.logger.info(f"Sample {sample_id}: 已发送Transfer Status Response，return_ready_count={self.return_ready_count}")
+                except Exception as e:
+                    self.logger.error(f"Sample {sample_id}: 发送Transfer Status Response失败: {str(e)}")
+            
             # 注意：不清理定时器记录，因为结果生成可能还在进行中
             # 结果生成步骤会自己清理定时器
                     
