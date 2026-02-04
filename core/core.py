@@ -189,8 +189,9 @@ class AtellicaCore:
                 total_records = len(records)
                 self.on_board_tube_count = total_records
                 self.completed_tube_count = total_records
+                self.return_ready_count = total_records
                 
-                self.logger.info(f"初始化完成: on_board_tube_count={self.on_board_tube_count}, completed_tube_count={self.completed_tube_count}")
+                self.logger.info(f"初始化完成: on_board_tube_count={self.on_board_tube_count}, completed_tube_count={self.completed_tube_count}, return_ready_count={self.return_ready_count}")
             else:
                 self.logger.info("on_board_samples表中无记录")
                 # 确保变量初始化为0
@@ -443,15 +444,19 @@ class AtellicaCore:
             if sample['status'] in ['unloaded', 'ejected']:
                 return False
             
-            # 更新样本状态 - 标记为已弹出（标本已离开ATS，不在LAS上）
-            sample['status'] = 'ejected'  # 新增状态：手工弹出
-            sample['completed_time'] = time.time()
-            sample['unloaded'] = True
-            sample['ejected_manually'] = True  # 标记为手工弹出
-            
             with self.status_lock:
-                # 更新计数器 - 手工弹出的样本不计入可返回数量
+                # 减少在管计数
                 self.on_board_tube_count -= 1
+                
+                # 根据样本状态减少相应计数器
+                if sample['status'] == 'completed':
+                    self.completed_tube_count -= 1
+                
+                if sample.get('ready_for_unload', False):
+                    self.return_ready_count -= 1
+            
+            # 从self.samples列表中移除样本
+            del self.samples[sample_id]
             
             # 从数据库中删除样本记录
             self._delete_sample_from_db(sample_id)
