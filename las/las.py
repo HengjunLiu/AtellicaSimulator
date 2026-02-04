@@ -2217,14 +2217,10 @@ class LASServer:
             elapsed_time = struct.unpack_from('!H', body, offset)[0]
             
             # 确定请求类型
-            # 根据协议(Atellica Solution LAS Interface Guide)：
-            # - 0x01 = Empty Carrier（空载波，无样本）
-            # - 0x02 = Uncapped Tube（无盖试管，有样本）
-            # - 0x03 = Capped Tube（有盖试管，有样本）
-            # 判断逻辑：
-            # - 有样本(0x02,0x03)时：LAS请求Atellica从LAS取走样本 → LOAD请求
-            # - 空载波(0x01)时：LAS请求Atellica向LAS放入样本 → UNLOAD请求
-            request_type = 'load' if carrier_occupancy in [0x02, 0x03] else 'unload'
+            # 根据接口索引判断：
+            # - 0x00 (IP0) → Load请求（从LAS装载样本到Atellica）
+            # - 0x01 (IP1) → Unload请求（从Atellica卸载样本到LAS）
+            request_type = 'load' if interface_position_index == 0x00 else 'unload'
             
             # UNLOAD请求验证：业务逻辑检查
             # 检查是否有待卸载的样本（业务规则，非协议要求）
@@ -2432,14 +2428,10 @@ class LASServer:
             elapsed_time = struct.unpack_from('!H', body, offset)[0]
             
             # 确定请求类型
-            # 根据协议(Atellica Solution LAS Interface Guide)：
-            # - 0x01 = Empty Carrier（空载波，无样本）
-            # - 0x02 = Uncapped Tube（无盖试管，有样本）
-            # - 0x03 = Capped Tube（有盖试管，有样本）
-            # 判断逻辑：
-            # - 有样本(0x02,0x03)时：LAS请求Atellica从LAS取走样本 → LOAD请求
-            # - 空载波(0x01)时：LAS请求Atellica向LAS放入样本 → UNLOAD请求
-            request_type = 'load' if carrier_occupancy in [0x02, 0x03] else 'unload'
+            # 根据接口索引判断：
+            # - 0x00 (IP0) → Load请求（从LAS装载样本到Atellica）
+            # - 0x01 (IP1) → Unload请求（从Atellica卸载样本到LAS）
+            request_type = 'load' if interface_position_index == 0x00 else 'unload'
             
             # 根据请求类型处理样本ID
             if request_type == 'unload':
