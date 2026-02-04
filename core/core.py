@@ -1218,11 +1218,8 @@ class AtellicaCore:
                 
                 self.samples[sample_id]['results'] = results
                 
-                # 增加已完成试管数量
-                self.completed_tube_count += 1
-                
-                # 增加可返回样本数量
-                self.return_ready_count += 1
+                # 注意：completed_tube_count 和 return_ready_count 已在 _workflow_step_ready_for_unload 中增加
+                # 这里不再重复增加，只更新样本状态和结果
                 
                 # 标记样本为已完成
                 self.samples[sample_id]['completed_time'] = time.time()
@@ -1265,7 +1262,13 @@ class AtellicaCore:
                 
                 # 更新样本状态为准备UNLOAD
                 self.samples[sample_id]['ready_for_unload'] = True
-                self.logger.info(f"Sample {sample_id}: 已准备好UNLOAD（不依赖LIS结果）")
+                
+                # 增加已完成试管数量和可返回样本数量
+                # 注意：这里假设样本在3分钟后即视为完成，不等待实际结果生成
+                self.completed_tube_count += 1
+                self.return_ready_count += 1
+                
+                self.logger.info(f"Sample {sample_id}: 已准备好UNLOAD（不依赖LIS结果），completed_tube_count={self.completed_tube_count}, return_ready_count={self.return_ready_count}")
             
             # 注意：不清理定时器记录，因为结果生成可能还在进行中
             # 结果生成步骤会自己清理定时器
