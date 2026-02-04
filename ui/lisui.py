@@ -29,6 +29,9 @@ class LisUI:
         self.window.geometry("800x600")
         self.window.resizable(True, True)
         
+        # 设置错误回调函数
+        self.lis_client.set_error_callback(self._on_error)
+        
         # 创建UI组件
         self._create_widgets()
     
@@ -100,3 +103,13 @@ class LisUI:
         messagebox.showinfo("成功", "结果发送成功")
         # 清空结果文本框
         self.result_text.delete(1.0, tk.END)
+    
+    def _on_error(self, error_msg):
+        """错误回调函数，用于显示条码不一致等错误
+        
+        Args:
+            error_msg: 错误信息
+        """
+        # 在测试项目文本框中显示错误信息
+        self.apply_text.delete(1.0, tk.END)
+        self.apply_text.insert(tk.END, f"错误: {error_msg}")
