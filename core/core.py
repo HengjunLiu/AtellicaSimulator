@@ -443,6 +443,9 @@ class AtellicaCore:
             if sample['status'] in ['unloaded', 'ejected']:
                 return False
             
+            # 检查样本是否在完成状态（在修改状态前检查）
+            was_completed = sample.get('status') == 'completed'
+            
             # 更新样本状态 - 标记为已弹出（标本已离开ATS，不在LAS上）
             sample['status'] = 'ejected'  # 新增状态：手工弹出
             sample['completed_time'] = time.time()
@@ -452,6 +455,9 @@ class AtellicaCore:
             with self.status_lock:
                 # 更新计数器 - 手工弹出的样本不计入可返回数量
                 self.on_board_tube_count -= 1
+                # 如果样本已完成，减少completed_tube_count
+                if was_completed:
+                    self.completed_tube_count -= 1
             
             # 从数据库中删除样本记录
             self._delete_sample_from_db(sample_id)
