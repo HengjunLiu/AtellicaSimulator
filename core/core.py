@@ -59,8 +59,8 @@ class AtellicaCore:
             1: None   # IP1锁定的carrier
         }
         self.ready_to_load = {
-            0: False,  # IP0是否就绪装载
-            1: False   # IP1是否就绪装载
+            0: True,  # IP0是否就绪装载
+            1: True   # IP1是否就绪装载
         }
         self.return_ready_count = 0
         
@@ -1077,28 +1077,31 @@ class AtellicaCore:
                         self.logger.info(f"Sample {sample_id}: 收到LIS真实工单，测试项目: {selected_tests}")
                     else:
                         self.logger.warning(f"Sample {sample_id}: 未收到LIS工单，使用模拟数据")
-                        # 使用模拟数据
-                        test_items = list(self.test_inventory['tests'].keys())[:10]
-                        selected_tests = random.sample(test_items, random.randint(3, 5))
+                        # 使用模拟数据 - test_inventory['tests']是列表，不是字典
+                        test_items = [test['name'] for test in self.test_inventory['tests']][:10]
+                        selected_tests = random.sample(test_items, min(random.randint(3, 5), len(test_items)))
                 else:
                     # 没有LIS服务器实例，使用模拟数据
                     self.logger.info(f"Sample {sample_id}: 没有LIS服务器实例，使用模拟工单")
-                    test_items = list(self.test_inventory['tests'].keys())[:10]
-                    selected_tests = random.sample(test_items, random.randint(3, 5))
+                    # test_inventory['tests']是列表，不是字典
+                    test_items = [test['name'] for test in self.test_inventory['tests']][:10]
+                    selected_tests = random.sample(test_items, min(random.randint(3, 5), len(test_items)))
                 
                 # 检查测试项目是否可以开展
                 valid_tests = []
                 invalid_tests = []
                 
+                # 将test_inventory['tests']列表转换为字典，便于查找
+                test_inventory_dict = {test['name']: test for test in self.test_inventory['tests']}
+                
                 for test in selected_tests:
                     # 检查项目是否定义
-                    test_exists = test in self.test_inventory['tests']
-                    if not test_exists:
+                    test_info = test_inventory_dict.get(test)
+                    if not test_info:
                         invalid_tests.append((test, '未定义的测试项目'))
                         continue
                     
                     # 检查试剂是否充足
-                    test_info = self.test_inventory['tests'][test]
                     if test_info['count'] <= 0:
                         invalid_tests.append((test, '试剂不足'))
                         continue
@@ -1197,13 +1200,15 @@ class AtellicaCore:
                 # 生成随机测试结果
                 results = {}
                 
+                # 使用之前创建的字典来查找测试项目信息
                 for test in valid_tests:
                     # 为每个测试项目生成随机结果
+                    test_info = test_inventory_dict.get(test, {})
                     results[test] = {
                         'value': round(random.uniform(10, 100), 2),
                         'status': 'completed',
                         'timestamp': time.time(),
-                        'unit': self.test_inventory['tests'][test]['unit'],
+                        'unit': test_info.get('unit', ''),
                         'flags': ''
                     }
                 
