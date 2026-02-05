@@ -672,30 +672,11 @@ class LISClient:
         # 记录获取申请项目请求
         self.logger.log_lis(f"Getting apply for barcode: {barcode}")
         
-        # 检查响应缓存中是否已有结果
+        # 清空响应缓存中的内容
         with self.response_cache_lock:
-            # 首先直接使用条码查找
-            if barcode in self.response_cache:
-                # 从缓存中获取结果
-                test_orders = self.response_cache[barcode]
-                # 从缓存中移除，避免重复使用
-                del self.response_cache[barcode]
-                self.logger.log_lis(f"Retrieved apply from cache for barcode: {barcode}")
-                # 转换为显示格式
-                return [f"{test} - {self._get_test_name(test)}" for test in test_orders]
-            
-            # 如果直接查找失败，尝试遍历缓存查找匹配的样本ID
-            # 这是为了处理订单记录中的样本ID与用户输入的条码不一致的情况
-            for sample_id, tests in list(self.response_cache.items()):
-                # 检查样本ID是否与条码相关（可能是相同的，或者包含条码）
-                if sample_id == barcode or barcode in sample_id or sample_id in barcode:
-                    # 从缓存中获取结果
-                    test_orders = tests
-                    # 从缓存中移除，避免重复使用
-                    del self.response_cache[sample_id]
-                    self.logger.log_lis(f"Retrieved apply from cache for sample ID {sample_id} (matched barcode: {barcode})")
-                    # 转换为显示格式
-                    return [f"{test} - {self._get_test_name(test)}" for test in test_orders]
+            if self.response_cache:
+                self.logger.log_lis(f"Clearing response cache before getting apply, current cache size: {len(self.response_cache)}")
+                self.response_cache.clear()
         
         # 检查是否已连接到LIS服务器
         if not self.is_connected:

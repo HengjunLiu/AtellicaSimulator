@@ -78,12 +78,13 @@ class LisUI:
             self.apply_text.insert(tk.END, "请输入条码")
             return
         
+        # 清空上次接收到的内容
+        self.apply_text.delete(1.0, tk.END)
+        
         # 调用LIS客户端的get_apply方法获取申请项目
         apply_items = self.lis_client.get_apply(barcode)
         
         # 显示申请项目
-        self.apply_text.delete(1.0, tk.END)
-    
         for item in apply_items:
             self.apply_text.insert(tk.END, item + "\n")
     
