@@ -1729,9 +1729,9 @@ class LASServer:
             header: 消息头
         """
         try:
-            # 获取所有样本
+            # 获取所有样本信息
             samples = self.core.get_all_samples()
-            onboard_samples = [sample for sample in samples.values() if sample['status'] != 'completed']
+            onboard_samples = [sample for sample in samples.values() if sample['status'] not in ['ejected', 'unloaded']]
             onboard_count = len(onboard_samples)
             
             # 构建响应消息体
@@ -2583,30 +2583,46 @@ class LASServer:
     
     def manual_eject_sample(self, sample_id, interface_position=0):
         """手动弹出样本并通知LAS
-        
+
         Args:
             sample_id: 要弹出的样本ID
             interface_position: 接口位置（默认为IP0）
-            
+
         Returns:
             bool: 是否成功
         """
         success = False
         try:
-            # 1. 记录已移除的标本并发送通知
+            # 1. 查询核心模块中的样本信息
+            sample_info = self.core.get_sample_info(sample_id)
+            if sample_info is None:
+                self.logger.error(f"Sample {sample_id} not found in core module samples")
+                return False
+
+            # 2. 更新样本状态为 "ejected"
+            with self.core.sample_lock:
+                if sample_id in self.core.samples:
+                    self.core.samples[sample_id]['statusII'] = self.core.samples[sample_id]['status']
+                    self.core.samples[sample_id]['status'] = 'ejected'
+                    self.logger.info(f"Updated sample {sample_id} status to 'ejected'")
+                else:
+                    self.logger.error(f"Sample {sample_id} disappeared during status update")
+                    return False
+
+            # 3. 记录已移除的标本并发送通知
             with self.removed_samples_lock:
                 if sample_id not in self.removed_samples:
                     self.removed_samples.append(sample_id)
                     self.logger.info(f"Sample {sample_id} added to removed samples list")
-            
+
             # 发送 Onboard Sample Info 消息通知 LAS 标本已被移除
             notification_success = self.send_onboard_sample_info_message(include_removed=True, track_message=True)
             if notification_success:
                 self.logger.info(f"Sent Onboard Sample Info notification with removed sample {sample_id}")
             else:
                 self.logger.warning(f"Failed to send Onboard Sample Info notification for removed sample {sample_id}")
-            
-            # 2. 如果通知发送成功，执行更新核心样本状态
+
+            # 4. 如果通知发送成功，执行更新核心样本状态
             if notification_success:
                 success = self.core.manual_eject_sample(sample_id)
                 if not success:
@@ -2614,7 +2630,7 @@ class LASServer:
             else:
                 self.logger.warning(f"Failed to send notification for sample {sample_id}, skipping core status update")
                 success = False
-            
+
             return success
         except Exception as e:
             self.logger.error(f"Error in manual_eject_sample: {str(e)}")

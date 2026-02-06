@@ -1090,7 +1090,7 @@ class AtellicaUI:
         # 获取在机标本列表
         samples = self.core.get_all_samples()
         onboard_samples = [sample for sample_id, sample in samples.items() 
-                          if sample['status'] not in ['completed', 'unloaded']]
+                          if sample['status'] not in ['unloaded']]
         
         # 创建树视图
         columns = ('sample_id', 'status', 'load_time')

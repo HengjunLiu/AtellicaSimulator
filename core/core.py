@@ -440,8 +440,8 @@ class AtellicaCore:
             
             sample = self.samples[sample_id]
             
-            # 检查样本状态 - 允许弹出completed状态的样本
-            if sample['status'] in ['unloaded', 'ejected']:
+            # 检查样本状态
+            if sample['status'] == 'unloaded':
                 return False
             
             with self.status_lock:
@@ -449,7 +449,7 @@ class AtellicaCore:
                 self.on_board_tube_count -= 1
                 
                 # 根据样本状态减少相应计数器
-                if sample['status'] == 'completed':
+                if sample['statusII'] == 'completed':
                     self.completed_tube_count -= 1
                 
                 if sample.get('ready_for_unload', False):
@@ -464,44 +464,13 @@ class AtellicaCore:
             return True
     
     def get_all_samples(self):
-        """获取所有样本信息（从SQLite数据库查询）
-        
+        """获取所有样本信息（从内存中的self.samples返回）
+
         Returns:
             dict: 所有样本信息
         """
-        try:
-            conn = self._get_db_connection()
-            cursor = conn.cursor()
-            # on_board_samples表没有status字段，只有sample_id, timestamp, load_time
-            cursor.execute("SELECT sample_id, load_time FROM on_board_samples")
-            rows = cursor.fetchall()
-            conn.close()
-            
-            samples = {}
-            for row in rows:
-                sample_id = row[0]
-                load_time = row[1]
-                # 将load_time转换为时间戳
-                try:
-                    if isinstance(load_time, str):
-                        load_time_obj = datetime.datetime.strptime(load_time, '%Y-%m-%d %H:%M:%S')
-                        load_time_timestamp = load_time_obj.timestamp()
-                    else:
-                        load_time_timestamp = load_time
-                except:
-                    load_time_timestamp = time.time()
-                
-                samples[sample_id] = {
-                    'sample_id': sample_id,
-                    'status': 'received',  # 数据库中没有status字段，默认给'received'状态
-                    'load_time': load_time_timestamp
-                }
-            return samples
-        except Exception as e:
-            self.logger.error(f"Error getting samples from database: {str(e)}")
-            # 如果数据库查询失败，返回内存中的样本
-            with self.sample_lock:
-                return self.samples.copy()
+        with self.sample_lock:
+            return self.samples.copy()
     
     def update_automation_interface_status(self, status):
         """更新自动化接口状态
