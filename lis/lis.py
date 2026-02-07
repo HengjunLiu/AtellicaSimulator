@@ -225,8 +225,8 @@ class LISClient:
                     self.logger.log_lis("Entered receiving state")
                     self._send_ack()
                 else:
-                    # 如果在接收状态，回复ACK
-                    if self.state == 'receiving':
+                    # 如果在接收状态或发送状态，回复ACK
+                    if self.state == 'receiving' or self.state == 'sending':
                         self._send_ack()
 
             except socket.timeout:
@@ -729,69 +729,30 @@ class LISClient:
                     # 进入发送状态
                     self.state = 'sending'
                     self.logger.log_lis("Entered sending state")
-                    # 设置接收超时，避免无限期阻塞
-                    self.client_socket.settimeout(10)  # 10秒超时
-                    # 等待ACK
-                    try:
-                        ack = self.client_socket.recv(1)
-                        if ack == b'\x06':  # ACK
-                            self.logger.log_lis("R: ACK")
+                    
+                    # 发送实际的ASTM消息
+                    self.logger.log_lis(
+                        f"Preparing to send message, length: {len(message)} bytes")
+                    self.logger.log_lis(
+                        f"Message preview: {repr(message[:100])}...")  # 只显示前100个字符
 
-                            # 收到ACK后，发送实际的ASTM消息
-                            self.logger.log_lis(
-                                f"Preparing to send message, length: {len(message)} bytes")
-                            self.logger.log_lis(
-                                f"Message preview: {repr(message[:100])}...")  # 只显示前100个字符
+                    encoded_message = message.encode('ascii')
+                    # 一次性发送整个消息
+                    self.client_socket.sendall(encoded_message)
+                    self.logger.log_lis(f"S: {repr(message)}")
+                    self.logger.log_lis(
+                        f"S: Sent {len(encoded_message)} bytes at once")
+                    self.logger.log_lis("Message sent successfully")
 
-                            encoded_message = message.encode('ascii')
-                            # 一次性发送整个消息
-                            self.client_socket.sendall(encoded_message)
-                            self.logger.log_lis(f"S: {repr(message)}")
-                            self.logger.log_lis(
-                                f"S: Sent {len(encoded_message)} bytes at once")
-                            self.logger.log_lis("Message sent successfully")
-
-                            # 等待消息的ACK
-                            message_ack = self.client_socket.recv(1)
-                            if message_ack == b'\x06':  # ACK
-                                self.logger.log_lis("R: ACK")
-                                # 收到ACK后发送EOT
-                                eot_char = '\x04'
-                                self.client_socket.sendall(
-                                    eot_char.encode('ascii'))
-                                self.logger.log_lis(f"S: EOT")
-                                # 结束发送状态，进入空闲状态
-                                self.state = 'idle'
-                                self.logger.log_lis(
-                                    "Exited sending state, entered idle state")
-                            else:
-                                self.logger.log_lis(
-                                    f"Received unexpected response for message: {repr(message_ack)}")
-                                # 结束发送状态，进入空闲状态
-                                self.state = 'idle'
-                                self.logger.log_lis(
-                                    "Exited sending state due to error, entered idle state")
-                        else:
-                            self.logger.log_lis(
-                                f"Received unexpected response to ENQ: {repr(ack)}")
-                            # 结束发送状态，进入空闲状态
-                            self.state = 'idle'
-                            self.logger.log_lis(
-                                "Exited sending state due to error, entered idle state")
-                    except socket.timeout:
-                        self.logger.error(
-                            "Timeout waiting for ACK from LIS server")
-                        self.logger.log_lis("Timeout waiting for ACK")
-                        # 结束发送状态，进入空闲状态
-                        self.state = 'idle'
-                        self.logger.log_lis(
-                            "Exited sending state due to timeout, entered idle state")
-                    except Exception as e:
-                        self.logger.error(f"Error in ACK handling: {str(e)}")
-                        # 结束发送状态，进入空闲状态
-                        self.state = 'idle'
-                        self.logger.log_lis(
-                            "Exited sending state due to error, entered idle state")
+                    # 发送EOT
+                    eot_char = '\x04'
+                    self.client_socket.sendall(
+                        eot_char.encode('ascii'))
+                    self.logger.log_lis(f"S: EOT")
+                    # 结束发送状态，进入空闲状态
+                    self.state = 'idle'
+                    self.logger.log_lis(
+                        "Exited sending state, entered idle state")
                 except Exception as e:
                     self.logger.error(
                         f"Error sending message to LIS server: {str(e)}")
