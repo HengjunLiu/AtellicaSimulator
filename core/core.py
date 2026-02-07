@@ -25,7 +25,7 @@ class AtellicaCore:
         """
         self.config_manager = config_manager
         self.logger = logger
-        self.lis_server = None  # LIS服务器实例，稍后设置
+        self.lis_client = None  # LIS客户端实例，稍后设置
         
         # 设备状态
         self.automation_interface_status = config_manager.get_core_config().get('automation_interface_status', 1)
@@ -1029,17 +1029,13 @@ class AtellicaCore:
                 
                 selected_tests = []
                 
-                # 检查是否有LIS服务器实例
-                if self.lis_server:
-                    # 调用LIS服务器的query_worklist方法查询工单
+                # 检查是否有LIS客户端实例
+                if hasattr(self, 'lis_client') and self.lis_client:
+                    # 调用LIS客户端的query_worklist方法查询工单
                     self.logger.info(f"Sample {sample_id}: 使用真实ASTM协议询问LIS工单")
                     
-                    # 发送查询请求
-                    self.lis_server.query_worklist(sample_id)
-                    
-                    # 等待LIS回复，超时30秒
-                    self.logger.info(f"Sample {sample_id}: 等待LIS回复工单")
-                    selected_tests = self.lis_server.get_query_result(sample_id, timeout=30)
+                    # 调用get_apply方法获取测试订单
+                    selected_tests = self.lis_client.get_apply(sample_id)
                     
                     if selected_tests:
                         self.logger.info(f"Sample {sample_id}: 收到LIS真实工单，测试项目: {selected_tests}")
@@ -1049,8 +1045,8 @@ class AtellicaCore:
                         test_items = [test['name'] for test in self.test_inventory['tests']][:10]
                         selected_tests = random.sample(test_items, min(random.randint(3, 5), len(test_items)))
                 else:
-                    # 没有LIS服务器实例，使用模拟数据
-                    self.logger.info(f"Sample {sample_id}: 没有LIS服务器实例，使用模拟工单")
+                    # 没有LIS客户端实例，使用模拟数据
+                    self.logger.info(f"Sample {sample_id}: 没有LIS客户端实例，使用模拟工单")
                     # test_inventory['tests']是列表，不是字典
                     test_items = [test['name'] for test in self.test_inventory['tests']][:10]
                     selected_tests = random.sample(test_items, min(random.randint(3, 5), len(test_items)))
@@ -1107,7 +1103,7 @@ class AtellicaCore:
                     
                     # 更新样本结果
                     self.samples[sample_id]['results'] = error_results
-                    self.samples[sample_id]['status'] = 'completed_with_errors'
+                    self.samples[sample_id]['status'] = 'completed'
                     
                     # 标记样本为已完成
                     self.samples[sample_id]['completed_time'] = time.time()
@@ -1177,7 +1173,7 @@ class AtellicaCore:
                     # 如果之前有无效项目的ERROR结果，合并它们
                     existing_results = self.samples[sample_id].get('results', {})
                     results.update(existing_results)
-                    self.samples[sample_id]['status'] = 'completed_with_errors'
+                    self.samples[sample_id]['status'] = 'completed'
                 else:
                     self.samples[sample_id]['status'] = 'completed'
                 
@@ -1238,9 +1234,16 @@ class AtellicaCore:
             # 发送Transfer Status Response通知LAS
             if hasattr(self, 'las_server') and self.las_server:
                 try:
+                    # 发送IP0的状态
                     self.las_server.send_transfer_status_response(
-                        interface_position_index=0,  # 默认使用IP0
+                        interface_position_index=0,
                         ready_to_load=self.get_ready_to_load(0),
+                        return_ready_count=self.return_ready_count
+                    )
+                    # 发送IP1的状态
+                    self.las_server.send_transfer_status_response(
+                        interface_position_index=1,
+                        ready_to_load=self.get_ready_to_load(1),
                         return_ready_count=self.return_ready_count
                     )
                     self.logger.info(f"Sample {sample_id}: 已发送Transfer Status Response，return_ready_count={self.return_ready_count}")
@@ -1277,12 +1280,12 @@ class AtellicaCore:
                 lambda: self._workflow_step_lis_query(sample_id)
             )
             
-            # 步骤2: 调度3分钟后准备UNLOAD（必须执行，独立于LIS查询）
-            # 无论LIS查询成功或失败，3分钟后都必须准备UNLOAD
+            # 步骤2: 调度1分钟后准备UNLOAD（必须执行，独立于LIS查询）
+            # 无论LIS查询成功或失败，1分钟后都必须准备UNLOAD
             self._schedule_workflow_step(
                 sample_id,
                 'ready_for_unload',
-                180,  # 3分钟 = 180秒
+                60,  # 1分钟 = 60秒
                 lambda: self._workflow_step_ready_for_unload(sample_id)
             )
             
@@ -1551,8 +1554,9 @@ class AtellicaCore:
                         
                         # 检查是否有样本需要卸载到空carrier
                         if self.return_ready_count > 0:
-                            # 查找已完成且准备好UNLOAD的样本
-                            for sid, sample in self.samples.items():
+                            # 优先使用传入的sample_id查找样本
+                            if sample_id and sample_id in self.samples:
+                                sample = self.samples[sample_id]
                                 if sample['status'] == 'completed' and 'unloaded' not in sample and sample.get('ready_for_unload', False):
                                     # 确定unload_result['status']的值
                                     unload_result_status = self.get_load_unload_command_status(interface_position_index)
@@ -1561,21 +1565,81 @@ class AtellicaCore:
                                     sample['unloaded'] = True
                                     sample_status = 0x01  # Sample Processed successfully
                                     
-                                    unload_result = {'sample_id': sid, 'status': unload_result_status}
+                                    unload_result = {'sample_id': sample_id, 'status': unload_result_status}
                                     
                                     # 根据status执行相应操作
                                     if unload_result_status in [1, 2, 3]:
                                         self.return_ready_count -= 1
                                         self.completed_tube_count -= 1
-                                    
+                                        self.on_board_tube_count -= 1
+                                        
+                                        # 从内存中删除样本信息
+                                        if sample_id in self.samples:
+                                            del self.samples[sample_id]
+                                            self.logger.info(f"Sample {sample_id}: 已从内存中删除")
+                                        
                                         # 从数据库中删除样本
-                                        self._delete_sample_from_db(sid)
+                                        self._delete_sample_from_db(sample_id)
                                     
-                                    self.logger.info(f"Sample {sid}: 已成功UNLOAD")
-                                    break
-                                elif sample['status'] == 'completed' and 'unloaded' not in sample:
-                                    # 样本已完成但尚未准备好UNLOAD
-                                    self.logger.info(f"Sample {sid}: 已完成但尚未准备好UNLOAD，跳过")
+                                    self.logger.info(f"Sample {sample_id}: 已成功UNLOAD")
+                                else:
+                                    # 样本不存在或不符合条件，遍历查找
+                                    for sid, sample in self.samples.items():
+                                        if sample['status'] == 'completed' and 'unloaded' not in sample and sample.get('ready_for_unload', False):
+                                            # 确定unload_result['status']的值
+                                            unload_result_status = self.get_load_unload_command_status(interface_position_index)
+                                            
+                                            # 标记样本为已卸载
+                                            sample['unloaded'] = True
+                                            sample_status = 0x01  # Sample Processed successfully
+                                            
+                                            unload_result = {'sample_id': sid, 'status': unload_result_status}
+                                            
+                                            # 根据status执行相应操作
+                                            if unload_result_status in [1, 2, 3]:
+                                                self.return_ready_count -= 1
+                                                self.completed_tube_count -= 1
+                                                self.on_board_tube_count -= 1
+                                                
+                                                # 从内存中删除样本信息
+                                                if sid in self.samples:
+                                                    del self.samples[sid]
+                                                    self.logger.info(f"Sample {sid}: 已从内存中删除")
+                                                
+                                                # 从数据库中删除样本
+                                                self._delete_sample_from_db(sid)
+                                            
+                                            self.logger.info(f"Sample {sid}: 已成功UNLOAD")
+                                            break
+                            else:
+                                # 没有传入sample_id或样本不存在，遍历查找
+                                for sid, sample in self.samples.items():
+                                    if sample['status'] == 'completed' and 'unloaded' not in sample and sample.get('ready_for_unload', False):
+                                        # 确定unload_result['status']的值
+                                        unload_result_status = self.get_load_unload_command_status(interface_position_index)
+                                        
+                                        # 标记样本为已卸载
+                                        sample['unloaded'] = True
+                                        sample_status = 0x01  # Sample Processed successfully
+                                        
+                                        unload_result = {'sample_id': sid, 'status': unload_result_status}
+                                        
+                                        # 根据status执行相应操作
+                                        if unload_result_status in [1, 2, 3]:
+                                            self.return_ready_count -= 1
+                                            self.completed_tube_count -= 1
+                                            self.on_board_tube_count -= 1
+                                            
+                                            # 从内存中删除样本信息
+                                            if sid in self.samples:
+                                                del self.samples[sid]
+                                                self.logger.info(f"Sample {sid}: 已从内存中删除")
+                                            
+                                            # 从数据库中删除样本
+                                            self._delete_sample_from_db(sid)
+                                        
+                                        self.logger.info(f"Sample {sid}: 已成功UNLOAD")
+                                        break
                         else:
                             # 没有样本需要卸载
                             unload_result = {'sample_id': '', 'status': 6}  # Unload Skipped
