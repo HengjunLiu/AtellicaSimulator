@@ -877,16 +877,60 @@ class AtellicaCore:
     
     def get_queue_info(self, interface_position_index):
         """获取队列信息
-        
+
         Args:
             interface_position_index: 接口位置索引
-            
+
         Returns:
             list: 队列中的carrier列表
         """
         with self.sample_lock:
             return self.queues.get(interface_position_index, []).copy()
-    
+
+    def remove_sample_from_queue(self, sample_id, interface_position_index=None):
+        """从队列中删除样本信息
+
+        Args:
+            sample_id: 样本ID
+            interface_position_index: 接口位置索引（可选），0=IP0, 1=IP1
+                                       如果为None，则搜索所有队列
+
+        Returns:
+            bool: 是否成功删除
+        """
+        try:
+            with self.sample_lock:
+                if interface_position_index is not None:
+                    # 从指定队列中删除
+                    if interface_position_index not in self.queues:
+                        self.logger.warning(f"Queue IP{interface_position_index} does not exist")
+                        return False
+
+                    queue = self.queues[interface_position_index]
+                    for i, carrier in enumerate(queue):
+                        if carrier.get('sample_id') == sample_id:
+                            queue.pop(i)
+                            self.logger.info(f"Sample {sample_id}: 已从IP{interface_position_index}队列中删除")
+                            return True
+
+                    self.logger.warning(f"Sample {sample_id}: 在IP{interface_position_index}队列中未找到")
+                    return False
+                else:
+                    # 搜索所有队列
+                    for ip_index, queue in self.queues.items():
+                        for i, carrier in enumerate(queue):
+                            if carrier.get('sample_id') == sample_id:
+                                queue.pop(i)
+                                self.logger.info(f"Sample {sample_id}: 已从IP{ip_index}队列中删除")
+                                return True
+
+                    self.logger.warning(f"Sample {sample_id}: 在任何队列中都未找到")
+                    return False
+
+        except Exception as e:
+            self.logger.error(f"从队列删除样本 {sample_id} 时发生错误: {str(e)}")
+            return False
+
     def get_ready_to_load(self, interface_position_index=None):
         """获取就绪装载状态
         
@@ -1635,7 +1679,10 @@ class AtellicaCore:
                                         
                                         # 从数据库中删除样本
                                         self._delete_sample_from_db(sample_id)
-                                    
+
+                                        # 从IP1队列中删除样本（如果存在）
+                                        self.remove_sample_from_queue(sample_id, interface_position_index=1)
+
                                     self.logger.info(f"Sample {sample_id}: 已成功UNLOAD")
                                 else:
                                     # 样本不存在或不符合条件，遍历查找
@@ -1663,7 +1710,10 @@ class AtellicaCore:
                                                 
                                                 # 从数据库中删除样本
                                                 self._delete_sample_from_db(sid)
-                                            
+
+                                                # 从IP1队列中删除样本（如果存在）
+                                                self.remove_sample_from_queue(sid, interface_position_index=1)
+
                                             self.logger.info(f"Sample {sid}: 已成功UNLOAD")
                                             break
                             else:
@@ -1692,7 +1742,10 @@ class AtellicaCore:
                                             
                                             # 从数据库中删除样本
                                             self._delete_sample_from_db(sid)
-                                        
+
+                                            # 从IP1队列中删除样本（如果存在）
+                                            self.remove_sample_from_queue(sid, interface_position_index=1)
+
                                         self.logger.info(f"Sample {sid}: 已成功UNLOAD")
                                         break
                         else:
