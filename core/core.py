@@ -1188,12 +1188,14 @@ class AtellicaCore:
                 self.logger.info(f"Sample {sample_id}: 生成测试结果成功，结果: {results}")
                 
                 # 通知LIS结果已生成
-                if hasattr(self, 'result_callback') and callable(self.result_callback):
+                if hasattr(self, 'lis_client') and self.lis_client:
                     try:
-                        self.result_callback(sample_id, results)
-                        self.logger.info(f"Sample {sample_id}: 已发送有效项目的结果给LIS")
+                        # 从results中提取测试项目列表
+                        test_items = list(results.keys())
+                        success, message = self.lis_client.send_result(sample_id, test_items)
+                        self.logger.info(f"Sample {sample_id}: 已发送有效项目的结果给LIS, 状态: {success}, 消息: {message}")
                     except Exception as e:
-                        self.logger.error(f"Error calling result callback: {str(e)}")
+                        self.logger.error(f"Error sending result to LIS: {str(e)}")
             
             # 结果生成完成，清理定时器记录
             with self.sample_timers_lock:
