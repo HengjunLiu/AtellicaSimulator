@@ -11,7 +11,7 @@ import time
 
 from .lisui import LisUI
 
-APP_VERSION = "v1.6.3"
+APP_VERSION = "v1.6.2"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""
@@ -239,7 +239,8 @@ class AtellicaUI:
         
         self.sample_id_entry = ttk.Entry(self.button_frame, width=20)
         self.sample_id_entry.pack(side=tk.LEFT, padx=5)
-        # 绑定回车键事件（支持条码枪输入）
+        
+        # 绑定回车键到完成按钮
         self.sample_id_entry.bind('<Return>', lambda event: self._on_complete_button_click())
         
         # 完成按钮
@@ -973,16 +974,16 @@ class AtellicaUI:
         # 注意：在手工模式下，LOAD和UNLOAD的实际操作与字面意思相反
         # LOAD请求：实际是从LAS取走样本（对LAS来说是卸载）
         # UNLOAD请求：实际是向LAS放入样本（对LAS来说是装载）
-        if request_type == 'unload':
-            self.circle_color = "lightyellow"
-            self.circle_outline = "yellow"
-            self.text_color = "orange"
-            prompt_text = f"请向LAS的IP{interface_position}位置装载标本"
-        else:
+        if request_type == 'load':
             self.circle_color = "lightgreen"
             self.circle_outline = "green"
             self.text_color = "green"
-            prompt_text = f"请从LAS的IP{interface_position}位置取下标本"
+            prompt_text = f"将从LAS的IP{interface_position}取走标本"
+        else:
+            self.circle_color = "lightyellow"
+            self.circle_outline = "yellow"
+            self.text_color = "orange"
+            prompt_text = f"将向LAS的IP{interface_position}装上标本"
         
         self.prompt_text.configure(text=prompt_text, foreground=self.text_color)
         
@@ -998,10 +999,13 @@ class AtellicaUI:
             self.sample_id_entry.delete(0, tk.END)
             if sample_id:
                 self.sample_id_entry.insert(0, sample_id)
+            # 先unpack完成按钮，确保正确的pack顺序：标签→输入框→完成按钮
+            self.complete_button.pack_forget()
             self.sample_id_label.pack(side=tk.LEFT, padx=5)
             self.sample_id_entry.pack(side=tk.LEFT, padx=5)
+            self.complete_button.pack(side=tk.LEFT, padx=5)
         else:
-            # 隐藏输入框
+            # 隐藏输入框，只显示完成按钮
             self.sample_id_label.pack_forget()
             self.sample_id_entry.pack_forget()
         
