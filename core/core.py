@@ -1168,7 +1168,10 @@ class AtellicaCore:
                 # 生成随机测试结果
                 results = {}
                 
-                # 使用之前创建的字典来查找测试项目信息
+                # 创建测试项目字典以便查找
+                test_inventory_dict = {test['name']: test for test in self.test_inventory['tests']}
+                
+                # 使用测试项目字典来查找测试项目信息
                 for test in valid_tests:
                     # 为每个测试项目生成随机结果
                     test_info = test_inventory_dict.get(test, {})
