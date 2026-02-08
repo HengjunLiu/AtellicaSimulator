@@ -229,22 +229,24 @@ class AtellicaUI:
         self.prompt_text = ttk.Label(self.manual_prompt_frame, text="等待样本处理请求...", font=("Arial", 12))
         self.prompt_text.pack(pady=10)
         
-        # 样本ID输入框（用于UNLOAD请求）
-        self.sample_id_frame = ttk.Frame(self.manual_prompt_frame)
-        self.sample_id_frame.pack(pady=10)
+        # 按钮区域（输入框和完成按钮水平对齐）
+        self.button_frame = ttk.Frame(self.manual_prompt_frame)
+        self.button_frame.pack(pady=10)
         
-        self.sample_id_label = ttk.Label(self.sample_id_frame, text="样本ID:")
+        # 样本ID输入框（用于UNLOAD请求）
+        self.sample_id_label = ttk.Label(self.button_frame, text="样本ID:")
         self.sample_id_label.pack(side=tk.LEFT, padx=5)
         
-        self.sample_id_entry = ttk.Entry(self.sample_id_frame, width=20)
+        self.sample_id_entry = ttk.Entry(self.button_frame, width=20)
         self.sample_id_entry.pack(side=tk.LEFT, padx=5)
         
-        # 隐藏输入框初始状态
-        self.sample_id_frame.pack_forget()
-        
         # 完成按钮
-        self.complete_button = ttk.Button(self.manual_prompt_frame, text="完成", command=self._on_complete_button_click, state=tk.DISABLED)
-        self.complete_button.pack(pady=10)
+        self.complete_button = ttk.Button(self.button_frame, text="完成", command=self._on_complete_button_click, state=tk.DISABLED)
+        self.complete_button.pack(side=tk.LEFT, padx=5)
+        
+        # 隐藏输入框初始状态
+        self.sample_id_label.pack_forget()
+        self.sample_id_entry.pack_forget()
         
         # 右侧：详细状态显示
         detail_frame = ttk.LabelFrame(content_frame, text="详细状态", padding="10")
@@ -998,10 +1000,12 @@ class AtellicaUI:
             self.sample_id_entry.delete(0, tk.END)
             if sample_id:
                 self.sample_id_entry.insert(0, sample_id)
-            self.sample_id_frame.pack(pady=10)
+            self.sample_id_label.pack(side=tk.LEFT, padx=5)
+            self.sample_id_entry.pack(side=tk.LEFT, padx=5)
         else:
             # 隐藏输入框
-            self.sample_id_frame.pack_forget()
+            self.sample_id_label.pack_forget()
+            self.sample_id_entry.pack_forget()
         
         # 启用完成按钮
         self.complete_button.configure(state=tk.NORMAL)
@@ -1066,7 +1070,8 @@ class AtellicaUI:
             # 重置UI
             self.prompt_canvas.delete("all")
             self.prompt_text.configure(text="等待样本处理请求...", foreground="black")
-            self.sample_id_frame.pack_forget()  # 隐藏输入框
+            self.sample_id_label.pack_forget()  # 隐藏输入框标签
+            self.sample_id_entry.pack_forget()   # 隐藏输入框
             self.complete_button.configure(state=tk.DISABLED)
             delattr(self, 'current_request')
             if hasattr(self, 'circle_color'):
