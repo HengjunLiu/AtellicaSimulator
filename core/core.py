@@ -372,10 +372,6 @@ class AtellicaCore:
         self.logger.info(f"receive_sample called: sample_id={sample_id}, tests={tests}")
         
         with self.sample_lock:
-            if sample_id in self.samples:
-                self.logger.warning(f"Sample {sample_id} already exists")
-                return False
-            
             # 检查测试项目是否存在
             with self.inventory_lock:
                 valid_tests = []
@@ -392,7 +388,16 @@ class AtellicaCore:
                 self.logger.error(f"No valid tests for sample {sample_id}")
                 return False
             
-            # 创建样本记录
+            if sample_id in self.samples:
+                # 样本已存在，更新测试项目（LIS提供工作单）
+                self.logger.info(f"Sample {sample_id} already exists, updating tests from LIS")
+                self.samples[sample_id]['tests'] = valid_tests
+                if patient_info:
+                    self.samples[sample_id]['patient_info'].update(patient_info)
+                self.logger.info(f"Updated sample {sample_id} with tests {valid_tests} from LIS")
+                return True
+            
+            # 创建新样本记录
             sample = {
                 'sample_id': sample_id,
                 'tests': valid_tests,
