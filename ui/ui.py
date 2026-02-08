@@ -239,6 +239,8 @@ class AtellicaUI:
         
         self.sample_id_entry = ttk.Entry(self.button_frame, width=20)
         self.sample_id_entry.pack(side=tk.LEFT, padx=5)
+        # 绑定回车键事件（支持条码枪输入）
+        self.sample_id_entry.bind('<Return>', lambda event: self._on_complete_button_click())
         
         # 完成按钮
         self.complete_button = ttk.Button(self.button_frame, text="完成", command=self._on_complete_button_click, state=tk.DISABLED)
