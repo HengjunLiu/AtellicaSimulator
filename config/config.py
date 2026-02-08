@@ -69,7 +69,7 @@ class ConfigManager:
             'lis': {
                 'host': '127.0.0.1',
                 'port': 5000,
-                'result_delay': 1800,  # 30分钟，单位秒
+                'result_delay': 120,  # 2分钟，单位秒
                 'max_connections': 10
             },
             'core': {

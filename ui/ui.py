@@ -1136,7 +1136,16 @@ class AtellicaUI:
                 
                 # 执行手工弹出
                 self._manual_eject_sample(sample_id)
-                onboard_window.destroy()
+                
+                # 刷新样本列表，不关闭弹窗
+                # 重新获取样本数据
+                onboard_samples = self.core.get_onboard_samples()
+                # 清空树
+                for item in tree.get_children():
+                    tree.delete(item)
+                # 重新添加样本
+                for sample in onboard_samples:
+                    tree.insert('', tk.END, iid=sample['sample_id'], values=(sample['sample_id'], sample['status']))
         
         eject_button = ttk.Button(button_frame, text="手工弹出", command=on_eject_sample, state=tk.NORMAL if onboard_samples else tk.DISABLED)
         eject_button.pack(side=tk.RIGHT, padx=5)
