@@ -1039,6 +1039,23 @@ class AtellicaCore:
                     self.logger.warning(f"Sample {sample_id}: 样本不存在，跳过LIS查询")
                     return
                 
+                # 检查样本是否已经有测试项目（通过receive_sample获得）
+                if 'tests' in self.samples[sample_id] and self.samples[sample_id]['tests']:
+                    existing_tests = self.samples[sample_id]['tests']
+                    self.logger.info(f"Sample {sample_id}: 样本已有测试项目 {existing_tests}，跳过LIS查询")
+                    # 直接生成结果
+                    self._schedule_workflow_step(
+                        sample_id,
+                        'generate_results',
+                        120,
+                        lambda: self._workflow_step_generate_results(
+                            sample_id, 
+                            existing_tests, 
+                            []
+                        )
+                    )
+                    return
+                
                 selected_tests = []
                 lis_query_success = False
                 

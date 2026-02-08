@@ -11,7 +11,7 @@ import time
 
 from .lisui import LisUI
 
-APP_VERSION = "v1.6.2"
+APP_VERSION = "v1.6.3"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""
@@ -1097,7 +1097,7 @@ class AtellicaUI:
         # 获取在机标本列表
         samples = self.core.get_all_samples()
         onboard_samples = [sample for sample_id, sample in samples.items() 
-                          if sample['status'] not in ['unloaded']]
+                          if sample['status'] not in ['unloaded', 'ejected']]
         
         # 创建树视图
         columns = ('sample_id', 'status', 'load_time')
@@ -1138,14 +1138,18 @@ class AtellicaUI:
                 self._manual_eject_sample(sample_id)
                 
                 # 刷新样本列表，不关闭弹窗
-                # 重新获取样本数据
-                onboard_samples = self.core.get_onboard_samples()
+                # 重新获取样本数据（使用与初始化相同的逻辑）
+                samples = self.core.get_all_samples()
+                onboard_samples = [sample for sample_id, sample in samples.items() 
+                                  if sample['status'] not in ['unloaded', 'ejected']]
                 # 清空树
                 for item in tree.get_children():
                     tree.delete(item)
                 # 重新添加样本
                 for sample in onboard_samples:
-                    tree.insert('', tk.END, iid=sample['sample_id'], values=(sample['sample_id'], sample['status']))
+                    load_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(sample['load_time']))
+                    tree.insert('', tk.END, iid=sample['sample_id'], 
+                              values=(sample['sample_id'], sample['status'], load_time))
         
         eject_button = ttk.Button(button_frame, text="手工弹出", command=on_eject_sample, state=tk.NORMAL if onboard_samples else tk.DISABLED)
         eject_button.pack(side=tk.RIGHT, padx=5)

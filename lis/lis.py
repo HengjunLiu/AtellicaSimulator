@@ -226,7 +226,7 @@ class LISClient:
                     self._send_ack()
                 else:
                     # 如果在接收状态或发送状态，回复ACK
-                    if self.state == 'receiving' or self.state == 'sending':
+                    if self.state == 'receiving' :
                         self._send_ack()
 
             except socket.timeout:
@@ -634,6 +634,18 @@ class LISClient:
 
         # 记录获取申请项目请求
         self.logger.log_lis(f"Getting apply for barcode: {barcode}")
+
+        # 先检查缓存中是否有当前条码的数据
+        with self.response_cache_lock:
+            if barcode in self.response_cache:
+                # 从缓存中获取结果
+                test_orders = self.response_cache[barcode]
+                # 从缓存中移除，避免重复使用
+                del self.response_cache[barcode]
+                self.logger.log_lis(
+                    f"Retrieved apply from cache for barcode: {barcode}")
+                # 转换为显示格式
+                return [f"{test} - {self._get_test_name(test)}" for test in test_orders]
 
         # 清空响应缓存中的内容
         with self.response_cache_lock:
