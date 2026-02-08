@@ -1107,14 +1107,6 @@ class LISClient:
         if not results:
             return False, "未找到测试项目"
 
-        # 检查LIS连接状态
-        if not self.is_connected:
-            return False, "LIS服务器未连接，无法发送结果"
-
-        # 检查LIS客户端状态
-        if self.state != 'idle':
-            return False, f"LIS客户端当前状态为 {self.state}，无法发送结果"
-
         # 构建样本信息
         sample_info = {
             'sample_id': barcode,
@@ -1122,10 +1114,34 @@ class LISClient:
             'patient_info': {}
         }
 
-        try:
-            # 构建ASTM结果消息
-            result_message = self._build_result_message(sample_info)
+        # 构建ASTM结果消息
+        result_message = self._build_result_message(sample_info)
 
+        # 检查LIS连接状态
+        if not self.is_connected:
+            # LIS未连接，缓存结果到pending_results
+            with self.pending_results_lock:
+                self.pending_results.append({
+                    'sample_id': barcode,
+                    'result_msg': result_message
+                })
+            self.logger.warning(f"LIS未连接，结果已缓存: {barcode}")
+            self.logger.log_lis(f"LIS未连接，结果已缓存: {barcode}")
+            return False, "LIS服务器未连接，结果已缓存"
+
+        # 检查LIS客户端状态
+        if self.state != 'idle':
+            # LIS状态不为idle，缓存结果到pending_results
+            with self.pending_results_lock:
+                self.pending_results.append({
+                    'sample_id': barcode,
+                    'result_msg': result_message
+                })
+            self.logger.warning(f"LIS状态为{self.state}，结果已缓存: {barcode}")
+            self.logger.log_lis(f"LIS状态为{self.state}，结果已缓存: {barcode}")
+            return False, f"LIS客户端当前状态为 {self.state}，结果已缓存"
+
+        try:
             # 发送结果到LIS服务器
             self._send_message(result_message)
 
@@ -1140,8 +1156,14 @@ class LISClient:
 
             return True, "结果发送成功"
         except Exception as e:
+            # 发送失败，缓存结果到pending_results
+            with self.pending_results_lock:
+                self.pending_results.append({
+                    'sample_id': barcode,
+                    'result_msg': result_message
+                })
             # 记录发送失败
-            error_msg = f"发送结果失败: {str(e)}"
+            error_msg = f"发送结果失败，已缓存: {str(e)}"
             self.logger.error(error_msg)
             self.logger.log_lis(error_msg)
             return False, error_msg
