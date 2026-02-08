@@ -558,17 +558,23 @@ class LISClient:
             tests: 测试项目列表
             patient_info: 患者信息
         """
-        # 调用核心模块接收样本
-        success = self.core.receive_sample(sample_id, tests, patient_info)
+        try:
+            # 调用核心模块接收样本
+            success = self.core.receive_sample(sample_id, tests, patient_info)
 
-        if success:
-            self.logger.info(
-                f"Sample {sample_id} received from LIS with tests {tests}")
-            self.logger.log_lis(
-                f"Sample received: {sample_id}, Tests: {tests}")
-        else:
-            self.logger.error(f"Failed to receive sample {sample_id} from LIS")
-            self.logger.log_lis(f"Failed to receive sample: {sample_id}")
+            if success:
+                self.logger.info(
+                    f"Sample {sample_id} received from LIS with tests {tests}")
+                self.logger.log_lis(
+                    f"Sample received: {sample_id}, Tests: {tests}")
+            else:
+                self.logger.error(f"Failed to receive sample {sample_id} from LIS - sample may already exist or no valid tests")
+                self.logger.log_lis(f"Failed to receive sample: {sample_id} (already exists or invalid tests)")
+        except Exception as e:
+            self.logger.error(f"Exception receiving sample {sample_id}: {str(e)}")
+            self.logger.log_lis(f"Exception receiving sample {sample_id}: {str(e)}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
 
     def _send_ack(self):
         """发送确认消息"""
