@@ -393,6 +393,9 @@ class AtellicaCore:
                 self.logger.info(f"Sample {sample_id} already exists, updating tests from LIS")
                 self.samples[sample_id]['tests'] = valid_tests
                 if patient_info:
+                    # 确保patient_info键存在
+                    if 'patient_info' not in self.samples[sample_id]:
+                        self.samples[sample_id]['patient_info'] = {}
                     self.samples[sample_id]['patient_info'].update(patient_info)
                 self.logger.info(f"Updated sample {sample_id} with tests {valid_tests} from LIS")
                 return True
