@@ -972,14 +972,14 @@ class AtellicaUI:
         # LOAD请求：实际是从LAS取走样本（对LAS来说是卸载）
         # UNLOAD请求：实际是向LAS放入样本（对LAS来说是装载）
         if request_type == 'unload':
-            self.circle_color = "lightgreen"
-            self.circle_outline = "green"
-            self.text_color = "green"
-            prompt_text = f"请向LAS的IP{interface_position}位置装载标本"
-        else:
             self.circle_color = "lightyellow"
             self.circle_outline = "yellow"
             self.text_color = "orange"
+            prompt_text = f"请向LAS的IP{interface_position}位置装载标本"
+        else:
+            self.circle_color = "lightgreen"
+            self.circle_outline = "green"
+            self.text_color = "green"
             prompt_text = f"请从LAS的IP{interface_position}位置取下标本"
         
         self.prompt_text.configure(text=prompt_text, foreground=self.text_color)
