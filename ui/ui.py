@@ -975,12 +975,12 @@ class AtellicaUI:
             self.circle_color = "lightgreen"
             self.circle_outline = "green"
             self.text_color = "green"
-            prompt_text = f"请从LAS的IP{interface_position}卸载标本"
+            prompt_text = f"请向LAS的IP{interface_position}位置装载标本"
         else:
             self.circle_color = "lightyellow"
             self.circle_outline = "yellow"
             self.text_color = "orange"
-            prompt_text = f"请向LAS的IP{interface_position}装载标本"
+            prompt_text = f"请从LAS的IP{interface_position}位置卸载标本"
         
         self.prompt_text.configure(text=prompt_text, foreground=self.text_color)
         
