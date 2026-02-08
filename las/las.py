@@ -156,24 +156,35 @@ class LASServer:
     
     def _keep_alive_loop(self, conn):
         """Keep-Alive循环
-        
+
         Args:
             conn: 连接 socket
         """
         while self.is_running:
             try:
                 time.sleep(1)
-                
+
                 current_time = time.time()
                 time_since_last_msg = current_time - self.last_message_time
                 time_since_keepalive = current_time - self.last_keep_alive_time
-                
-                # 只有当conversation_status为"connected"且距离上次收到消息超过keep_alive_interval时，才发送Keep-Alive消息
-                if self.conversation_status == self.CONVERSATION_STATUS_CONNECTED and time_since_last_msg >= self.keep_alive_interval:
+
+                # 检查是否有待处理的Keep-Alive消息（防止重复发送）
+                has_pending_keepalive = False
+                with self.message_lock:
+                    for msg_info in self.pending_messages.values():
+                        if msg_info['message_type'] == self.MSG_TYPE_KEEPALIVE:
+                            has_pending_keepalive = True
+                            break
+
+                # 只有当conversation_status为"connected"、距离上次收到消息超过keep_alive_interval、
+                # 且没有待处理的Keep-Alive消息时，才发送新的Keep-Alive消息
+                if (self.conversation_status == self.CONVERSATION_STATUS_CONNECTED and
+                    time_since_last_msg >= self.keep_alive_interval and
+                    not has_pending_keepalive):
                     # 发送Keep-Alive消息
                     self._send_keepalive(conn)
                     self.last_keep_alive_time = current_time
-                    
+
             except Exception as e:
                 if self.is_running:
                     self.logger.error(f"Error in Keep-Alive loop: {str(e)}")
