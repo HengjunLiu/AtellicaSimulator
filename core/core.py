@@ -369,6 +369,8 @@ class AtellicaCore:
         Returns:
             bool: 是否成功接收
         """
+        self.logger.info(f"receive_sample called: sample_id={sample_id}, tests={tests}")
+        
         with self.sample_lock:
             if sample_id in self.samples:
                 self.logger.warning(f"Sample {sample_id} already exists")
@@ -377,8 +379,10 @@ class AtellicaCore:
             # 检查测试项目是否存在
             with self.inventory_lock:
                 valid_tests = []
+                self.logger.debug(f"Checking tests against inventory: {self.test_inventory.get('tests', [])}")
                 for test_code in tests:
                     test_exists = any(test['name'] == test_code for test in self.test_inventory['tests'])
+                    self.logger.debug(f"Test {test_code} exists: {test_exists}")
                     if test_exists:
                         valid_tests.append(test_code)
                     else:
@@ -1128,7 +1132,7 @@ class AtellicaCore:
                 self._schedule_workflow_step(
                     sample_id,
                     'generate_results',
-                    300,  # 5分钟后生成结果（在UNLOAD之后）
+                    120,  # 2分钟后生成结果（在UNLOAD之后）
                     lambda: self._workflow_step_generate_results(sample_id, valid_tests, invalid_tests)
                 )
                 
@@ -1265,8 +1269,8 @@ class AtellicaCore:
         
         流程（根据协议，UNLOAD不依赖于LIS结果）：
         1. 标本LOAD后5秒，询问LIS工单（可选，异步执行，失败不影响后续步骤）
-        2. 标本LOAD后3分钟，准备UNLOAD（必须执行，不依赖LIS结果）
-        3. 标本LOAD后5分钟，生成测试结果（可选，异步执行）
+        2. 标本LOAD后1分钟，准备UNLOAD（必须执行，不依赖LIS结果）
+        3. 标本LOAD后2分钟，生成测试结果（可选，异步执行）
         
         Args:
             sample_id: 样本ID
