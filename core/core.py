@@ -1039,7 +1039,25 @@ class AtellicaCore:
                     self.logger.warning(f"Sample {sample_id}: 样本不存在，跳过LIS查询")
                     return
                 
+                # 检查样本是否已经有测试项目（通过receive_sample获得）
+                if 'tests' in self.samples[sample_id] and self.samples[sample_id]['tests']:
+                    existing_tests = self.samples[sample_id]['tests']
+                    self.logger.info(f"Sample {sample_id}: 样本已有测试项目 {existing_tests}，跳过LIS查询")
+                    # 直接调度结果生成
+                    self._schedule_workflow_step(
+                        sample_id,
+                        'generate_results',
+                        120,
+                        lambda: self._workflow_step_generate_results(
+                            sample_id, 
+                            existing_tests, 
+                            []
+                        )
+                    )
+                    return
+                
                 selected_tests = []
+                lis_query_success = False
                 
                 # 检查是否有LIS客户端实例
                 if hasattr(self, 'lis_client') and self.lis_client:
@@ -1051,17 +1069,27 @@ class AtellicaCore:
                     
                     if selected_tests:
                         self.logger.info(f"Sample {sample_id}: 收到LIS真实工单，测试项目: {selected_tests}")
+                        lis_query_success = True
                     else:
-                        self.logger.warning(f"Sample {sample_id}: 未收到LIS工单，使用模拟数据")
-                        # 使用模拟数据 - test_inventory['tests']是列表，不是字典
-                        test_items = [test['name'] for test in self.test_inventory['tests']][:10]
-                        selected_tests = random.sample(test_items, min(random.randint(3, 5), len(test_items)))
+                        self.logger.warning(f"Sample {sample_id}: 未收到LIS工单，等待LIS恢复后重试")
+                        # LIS查询超时，不生成测试项目，稍后重试
+                        self._schedule_workflow_step(
+                            sample_id,
+                            'lis_query_retry',
+                            30,  # 30秒后重试
+                            lambda: self._workflow_step_lis_query(sample_id)
+                        )
+                        return
                 else:
-                    # 没有LIS客户端实例，使用模拟数据
-                    self.logger.info(f"Sample {sample_id}: 没有LIS客户端实例，使用模拟工单")
-                    # test_inventory['tests']是列表，不是字典
-                    test_items = [test['name'] for test in self.test_inventory['tests']][:10]
-                    selected_tests = random.sample(test_items, min(random.randint(3, 5), len(test_items)))
+                    # 没有LIS客户端实例，等待LIS连接
+                    self.logger.warning(f"Sample {sample_id}: 没有LIS客户端实例，等待LIS连接后重试")
+                    self._schedule_workflow_step(
+                        sample_id,
+                        'lis_query_retry',
+                        30,  # 30秒后重试
+                        lambda: self._workflow_step_lis_query(sample_id)
+                    )
+                    return
                 
                 # 检查测试项目是否可以开展
                 valid_tests = []
@@ -1200,15 +1228,25 @@ class AtellicaCore:
                 # 标记样本为已完成
                 self.samples[sample_id]['completed_time'] = time.time()
                 
-                self.logger.info(f"Sample {sample_id}: 生成测试结果成功，结果: {results}")
+                # 详细记录生成的测试项目和结果
+                self.logger.info(f"Sample {sample_id}: 生成测试结果成功")
+                self.logger.info(f"Sample {sample_id}: 生成的测试项目: {list(results.keys())}")
+                for test_code, result in results.items():
+                    self.logger.info(f"Sample {sample_id}: 测试项目 {test_code} = {result['value']} {result.get('unit', '')}")
                 
                 # 通知LIS结果已生成
                 if hasattr(self, 'lis_client') and self.lis_client:
                     try:
                         # 从results中提取测试项目列表
                         test_items = list(results.keys())
+                        self.logger.info(f"Sample {sample_id}: 准备发送结果给LIS，测试项目: {test_items}")
                         success, message = self.lis_client.send_result(sample_id, test_items)
-                        self.logger.info(f"Sample {sample_id}: 已发送有效项目的结果给LIS, 状态: {success}, 消息: {message}")
+                        self.logger.info(f"Sample {sample_id}: 已发送结果给LIS, 状态: {success}, 消息: {message}")
+                        if success:
+                            self.logger.info(f"Sample {sample_id}: 发送给LIS的测试项目: {test_items}")
+                            for test_code in test_items:
+                                result = results.get(test_code, {})
+                                self.logger.info(f"Sample {sample_id}: 发送给LIS - {test_code} = {result.get('value')} {result.get('unit', '')}")
                     except Exception as e:
                         self.logger.error(f"Error sending result to LIS: {str(e)}")
             
