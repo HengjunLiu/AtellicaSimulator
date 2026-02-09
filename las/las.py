@@ -746,21 +746,13 @@ class LASServer:
                                         self.logger.info("Handshake failure handling completed. Waiting for LAS to reconnect and initiate handshake.")
                     
                     # 检查连接无活动超时
+                    # 注意：Keep-Alive消息由_keep_alive_loop线程统一处理，这里只记录日志
                     try:
                         if self.conversation_status == self.CONVERSATION_STATUS_CONNECTED:
                             time_since_last_msg = current_time - self.last_message_time
                             if time_since_last_msg > self.keep_alive_inactivity_timeout * 3:  # 3倍无活动超时时间
-                                self.logger.warning(f"Connection inactive for {time_since_last_msg:.1f} seconds, sending Keep-Alive")
-                                # 发送Keep-Alive消息到所有活跃连接
-                                try:
-                                    with self.connection_lock:
-                                        for conn in self.connections:
-                                            try:
-                                                self._send_keepalive(conn)
-                                            except Exception as e:
-                                                self.logger.error(f"Error sending Keep-Alive: {str(e)}")
-                                except Exception as e:
-                                    self.logger.error(f"Error in connection lock: {str(e)}")
+                                self.logger.warning(f"Connection inactive for {time_since_last_msg:.1f} seconds, Keep-Alive will be handled by _keep_alive_loop")
+                                # 不再在这里发送Keep-Alive，由_keep_alive_loop线程统一处理
                     except Exception as e:
                         self.logger.error(f"Error checking connection inactivity: {str(e)}")
                     
@@ -2301,9 +2293,10 @@ class LASServer:
             # UNLOAD请求验证：业务逻辑检查
             # 检查是否有待卸载的样本（业务规则，非协议要求）
             if request_type == 'unload':
-                # 验证：是否有待卸载的样本
-                next_sample_id = self.core.get_next_sample_to_unload()
-                if not next_sample_id:
+                # 验证：使用请求中的sample_id或获取下一个待卸载样本
+                # 优先使用请求中传递的sample_id（用户输入的）
+                target_sample_id = sample_id if sample_id else self.core.get_next_sample_to_unload()
+                if not target_sample_id:
                     self.logger.warning(f"UNLOAD请求被拒绝：无待卸载样本")
                     self.logger.log_las(f"UNLOAD request rejected: No sample ready for unload")
                     # 发送拒绝响应
@@ -2311,14 +2304,13 @@ class LASServer:
                     unload_result = {'sample_id': '', 'status': 6}  # Unload Skipped
                     sample_status = 0x00  # No Tube Unloaded
                     # 构建并发送拒绝响应
+                    # 注意：当sample_id_len为0时，不打包sample_id字符串
                     body = struct.pack(
-                        f'!B B 0s B B 0s B B B H H B H',
+                        '!B B B B B B B H H B H',
                         interface_position_index,
-                        0,
-                        b'',
+                        0,  # load_sample_id_len = 0
                         6,  # Load Status: Load Skipped
-                        0,
-                        b'',
+                        0,  # unload_sample_id_len = 0
                         6,  # Unload Status: Unload Skipped
                         0x00,  # Sample Status: No Tube Unloaded
                         self.core.get_instrument_health()['on_board_tube_count'],
@@ -2363,6 +2355,7 @@ class LASServer:
                 return
             
             # 处理装载/卸载请求
+            self.logger.info(f"调用process_load_unload: IP={interface_position_index}, sample_id={sample_id}")
             load_result, unload_result, sample_status, onboard_count, completed_count, ready_to_load, return_ready_count = self.core.process_load_unload(
                 interface_position_index,
                 carrier_occupancy,
@@ -2371,6 +2364,7 @@ class LASServer:
                 tube_diameter,
                 elapsed_time
             )
+            self.logger.info(f"process_load_unload返回: load_result={load_result}, unload_result={unload_result}")
             
             # 确保load_result和unload_result被正确初始化
             if load_result is None:
@@ -2439,7 +2433,9 @@ class LASServer:
             self.logger.log_las_raw('SENT', message_hex, extra_info)
             
             # 发送消息
+            self.logger.info(f"准备发送响应: conn={conn}, message_len={len(message)}")
             conn.sendall(message)
+            self.logger.info(f"响应已发送")
             
             self.logger.info(f"LAS load/unload response sent, SeqID=0x{sequence_id:04x}, SampleID={sample_id}, LoadStatus={load_result.get('status') if load_result else 'N/A'}, UnloadStatus={unload_result.get('status') if unload_result else 'N/A'}")
             self.logger.log_las(f"Load/Unload response sent, SeqID=0x{sequence_id:04x}")
@@ -2584,7 +2580,13 @@ class LASServer:
             self.logger.info(f"{request_type.upper()}请求：连接有效，开始处理请求")
             
             # 继续处理原始请求
-            self._handle_load_unload_request(conn, header, body, manual_complete=True)
+            try:
+                self._handle_load_unload_request(conn, header, body, manual_complete=True)
+                self.logger.info(f"{request_type.upper()}请求：_handle_load_unload_request执行完成")
+            except Exception as e:
+                self.logger.error(f"{request_type.upper()}请求：_handle_load_unload_request执行失败: {str(e)}")
+                import traceback
+                self.logger.error(f"Traceback: {traceback.format_exc()}")
             
             self.logger.info(f"{request_type.upper()}请求：响应发送完成")
         except Exception as e:

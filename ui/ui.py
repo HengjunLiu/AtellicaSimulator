@@ -1088,7 +1088,7 @@ class AtellicaUI:
         onboard_window.title("在机标本列表")
         onboard_window.geometry("800x400")
         onboard_window.transient(self.root)
-        onboard_window.grab_set()
+        # 注意：不调用grab_set()，避免与手动操作提示的grab_set冲突
         
         # 创建主框架
         main_frame = ttk.Frame(onboard_window, padding="10")

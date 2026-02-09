@@ -398,6 +398,20 @@ class AtellicaCore:
                         self.samples[sample_id]['patient_info'] = {}
                     self.samples[sample_id]['patient_info'].update(patient_info)
                 self.logger.info(f"Updated sample {sample_id} with tests {valid_tests} from LIS")
+                
+                # 如果样本已存在且工作流已完成或正在运行，调度结果生成步骤
+                # 这处理LIS在UNLOAD后才响应的情况
+                self.logger.info(f"Sample {sample_id}: LIS工单已更新，调度结果生成步骤")
+                self._schedule_workflow_step(
+                    sample_id,
+                    'generate_results',
+                    120,
+                    lambda: self._workflow_step_generate_results(
+                        sample_id, 
+                        valid_tests, 
+                        []
+                    )
+                )
                 return True
             
             # 创建新样本记录
@@ -899,8 +913,9 @@ class AtellicaCore:
             bool: 是否成功删除
         """
         try:
-            with self.sample_lock:
-                if interface_position_index is not None:
+            # 注意：不在此方法内获取sample_lock，因为调用者（如process_load_unload）已经持有该锁
+            # 避免死锁问题
+            if interface_position_index is not None:
                     # 从指定队列中删除
                     if interface_position_index not in self.queues:
                         self.logger.warning(f"Queue IP{interface_position_index} does not exist")
@@ -915,17 +930,17 @@ class AtellicaCore:
 
                     self.logger.warning(f"Sample {sample_id}: 在IP{interface_position_index}队列中未找到")
                     return False
-                else:
-                    # 搜索所有队列
-                    for ip_index, queue in self.queues.items():
-                        for i, carrier in enumerate(queue):
-                            if carrier.get('sample_id') == sample_id:
-                                queue.pop(i)
-                                self.logger.info(f"Sample {sample_id}: 已从IP{ip_index}队列中删除")
-                                return True
+            else:
+                # 搜索所有队列
+                for ip_index, queue in self.queues.items():
+                    for i, carrier in enumerate(queue):
+                        if carrier.get('sample_id') == sample_id:
+                            queue.pop(i)
+                            self.logger.info(f"Sample {sample_id}: 已从IP{ip_index}队列中删除")
+                            return True
 
-                    self.logger.warning(f"Sample {sample_id}: 在任何队列中都未找到")
-                    return False
+                self.logger.warning(f"Sample {sample_id}: 在任何队列中都未找到")
+                return False
 
         except Exception as e:
             self.logger.error(f"从队列删除样本 {sample_id} 时发生错误: {str(e)}")
@@ -1029,6 +1044,12 @@ class AtellicaCore:
             delay_seconds: 延迟秒数
             step_func: 步骤执行函数
         """
+        # 检查是否已经存在该步骤的定时器（避免重复调度）
+        with self.sample_timers_lock:
+            if sample_id in self.sample_timers and step_name in self.sample_timers[sample_id]:
+                self.logger.info(f"Sample {sample_id}: 工作流步骤 {step_name} 已经调度，跳过重复调度")
+                return
+        
         def timer_callback():
             try:
                 # 清除定时器记录
@@ -1224,6 +1245,9 @@ class AtellicaCore:
     def _workflow_step_generate_results(self, sample_id, valid_tests, invalid_tests):
         """工作流步骤2: 生成测试结果
         
+        注意：此方法不依赖于样本是否在内存中，即使样本已被UNLOAD，
+        也能根据传入的测试项目列表生成结果并发送给LIS。
+        
         Args:
             sample_id: 样本ID
             valid_tests: 有效测试项目列表
@@ -1232,67 +1256,70 @@ class AtellicaCore:
         try:
             self.logger.info(f"Sample {sample_id}: 开始执行结果生成步骤")
             
-            with self.sample_lock:
-                if sample_id not in self.samples:
-                    self.logger.warning(f"Sample {sample_id}: 样本不存在，跳过结果生成")
-                    return
-                
-                # 生成随机测试结果
-                results = {}
-                
-                # 创建测试项目字典以便查找
-                test_inventory_dict = {test['name']: test for test in self.test_inventory['tests']}
-                
-                # 使用测试项目字典来查找测试项目信息
-                for test in valid_tests:
-                    # 为每个测试项目生成随机结果
-                    test_info = test_inventory_dict.get(test, {})
+            # 生成随机测试结果（不依赖于样本是否在内存中）
+            results = {}
+            
+            # 创建测试项目字典以便查找
+            test_inventory_dict = {test['name']: test for test in self.test_inventory['tests']}
+            
+            # 使用测试项目字典来查找测试项目信息
+            for test in valid_tests:
+                # 为每个测试项目生成随机结果
+                test_info = test_inventory_dict.get(test, {})
+                results[test] = {
+                    'value': round(random.uniform(10, 100), 2),
+                    'status': 'completed',
+                    'timestamp': time.time(),
+                    'unit': test_info.get('unit', ''),
+                    'flags': ''
+                }
+            
+            # 合并无效测试项目的ERROR结果
+            if invalid_tests:
+                for test, reason in invalid_tests:
                     results[test] = {
-                        'value': round(random.uniform(10, 100), 2),
-                        'status': 'completed',
+                        'value': 'ERROR',
+                        'status': 'error',
                         'timestamp': time.time(),
-                        'unit': test_info.get('unit', ''),
-                        'flags': ''
+                        'error_reason': reason,
+                        'unit': '',
+                        'flags': 'E'
                     }
-                
-                # 更新样本结果，合并之前的ERROR结果
-                if invalid_tests:
-                    # 如果之前有无效项目的ERROR结果，合并它们
-                    existing_results = self.samples[sample_id].get('results', {})
-                    results.update(existing_results)
+            
+            # 详细记录生成的测试项目和结果
+            self.logger.info(f"Sample {sample_id}: 生成测试结果成功")
+            self.logger.info(f"Sample {sample_id}: 生成的测试项目: {list(results.keys())}")
+            for test_code, result in results.items():
+                self.logger.info(f"Sample {sample_id}: 测试项目 {test_code} = {result['value']} {result.get('unit', '')}")
+            
+            # 如果样本仍在内存中，更新样本状态
+            with self.sample_lock:
+                if sample_id in self.samples:
+                    self.samples[sample_id]['results'] = results
                     self.samples[sample_id]['status'] = 'completed'
+                    self.samples[sample_id]['completed_time'] = time.time()
+                    self.logger.info(f"Sample {sample_id}: 已更新内存中的样本结果")
                 else:
-                    self.samples[sample_id]['status'] = 'completed'
-                
-                self.samples[sample_id]['results'] = results
-                
-                # 注意：completed_tube_count 和 return_ready_count 已在 _workflow_step_ready_for_unload 中增加
-                # 这里不再重复增加，只更新样本状态和结果
-                
-                # 标记样本为已完成
-                self.samples[sample_id]['completed_time'] = time.time()
-                
-                # 详细记录生成的测试项目和结果
-                self.logger.info(f"Sample {sample_id}: 生成测试结果成功")
-                self.logger.info(f"Sample {sample_id}: 生成的测试项目: {list(results.keys())}")
-                for test_code, result in results.items():
-                    self.logger.info(f"Sample {sample_id}: 测试项目 {test_code} = {result['value']} {result.get('unit', '')}")
-                
-                # 通知LIS结果已生成
-                if hasattr(self, 'lis_client') and self.lis_client:
-                    try:
-                        # 从results中提取测试项目列表
-                        test_items = list(results.keys())
-                        self.logger.info(f"Sample {sample_id}: 准备发送结果给LIS，测试项目: {test_items}")
-                        success, message = self.lis_client.send_result(sample_id, test_items)
-                        self.logger.info(f"Sample {sample_id}: 已发送结果给LIS, 状态: {success}, 消息: {message}")
-                        if success:
-                            self.logger.info(f"Sample {sample_id}: 发送给LIS的测试项目: {test_items}")
-                            for test_code in test_items:
-                                result = results.get(test_code, {})
-                                self.logger.info(f"Sample {sample_id}: 发送给LIS - {test_code} = {result.get('value')} {result.get('unit', '')}")
-                    except Exception as e:
-                        self.logger.error(f"Error sending result to LIS: {str(e)}")
+                    self.logger.info(f"Sample {sample_id}: 样本已从内存中移除，跳过内存状态更新")
+            
+            # 通知LIS结果已生成（不依赖于样本是否在内存中）
+            self.logger.info(f"Sample {sample_id}: 检查LIS客户端状态 - hasattr: {hasattr(self, 'lis_client')}, lis_client: {self.lis_client is not None if hasattr(self, 'lis_client') else 'N/A'}")
+            if hasattr(self, 'lis_client') and self.lis_client:
+                try:
+                    # 从results中提取测试项目列表
+                    test_items = list(results.keys())
+                    self.logger.info(f"Sample {sample_id}: 准备发送结果给LIS，测试项目: {test_items}")
+                    success, message = self.lis_client.send_result(sample_id, test_items)
+                    self.logger.info(f"Sample {sample_id}: 已发送结果给LIS, 状态: {success}, 消息: {message}")
+                    if success:
+                        self.logger.info(f"Sample {sample_id}: 发送给LIS的测试项目: {test_items}")
+                        for test_code in test_items:
+                            result = results.get(test_code, {})
+                            self.logger.info(f"Sample {sample_id}: 发送给LIS - {test_code} = {result.get('value')} {result.get('unit', '')}")
+                except Exception as e:
+                    self.logger.error(f"Error sending result to LIS: {str(e)}")
+            else:
+                self.logger.warning(f"Sample {sample_id}: LIS客户端未初始化或不可用，无法发送结果")
             
             # 结果生成完成，清理定时器记录
             with self.sample_timers_lock:
@@ -1320,8 +1347,9 @@ class AtellicaCore:
                     self.logger.warning(f"Sample {sample_id}: 样本不存在，跳过准备UNLOAD")
                     return
                 
-                # 更新样本状态为准备UNLOAD
+                # 更新样本状态为准备UNLOAD和completed
                 self.samples[sample_id]['ready_for_unload'] = True
+                self.samples[sample_id]['status'] = 'completed'
                 
                 # 增加已完成试管数量和可返回样本数量
                 # 注意：这里假设样本在3分钟后即视为完成，不等待实际结果生成
