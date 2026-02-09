@@ -225,8 +225,9 @@ class LISClient:
                     self.logger.log_lis("Entered receiving state")
                     self._send_ack()
                 else:
-                    # 如果在接收状态或发送状态，回复ACK
-                    if self.state == 'receiving' :
+                    # 如果在接收状态，回复ACK
+                    # 发送状态时不回复ACK，避免在发送EOT后又发送ACK
+                    if self.state == 'receiving':
                         self._send_ack()
 
             except socket.timeout:
