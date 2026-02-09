@@ -229,22 +229,27 @@ class AtellicaUI:
         self.prompt_text = ttk.Label(self.manual_prompt_frame, text="等待样本处理请求...", font=("Arial", 12))
         self.prompt_text.pack(pady=10)
         
-        # 样本ID输入框（用于UNLOAD请求）
-        self.sample_id_frame = ttk.Frame(self.manual_prompt_frame)
-        self.sample_id_frame.pack(pady=10)
+        # 按钮区域（输入框和完成按钮水平对齐）
+        self.button_frame = ttk.Frame(self.manual_prompt_frame)
+        self.button_frame.pack(pady=10)
         
-        self.sample_id_label = ttk.Label(self.sample_id_frame, text="样本ID:")
+        # 样本ID输入框（用于UNLOAD请求）
+        self.sample_id_label = ttk.Label(self.button_frame, text="样本ID:")
         self.sample_id_label.pack(side=tk.LEFT, padx=5)
         
-        self.sample_id_entry = ttk.Entry(self.sample_id_frame, width=20)
+        self.sample_id_entry = ttk.Entry(self.button_frame, width=20)
         self.sample_id_entry.pack(side=tk.LEFT, padx=5)
         
-        # 隐藏输入框初始状态
-        self.sample_id_frame.pack_forget()
+        # 绑定回车键到完成按钮
+        self.sample_id_entry.bind('<Return>', lambda event: self._on_complete_button_click())
         
         # 完成按钮
-        self.complete_button = ttk.Button(self.manual_prompt_frame, text="完成", command=self._on_complete_button_click, state=tk.DISABLED)
-        self.complete_button.pack(pady=10)
+        self.complete_button = ttk.Button(self.button_frame, text="完成", command=self._on_complete_button_click, state=tk.DISABLED)
+        self.complete_button.pack(side=tk.LEFT, padx=5)
+        
+        # 隐藏输入框初始状态
+        self.sample_id_label.pack_forget()
+        self.sample_id_entry.pack_forget()
         
         # 右侧：详细状态显示
         detail_frame = ttk.LabelFrame(content_frame, text="详细状态", padding="10")
@@ -973,16 +978,12 @@ class AtellicaUI:
             self.circle_color = "lightgreen"
             self.circle_outline = "green"
             self.text_color = "green"
-            prompt_text = f"请从LAS的IP{interface_position}卸载标本"
-            if sample_id:
-                prompt_text += f" (样本ID: {sample_id})"
+            prompt_text = f"将从LAS的IP{interface_position}取走标本"
         else:
             self.circle_color = "lightyellow"
             self.circle_outline = "yellow"
             self.text_color = "orange"
-            prompt_text = f"请向LAS的IP{interface_position}装载标本"
-            if sample_id:
-                prompt_text += f" (样本ID: {sample_id})"
+            prompt_text = f"将向LAS的IP{interface_position}装上标本"
         
         self.prompt_text.configure(text=prompt_text, foreground=self.text_color)
         
@@ -998,10 +999,15 @@ class AtellicaUI:
             self.sample_id_entry.delete(0, tk.END)
             if sample_id:
                 self.sample_id_entry.insert(0, sample_id)
-            self.sample_id_frame.pack(pady=10)
+            # 先unpack完成按钮，确保正确的pack顺序：标签→输入框→完成按钮
+            self.complete_button.pack_forget()
+            self.sample_id_label.pack(side=tk.LEFT, padx=5)
+            self.sample_id_entry.pack(side=tk.LEFT, padx=5)
+            self.complete_button.pack(side=tk.LEFT, padx=5)
         else:
-            # 隐藏输入框
-            self.sample_id_frame.pack_forget()
+            # 隐藏输入框，只显示完成按钮
+            self.sample_id_label.pack_forget()
+            self.sample_id_entry.pack_forget()
         
         # 启用完成按钮
         self.complete_button.configure(state=tk.NORMAL)
@@ -1066,7 +1072,8 @@ class AtellicaUI:
             # 重置UI
             self.prompt_canvas.delete("all")
             self.prompt_text.configure(text="等待样本处理请求...", foreground="black")
-            self.sample_id_frame.pack_forget()  # 隐藏输入框
+            self.sample_id_label.pack_forget()  # 隐藏输入框标签
+            self.sample_id_entry.pack_forget()   # 隐藏输入框
             self.complete_button.configure(state=tk.DISABLED)
             delattr(self, 'current_request')
             if hasattr(self, 'circle_color'):

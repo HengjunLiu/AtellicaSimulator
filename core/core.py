@@ -369,16 +369,16 @@ class AtellicaCore:
         Returns:
             bool: 是否成功接收
         """
+        self.logger.info(f"receive_sample called: sample_id={sample_id}, tests={tests}")
+        
         with self.sample_lock:
-            if sample_id in self.samples:
-                self.logger.warning(f"Sample {sample_id} already exists")
-                return False
-            
             # 检查测试项目是否存在
             with self.inventory_lock:
                 valid_tests = []
+                self.logger.debug(f"Checking tests against inventory: {self.test_inventory.get('tests', [])}")
                 for test_code in tests:
                     test_exists = any(test['name'] == test_code for test in self.test_inventory['tests'])
+                    self.logger.debug(f"Test {test_code} exists: {test_exists}")
                     if test_exists:
                         valid_tests.append(test_code)
                     else:
@@ -388,7 +388,19 @@ class AtellicaCore:
                 self.logger.error(f"No valid tests for sample {sample_id}")
                 return False
             
-            # 创建样本记录
+            if sample_id in self.samples:
+                # 样本已存在，更新测试项目（LIS提供工作单）
+                self.logger.info(f"Sample {sample_id} already exists, updating tests from LIS")
+                self.samples[sample_id]['tests'] = valid_tests
+                if patient_info:
+                    # 确保patient_info键存在
+                    if 'patient_info' not in self.samples[sample_id]:
+                        self.samples[sample_id]['patient_info'] = {}
+                    self.samples[sample_id]['patient_info'].update(patient_info)
+                self.logger.info(f"Updated sample {sample_id} with tests {valid_tests} from LIS")
+                return True
+            
+            # 创建新样本记录
             sample = {
                 'sample_id': sample_id,
                 'tests': valid_tests,
@@ -1128,7 +1140,7 @@ class AtellicaCore:
                 self._schedule_workflow_step(
                     sample_id,
                     'generate_results',
-                    300,  # 5分钟后生成结果（在UNLOAD之后）
+                    120,  # 2分钟后生成结果（在UNLOAD之后）
                     lambda: self._workflow_step_generate_results(sample_id, valid_tests, invalid_tests)
                 )
                 
@@ -1156,7 +1168,10 @@ class AtellicaCore:
                 # 生成随机测试结果
                 results = {}
                 
-                # 使用之前创建的字典来查找测试项目信息
+                # 创建测试项目字典以便查找
+                test_inventory_dict = {test['name']: test for test in self.test_inventory['tests']}
+                
+                # 使用测试项目字典来查找测试项目信息
                 for test in valid_tests:
                     # 为每个测试项目生成随机结果
                     test_info = test_inventory_dict.get(test, {})
@@ -1265,8 +1280,8 @@ class AtellicaCore:
         
         流程（根据协议，UNLOAD不依赖于LIS结果）：
         1. 标本LOAD后5秒，询问LIS工单（可选，异步执行，失败不影响后续步骤）
-        2. 标本LOAD后3分钟，准备UNLOAD（必须执行，不依赖LIS结果）
-        3. 标本LOAD后5分钟，生成测试结果（可选，异步执行）
+        2. 标本LOAD后1分钟，准备UNLOAD（必须执行，不依赖LIS结果）
+        3. 标本LOAD后2分钟，生成测试结果（可选，异步执行）
         
         Args:
             sample_id: 样本ID
