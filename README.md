@@ -334,6 +334,22 @@ python -m pytest tests/test_las.py::TestLASModule::test_initialization -v
 
 ## 版本历史
 
+### v1.6.6 (2026-02-11)
+- 修复UNLOAD未完成时LOAD指令导致的UI混乱问题
+  - `UI._show_manual_prompt`现在返回bool值，表示是否成功显示
+  - 当UI已有请求正在显示时，新请求会被标记为`waiting_for_ui`并加入队列
+  - 添加`UI._check_and_show_pending_requests`方法，在完成当前请求后自动显示等待的请求
+  - `LAS._handle_load_unload_request`根据UI返回结果决定是否将请求加入队列
+  - 避免同时显示多个UI提示导致用户操作混乱
+
+### v1.6.5 (2026-02-09)
+- 修复LOAD/UNLOAD并发处理问题
+  - 按接口位置分离pending请求队列，IP0和IP1的请求独立处理
+  - 添加Carrier锁定检查，已锁定时返回Status=2
+  - 实现请求去重机制，避免重复处理相同序列号请求
+  - 添加请求超时机制，5分钟超时自动返回错误响应
+  - 改进手动操作完成处理，按FIFO顺序处理每个接口位置的请求
+
 ### v1.6.4 (2026-02-09)
 - 修复UNLOAD RESPONSE未发送问题
   - 修复`remove_sample_from_queue`死锁问题，避免UNLOAD处理卡住
