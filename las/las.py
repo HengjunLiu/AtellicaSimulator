@@ -2539,69 +2539,69 @@ class LASServer:
         conn = pending_request['conn']
         header = pending_request['header']
         body = pending_request['body']
+        
+        # 对于UNLOAD请求，更新pending_request的body中的样本ID
+        # 解析原始body
+        offset = 0
+        interface_position_index = body[offset]
+        offset += 1
+        
+        carrier_occupancy = body[offset]
+        offset += 1
+        
+        sample_id_len = body[offset]
+        offset += 1
+        
+        original_sample_id = ''
+        if sample_id_len > 0:
+            original_sample_id = body[offset:offset+sample_id_len].decode('ascii')
+            offset += sample_id_len
+        
+        tube_height = body[offset]
+        offset += 1
+        
+        tube_diameter = body[offset]
+        offset += 1
+        
+        elapsed_time = struct.unpack_from('!H', body, offset)[0]
+        
+        # 确定请求类型
+        # 根据接口索引判断：
+        # - 0x00 (IP0) → Load请求（从LAS装载样本到Atellica）
+        # - 0x01 (IP1) → Unload请求（从Atellica卸载样本到LAS）
+        request_type = 'load' if interface_position_index == 0x00 else 'unload'
+        
+        # 根据请求类型处理样本ID
+        if request_type == 'unload':
+            # 对于UNLOAD请求，使用UI传递的样本ID（用户输入的要卸载的样本ID）
+            new_sample_id = request['sample_id']
+            new_sample_id_bytes = new_sample_id.encode('ascii')
+            new_sample_id_len = len(new_sample_id_bytes)
             
-            # 对于UNLOAD请求，更新pending_request的body中的样本ID
-            # 解析原始body
-            offset = 0
-            interface_position_index = body[offset]
-            offset += 1
-            
-            carrier_occupancy = body[offset]
-            offset += 1
-            
-            sample_id_len = body[offset]
-            offset += 1
-            
-            original_sample_id = ''
-            if sample_id_len > 0:
-                original_sample_id = body[offset:offset+sample_id_len].decode('ascii')
-                offset += sample_id_len
-            
-            tube_height = body[offset]
-            offset += 1
-            
-            tube_diameter = body[offset]
-            offset += 1
-            
-            elapsed_time = struct.unpack_from('!H', body, offset)[0]
-            
-            # 确定请求类型
-            # 根据接口索引判断：
-            # - 0x00 (IP0) → Load请求（从LAS装载样本到Atellica）
-            # - 0x01 (IP1) → Unload请求（从Atellica卸载样本到LAS）
-            request_type = 'load' if interface_position_index == 0x00 else 'unload'
-            
-            # 根据请求类型处理样本ID
-            if request_type == 'unload':
-                # 对于UNLOAD请求，使用UI传递的样本ID（用户输入的要卸载的样本ID）
-                new_sample_id = request['sample_id']
-                new_sample_id_bytes = new_sample_id.encode('ascii')
-                new_sample_id_len = len(new_sample_id_bytes)
-                
-                # 重新构建body，使用UI传递的样本ID
-                body = struct.pack(
-                    f'!BBB{new_sample_id_len}sBBH',
-                    interface_position_index,
-                    carrier_occupancy,
-                    new_sample_id_len,
-                    new_sample_id_bytes,
-                    tube_height,
-                    tube_diameter,
-                    elapsed_time
-                )
-                self.logger.info(f"UNLOAD请求：使用UI传递的样本ID: {new_sample_id}")
-            else:
-                # 对于LOAD请求，使用原始请求中的样本ID（来自LAS）
-                # 不需要重新构建body，使用原始body
-                self.logger.info(f"LOAD请求：使用原始请求中的样本ID: {original_sample_id}")
-            
-            # 在后台线程中等待并发送响应，避免阻塞UI
-            self.logger.info(f"{request_type.upper()}请求：手工操作完成，将在10秒后发送RESPONSE")
-            threading.Thread(
-                target=self._send_load_unload_response_after_delay,
-                args=(conn, header, body, request_type),
-                daemon=True
-            ).start()
+            # 重新构建body，使用UI传递的样本ID
+            body = struct.pack(
+                f'!BBB{new_sample_id_len}sBBH',
+                interface_position_index,
+                carrier_occupancy,
+                new_sample_id_len,
+                new_sample_id_bytes,
+                tube_height,
+                tube_diameter,
+                elapsed_time
+            )
+            self.logger.info(f"UNLOAD请求：使用UI传递的样本ID: {new_sample_id}")
+        else:
+            # 对于LOAD请求，使用原始请求中的样本ID（来自LAS）
+            # 不需要重新构建body，使用原始body
+            self.logger.info(f"LOAD请求：使用原始请求中的样本ID: {original_sample_id}")
+        
+        # 在后台线程中等待并发送响应，避免阻塞UI
+        self.logger.info(f"{request_type.upper()}请求：手工操作完成，将在10秒后发送RESPONSE")
+        threading.Thread(
+            target=self._send_load_unload_response_after_delay,
+            args=(conn, header, body, request_type),
+            daemon=True
+        ).start()
     
     def _send_load_unload_response_after_delay(self, conn, header, body, request_type):
         """在延迟后发送LOAD/UNLOAD响应（在后台线程中执行）
