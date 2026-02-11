@@ -1,5 +1,28 @@
 # 更新日志
 
+## v1.6.7 (2026-02-11)
+
+### 修复协议不符合项
+- **修复Load/Unload请求超时时间**
+  - 问题：超时时间设置为300秒（5分钟）
+  - 协议要求：600秒（10分钟）
+  - 解决：将`request_timeout`从300秒改为600秒
+  
+- **添加样本ID长度验证**
+  - 问题：未验证样本ID长度
+  - 协议要求：最大20个字符
+  - 解决：添加长度检查，超过20字符返回状态码0x08（Unsupported Sample ID）
+
+### 协议符合性改进
+- 已支持的状态码：
+  - 0x01 - Success
+  - 0x02 - Error: Lock Carrier in place
+  - 0x04 - Queue Mismatch（已存在）
+  - 0x05 - Interface position is offline（已存在）
+  - 0x06 - Load/Unload Skipped
+  - 0x07 - Instrument Skipped Loading/Unloading（已存在）
+  - 0x08 - Unsupported Sample ID（新增）
+
 ## v1.6.6 (2026-02-11)
 
 ### 修复

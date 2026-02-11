@@ -117,7 +117,8 @@ class LASServer:
         self.ui = None
         
         # 请求超时设置（秒）
-        self.request_timeout = 300  # 5分钟超时
+        # 协议要求：Load/Unload Command Response Timeout = 600秒 (10分钟)
+        self.request_timeout = 600  # 10分钟超时
         
         # 已移除标本管理
         self.removed_samples = []  # 存储已手工移除的标本ID
@@ -2285,6 +2286,17 @@ class LASServer:
             if sample_id_len > 0:
                 sample_id = body[offset:offset+sample_id_len].decode('ascii')
                 offset += sample_id_len
+            
+            # 协议要求：样本ID最大长度为20个字符
+            if len(sample_id) > 20:
+                self.logger.warning(f"{request_type.upper()}请求被拒绝：样本ID长度超过20个字符")
+                self.logger.log_las(f"{request_type.upper()} request rejected: Sample ID too long (max 20 chars)")
+                # 发送错误响应 - 状态码 0x08 (Unsupported Sample ID)
+                self._send_load_unload_error_response(
+                    conn, header, interface_position_index,
+                    status=8  # Unable to perform command: Unsupported Sample ID
+                )
+                return
             
             tube_height = body[offset]
             offset += 1

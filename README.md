@@ -334,6 +334,12 @@ python -m pytest tests/test_las.py::TestLASModule::test_initialization -v
 
 ## 版本历史
 
+### v1.6.7 (2026-02-11)
+- 修复协议不符合项
+  - 修复Load/Unload请求超时时间（300秒→600秒，符合协议要求）
+  - 添加样本ID长度验证（最大20个字符，超过返回状态码0x08）
+  - 完善协议状态码支持（0x01, 0x02, 0x04, 0x05, 0x06, 0x07, 0x08）
+
 ### v1.6.6 (2026-02-11)
 - 修复UNLOAD未完成时LOAD指令导致的UI混乱问题
   - `UI._show_manual_prompt`现在返回bool值，表示是否成功显示
