@@ -1,5 +1,38 @@
 # 更新日志
 
+## v1.6.5 (2026-02-09)
+
+### 修复
+- **修复LOAD/UNLOAD并发处理问题**
+  - 按接口位置分离pending请求队列
+    - 将`pending_requests`从全局列表改为`{0: [], 1: []}`字典
+    - IP0和IP1的请求独立处理，互不干扰
+  - 添加Carrier锁定检查
+    - 接收请求时检查carrier是否已被锁定
+    - 如果已锁定，返回Status=2 (Error: Lock Carrier in place)
+  - 实现请求去重机制
+    - 检查相同序列号的重复请求，避免重复处理
+  - 添加请求超时机制
+    - 5分钟超时设置，超时请求自动返回错误响应
+    - 独立超时检查线程，每0.5秒检查一次
+  - 改进手动操作完成处理
+    - 按FIFO顺序处理每个接口位置的请求
+    - 添加时间戳跟踪，支持超时判断
+
+### 新增
+- 添加`_send_load_unload_error_response`辅助方法
+  - 统一错误响应发送逻辑
+  - 支持不同错误状态码
+- 添加`_start_pending_request_timeout_checker`方法
+  - 启动pending请求超时检查线程
+- 添加`_check_pending_request_timeout_loop`和`_check_pending_request_timeout`方法
+  - 实现超时请求检测和清理
+
+### 改进
+- 增强并发处理能力，支持IP0和IP1同时处理不同请求
+- 完善错误处理和日志记录
+- 优化请求队列管理，避免请求丢失或混乱
+
 ## v1.6.4 (2026-02-09)
 
 ### 修复

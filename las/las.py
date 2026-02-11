@@ -109,8 +109,15 @@ class LASServer:
         self._awaiting_init_complete_ack = False
         
         # 手动操作相关
-        self.pending_requests = []
+        # 按接口位置分离的pending请求队列，避免IP0和IP1的请求互相影响
+        self.pending_requests = {
+            0: [],  # IP0的请求队列
+            1: []   # IP1的请求队列
+        }
         self.ui = None
+        
+        # 请求超时设置（秒）
+        self.request_timeout = 300  # 5分钟超时
         
         # 已移除标本管理
         self.removed_samples = []  # 存储已手工移除的标本ID
@@ -255,9 +262,12 @@ class LASServer:
             accept_thread = threading.Thread(target=self._accept_connections, daemon=True)
             accept_thread.start()
             
-            # 启动超时检查线程
+            # 启动消息超时检查线程
             self.timeout_check_thread = threading.Thread(target=self._run_timeout_check, daemon=True)
             self.timeout_check_thread.start()
+            
+            # 启动pending请求超时检查线程
+            self._start_pending_request_timeout_checker()
             
             # 启动等待期线程（后台执行，不阻塞UI）
             wait_thread = threading.Thread(target=self._wait_period, daemon=True)
@@ -2290,6 +2300,35 @@ class LASServer:
             # - 0x01 (IP1) → Unload请求（从Atellica卸载样本到LAS）
             request_type = 'load' if interface_position_index == 0x00 else 'unload'
             
+            # 检查carrier是否已被锁定（根据uRAP协议，同一接口位置同一时间只能处理一个请求）
+            if self.core.locked_carriers[interface_position_index] is not None:
+                self.logger.warning(f"{request_type.upper()}请求被拒绝：IP{interface_position_index}的carrier已被锁定")
+                self.logger.log_las(f"{request_type.upper()} request rejected: Carrier locked for IP{interface_position_index}")
+                # 发送错误响应
+                self._send_load_unload_error_response(
+                    conn, header, interface_position_index,
+                    status=2  # Error: Lock Carrier in place
+                )
+                return
+            
+            # 检查该接口位置是否已有待处理请求
+            if self.pending_requests[interface_position_index]:
+                self.logger.warning(f"{request_type.upper()}请求被拒绝：IP{interface_position_index}已有待处理请求")
+                self.logger.log_las(f"{request_type.upper()} request rejected: Pending request exists for IP{interface_position_index}")
+                # 发送错误响应
+                self._send_load_unload_error_response(
+                    conn, header, interface_position_index,
+                    status=2  # Error: Lock Carrier in place
+                )
+                return
+            
+            # 检查是否重复请求（相同序列号）
+            seq_id = header['sequence_id']
+            for req in self.pending_requests[interface_position_index]:
+                if req['header']['sequence_id'] == seq_id:
+                    self.logger.warning(f"{request_type.upper()}请求重复：SeqID=0x{seq_id:04x}")
+                    return
+            
             # UNLOAD请求验证：业务逻辑检查
             # 检查是否有待卸载的样本（业务规则，非协议要求）
             if request_type == 'unload':
@@ -2300,31 +2339,10 @@ class LASServer:
                     self.logger.warning(f"UNLOAD请求被拒绝：无待卸载样本")
                     self.logger.log_las(f"UNLOAD request rejected: No sample ready for unload")
                     # 发送拒绝响应
-                    load_result = {'sample_id': '', 'status': 6}  # Load Skipped
-                    unload_result = {'sample_id': '', 'status': 6}  # Unload Skipped
-                    sample_status = 0x00  # No Tube Unloaded
-                    # 构建并发送拒绝响应
-                    # 注意：当sample_id_len为0时，不打包sample_id字符串
-                    body = struct.pack(
-                        '!B B B B B B B H H B H',
-                        interface_position_index,
-                        0,  # load_sample_id_len = 0
-                        6,  # Load Status: Load Skipped
-                        0,  # unload_sample_id_len = 0
-                        6,  # Unload Status: Unload Skipped
-                        0x00,  # Sample Status: No Tube Unloaded
-                        self.core.get_instrument_health()['on_board_tube_count'],
-                        self.core.get_instrument_health()['completed_tube_count'],
-                        self.core.get_ready_to_load(),
-                        self.core.get_return_ready_count()
+                    self._send_load_unload_error_response(
+                        conn, header, interface_position_index,
+                        status=6  # Unload Skipped
                     )
-                    message, sequence_id = self._build_message(
-                        self.MSG_TYPE_LOAD_UNLOAD_RESPONSE,
-                        body,
-                        return_sequence_id=header['sequence_id']
-                    )
-                    conn.sendall(message)
-                    self.logger.info(f"UNLOAD request rejected, SeqID=0x{sequence_id:04x}: No sample ready")
                     return
             
             # 获取要显示的样本ID
@@ -2343,11 +2361,12 @@ class LASServer:
                 # 显示UI提示，等待用户操作
                 self.ui._show_manual_prompt(request_type, interface_position_index, display_sample_id)
                 
-                # 保存请求信息，等待手动完成
-                self.pending_requests.append({
+                # 保存请求信息，等待手动完成（按接口位置分离存储）
+                self.pending_requests[interface_position_index].append({
                     'conn': conn,
                     'header': header,
-                    'body': body
+                    'body': body,
+                    'timestamp': time.time()  # 添加时间戳用于超时检查
                 })
                 
                 self.logger.info(f"LAS manual operation requested: {request_type} for IP{interface_position_index}, SampleID={display_sample_id}")
@@ -2449,6 +2468,47 @@ class LASServer:
             # 注意：载具锁定状态由core模块管理，异常处理时会自动保留
             # 这里不需要额外操作，因为core模块会维护载具锁定状态
     
+    def _send_load_unload_error_response(self, conn, header, interface_position_index, status=2):
+        """发送LOAD/UNLOAD错误响应
+        
+        Args:
+            conn: 连接socket
+            header: 请求消息头
+            interface_position_index: 接口位置索引
+            status: 错误状态码（默认2=Error: Lock Carrier in place）
+        """
+        try:
+            # 构建错误响应体
+            body = struct.pack(
+                '!B B B B B B B H H B H',
+                interface_position_index,
+                0,  # load_sample_id_len = 0
+                status if interface_position_index == 0 else 1,  # Load Status
+                0,  # unload_sample_id_len = 0
+                status if interface_position_index == 1 else 1,  # Unload Status
+                0x00,  # Sample Status: No Tube Unloaded
+                self.core.get_instrument_health()['on_board_tube_count'],
+                self.core.get_instrument_health()['completed_tube_count'],
+                self.core.get_ready_to_load(),
+                self.core.get_return_ready_count()
+            )
+            
+            # 构建完整消息
+            message, sequence_id = self._build_message(
+                self.MSG_TYPE_LOAD_UNLOAD_RESPONSE,
+                body,
+                return_sequence_id=header['sequence_id']
+            )
+            
+            # 发送消息
+            conn.sendall(message)
+            
+            self.logger.info(f"LAS load/unload error response sent, SeqID=0x{sequence_id:04x}, IP={interface_position_index}, Status={status}")
+            self.logger.log_las(f"Load/Unload error response sent, SeqID=0x{sequence_id:04x}, Status={status}")
+            
+        except Exception as e:
+            self.logger.error(f"Error sending load/unload error response: {str(e)}")
+    
     # ========== 主动消息发送方法（供core模块调用） ==========
     
     def set_ui(self, ui):
@@ -2465,14 +2525,20 @@ class LASServer:
         Args:
             request: 请求信息，包含type、interface_position、sample_id
         """
-        self.logger.info(f"on_manual_operation_complete called, pending_requests count: {len(self.pending_requests)}")
+        interface_position = request['interface_position']
         
-        if self.pending_requests:
-            # 获取第一个待处理请求
-            pending_request = self.pending_requests.pop(0)
-            conn = pending_request['conn']
-            header = pending_request['header']
-            body = pending_request['body']
+        self.logger.info(f"on_manual_operation_complete called for IP{interface_position}, pending_requests count: {len(self.pending_requests[interface_position])}")
+        
+        # 检查该接口位置是否有待处理请求
+        if not self.pending_requests[interface_position]:
+            self.logger.warning(f"No pending request for IP{interface_position}")
+            return
+        
+        # 获取该接口位置的第一个待处理请求（FIFO）
+        pending_request = self.pending_requests[interface_position].pop(0)
+        conn = pending_request['conn']
+        header = pending_request['header']
+        body = pending_request['body']
             
             # 对于UNLOAD请求，更新pending_request的body中的样本ID
             # 解析原始body
@@ -2593,6 +2659,52 @@ class LASServer:
             self.logger.error(f"Error sending delayed load/unload response: {str(e)}")
             import traceback
             self.logger.error(f"Traceback: {traceback.format_exc()}")
+    
+    def _start_pending_request_timeout_checker(self):
+        """启动pending请求超时检查线程"""
+        if self.timeout_check_thread is None or not self.timeout_check_thread.is_alive():
+            self.timeout_check_thread = threading.Thread(
+                target=self._check_pending_request_timeout_loop,
+                daemon=True
+            )
+            self.timeout_check_thread.start()
+            self.logger.info("Pending request timeout checker started")
+    
+    def _check_pending_request_timeout_loop(self):
+        """检查pending请求超时的循环"""
+        while self.is_running:
+            try:
+                self._check_pending_request_timeout()
+                time.sleep(self.timeout_check_interval)
+            except Exception as e:
+                self.logger.error(f"Error in pending request timeout check: {str(e)}")
+    
+    def _check_pending_request_timeout(self):
+        """检查并处理超时的pending请求"""
+        current_time = time.time()
+        
+        for ip in [0, 1]:
+            for request in self.pending_requests[ip][:]:  # 使用切片复制列表
+                if current_time - request.get('timestamp', 0) > self.request_timeout:
+                    # 请求超时，发送错误响应
+                    self.logger.warning(f"Pending request timeout for IP{ip}, SeqID=0x{request['header']['sequence_id']:04x}")
+                    try:
+                        conn = request['conn']
+                        header = request['header']
+                        body = request['body']
+                        interface_position_index = body[0]
+                        
+                        # 发送超时错误响应
+                        self._send_load_unload_error_response(
+                            conn, header, interface_position_index,
+                            status=6  # Skipped
+                        )
+                        
+                        # 从队列中移除
+                        self.pending_requests[ip].remove(request)
+                        self.logger.info(f"Removed timed out request for IP{ip}")
+                    except Exception as e:
+                        self.logger.error(f"Error handling timed out request: {str(e)}")
     
     def manual_eject_sample(self, sample_id, interface_position=0):
         """手动弹出样本并通知LAS
