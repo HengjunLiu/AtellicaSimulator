@@ -2359,7 +2359,19 @@ class LASServer:
             # 对于UNLOAD请求，总是等待手动操作完成
             if not manual_complete and self.ui:
                 # 显示UI提示，等待用户操作
-                self.ui._show_manual_prompt(request_type, interface_position_index, display_sample_id)
+                prompt_shown = self.ui._show_manual_prompt(request_type, interface_position_index, display_sample_id)
+                
+                if not prompt_shown:
+                    # UI正在显示其他请求，将当前请求加入等待队列
+                    self.logger.warning(f"UI busy, queuing {request_type} request for IP{interface_position_index}")
+                    self.pending_requests[interface_position_index].append({
+                        'conn': conn,
+                        'header': header,
+                        'body': body,
+                        'timestamp': time.time(),  # 添加时间戳用于超时检查
+                        'waiting_for_ui': True  # 标记为等待UI可用
+                    })
+                    return
                 
                 # 保存请求信息，等待手动完成（按接口位置分离存储）
                 self.pending_requests[interface_position_index].append({

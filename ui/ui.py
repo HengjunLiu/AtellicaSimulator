@@ -967,7 +967,15 @@ class AtellicaUI:
             request_type: 请求类型 ('load' 或 'unload')
             interface_position: 接口位置 (0=IP0, 1=IP1)
             sample_id: 样本ID
+        
+        Returns:
+            bool: 是否成功显示提示（如果已有请求正在显示，返回False）
         """
+        # 检查是否已有请求正在显示
+        if hasattr(self, 'current_request') and self.current_request:
+            self.logger.warning(f"Cannot show prompt for {request_type} IP{interface_position}: another request is already being displayed")
+            return False
+        
         self.prompt_canvas.delete("all")
         
         # 保存请求类型和颜色信息
@@ -1022,6 +1030,8 @@ class AtellicaUI:
         # 启动闪烁效果
         self.flash_state = True
         self._start_flash()
+        
+        return True
     
     def _start_flash(self):
         """启动闪烁效果"""
@@ -1080,6 +1090,47 @@ class AtellicaUI:
                 delattr(self, 'circle_color')
                 delattr(self, 'circle_outline')
                 delattr(self, 'text_color')
+            
+            # 检查是否有其他等待的请求需要显示
+            self._check_and_show_pending_requests()
+    
+    def _check_and_show_pending_requests(self):
+        """检查并显示等待中的请求"""
+        if not self.las_server:
+            return
+        
+        # 检查IP0和IP1是否有等待的请求
+        for ip in [0, 1]:
+            pending_list = self.las_server.pending_requests.get(ip, [])
+            for request in pending_list[:]:
+                if request.get('waiting_for_ui'):
+                    # 找到等待UI的请求，尝试显示
+                    body = request['body']
+                    
+                    # 解析body获取请求信息
+                    offset = 0
+                    interface_position_index = body[offset]
+                    offset += 1
+                    
+                    carrier_occupancy = body[offset]
+                    offset += 1
+                    
+                    sample_id_len = body[offset]
+                    offset += 1
+                    
+                    sample_id = ''
+                    if sample_id_len > 0:
+                        sample_id = body[offset:offset+sample_id_len].decode('ascii')
+                        offset += sample_id_len
+                    
+                    request_type = 'load' if interface_position_index == 0x00 else 'unload'
+                    
+                    # 尝试显示提示
+                    if self._show_manual_prompt(request_type, interface_position_index, sample_id):
+                        # 成功显示，移除waiting_for_ui标记
+                        request.pop('waiting_for_ui', None)
+                        self.logger.info(f"Now showing pending {request_type} request for IP{interface_position_index}")
+                        return  # 只显示一个请求
     
     def _show_onboard_samples(self):
         """显示在机标本列表"""
