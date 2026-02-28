@@ -59,8 +59,8 @@ class AtellicaCore:
             1: None   # IP1锁定的carrier
         }
         self.ready_to_load = {
-            0: True,  # IP0是否就绪装载
-            1: True   # IP1是否就绪装载
+            0: False,  # IP0是否就绪装载（初始为False，与真实ATS一致）
+            1: False   # IP1是否就绪装载（初始为False，与真实ATS一致）
         }
         self.return_ready_count = 0
         
@@ -836,7 +836,10 @@ class AtellicaCore:
             
             self.queues[interface_position_index].append(carrier_info)
             
-            self.logger.info(f"Added to queue IP{interface_position_index}: SampleID={sample_id}, Occupancy={carrier_occupancy}")
+            # 设置 ready_to_load 为 True，表示可以接收标本
+            self.ready_to_load[interface_position_index] = True
+            
+            self.logger.info(f"Added to queue IP{interface_position_index}: SampleID={sample_id}, Occupancy={carrier_occupancy}, ReadyToLoad=True")
             return True
     
     def skip_from_queue(self, interface_position_index, carrier_occupancy, sample_id, in_queue):

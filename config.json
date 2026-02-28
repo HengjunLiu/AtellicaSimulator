@@ -8,8 +8,8 @@
         "backup_count": 5
     },
     "las": {
-        "host": "0.0.0.0",
-        "port": 10011,
+        "host": "192.168.2.71",
+        "port": 51234,
         "protocol_version": "0x0330",
         "instrument_type": "0x0001",
         "capability_version": "0x0104",
@@ -17,12 +17,29 @@
         "instrument_id": "0xFF",
         "instrument_serial": "ATELLICA",
         "keep_alive_interval": 30,
+        "keep_alive_inactivity_timeout": 15,
         "ack_timeout": 20,
-        "response_timeout": 20
+        "max_ack_retries": 5,
+        "max_nack_retries": 3,
+        "instrument_health_timeout": 20,
+        "test_inventory_timeout": 20,
+        "onboard_sample_info_timeout": 20,
+        "transfer_status_timeout": 20,
+        "add_queue_timeout": 20,
+        "skip_queue_timeout": 20,
+        "clear_queue_timeout": 20,
+        "load_unload_timeout": 600,
+        "consumable_inventory_timeout": 20,
+        "handshake_retry_period": 30,
+        "handshake_response_timeout": 20,
+        "handshake_timeout": 30,
+        "initialization_wait_period": 30,
+        "initialization_complete_timeout": 30,
+        "analyzer_shaking_timeout": 480
     },
     "lis": {
-        "host": "127.0.0.1",
-        "port": 5000,
+        "host": "192.168.2.246",
+        "port": 19003,
         "result_delay": 300,
         "max_connections": 10
     },
@@ -36,11 +53,11 @@
             5
         ],
         "lock_ownership": [
-            2,
-            2
+            4,
+            5
         ],
-        "processing_backlog": 0,
-        "sample_acquisition_delay": 0,
+        "processing_backlog": 65535,
+        "sample_acquisition_delay": 65535,
         "on_board_tube_count": 0,
         "completed_tube_count": 0
     },
@@ -48,28 +65,13 @@
         "threshold": 10,
         "tests": [
             {
-                "name": "TEST001",
+                "name": "X22",
                 "count": 100,
                 "status": 1
             },
             {
-                "name": "TEST002",
-                "count": 52,
-                "status": 2
-            },
-            {
-                "name": "TEST003",
-                "count": 5,
-                "status": 2
-            },
-            {
-                "name": "TEST004",
-                "count": 0,
-                "status": 3
-            },
-            {
-                "name": "K",
-                "count": 20,
+                "name": "X23",
+                "count": 99,
                 "status": 1
             }
         ]
@@ -77,7 +79,7 @@
     "consumable_inventory": {
         "modules": [
             {
-                "id": "MODULE001",
+                "id": "CM04176",
                 "consumables": [
                     {
                         "id": 1,
@@ -89,36 +91,11 @@
                     },
                     {
                         "id": 3,
-                        "status": 2
+                        "status": 1
                     },
                     {
                         "id": 4,
                         "status": 1
-                    },
-                    {
-                        "id": 5,
-                        "status": 2
-                    },
-                    {
-                        "id": 25,
-                        "status": 1
-                    },
-                    {
-                        "id": 26,
-                        "status": 1
-                    },
-                    {
-                        "id": 27,
-                        "status": 1
-                    }
-                ]
-            },
-            {
-                "id": "CH1",
-                "consumables": [
-                    {
-                        "id": 2,
-                        "status": 2
                     }
                 ]
             }

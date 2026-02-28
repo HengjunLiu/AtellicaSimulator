@@ -1513,7 +1513,8 @@ class LASServer:
             # 注意：ACK已经在_process_listening_state中发送了
             
             # 第二步：模拟器主动向LAS发送一条HANDSHAKE消息
-            self._send_handshake_response(conn, 0)  # return_sequence_id=0表示主动发送
+            # 使用LAS的sequence_id作为return_sequence_id，以便LAS识别为响应
+            self._send_handshake_response(conn, header['sequence_id'])
             
             # 等待LAS的ACK，收到后会在_handle_ack中切换到initialization状态
             # 这里设置一个标志，用于在收到ACK时识别这是对我们主动发送的握手消息的响应
@@ -1630,15 +1631,17 @@ class LASServer:
             
             # 构建响应消息体
             body = struct.pack(
-                '!BBB B',
+                '!BBBB B',
                 health_status['automation_interface_status'],
                 health_status['instrument_process_status'],
+                0,  # 额外的字节，值为0
                 health_status['lis_connection_status'],
                 health_status['interface_positions']
             )
             
-            # 添加接口位置状态
-            for i in range(health_status['interface_positions']):
+            # 添加接口位置状态（与真实ATS一致：总是发送所有接口状态）
+            # 固定发送2个接口的状态（IP0和IP1）
+            for i in range(2):
                 remote_status = health_status['remote_control_status'][i] if i < len(health_status['remote_control_status']) else 1
                 lock_ownership = health_status['lock_ownership'][i] if i < len(health_status['lock_ownership']) else 2
                 body += struct.pack('!BB', remote_status, lock_ownership)
@@ -1996,27 +1999,15 @@ class LASServer:
             
             # 构建响应消息体（针对请求中的接口位置）
             # 消息类型：0x020A - Transfer status response message
-            # 注意：当前实现的消息格式与协议文档有差异
-            # 协议定义：Interface Position Index + Ready to Load + Return Ready Tube Count
-            # 当前实现：Interface Position Index + Status + Interface Idle + Error Code + Sample ID
-            # TODO: 需要根据实际LAS系统要求调整消息格式
-            sample_status = 0x03  # 样本状态（自定义实现，协议未定义此字段）
-            interface_idle = 0x01  # 接口空闲标识
-            error_code = 0x00      # 故障码
-            
-            # 获取待卸载的样本ID
-            next_sample_id = self.core.get_next_sample_to_unload()
-            sample_id_bytes = next_sample_id.encode('ascii') if next_sample_id else b''
-            sample_id_len = len(sample_id_bytes)
+            # 格式：Interface Position Index (1字节) + Ready to Load (2字节) + Return Ready Count (2字节)
+            # 与真实 ATS 格式保持一致
             
             # 构建符合协议的消息体
             body = struct.pack(
-                f'!BBBB{sample_id_len}s',
+                '!B H H',
                 interface_position_index,
-                sample_status,       # 样本状态：0x03 = 检测完成，等待卸载
-                interface_idle,      # 接口空闲标识：0x01 = 空闲
-                error_code,          # 故障码：0x00 = 无故障
-                sample_id_bytes      # 样本ID
+                ready_to_load,       # Ready to Load (2字节)
+                return_ready_count   # Return Ready Count (2字节)
             )
             
             # 构建完整消息
@@ -2041,8 +2032,8 @@ class LASServer:
             # 发送消息
             conn.sendall(message)
             
-            self.logger.info(f"LAS transfer status response sent, SeqID=0x{sequence_id:04x}, Status=0x{sample_status:02x}, InterfaceIdle=0x{interface_idle:02x}, ErrorCode=0x{error_code:02x}, SampleID={next_sample_id}")
-            self.logger.log_las(f"Transfer status response sent, SeqID=0x{sequence_id:04x}, Status=0x{sample_status:02x}, SampleID={next_sample_id}")
+            self.logger.info(f"LAS transfer status response sent, SeqID=0x{sequence_id:04x}, IP={interface_position_index}, ReadyToLoad={ready_to_load}, ReturnReady={return_ready_count}")
+            self.logger.log_las(f"Transfer status response sent, SeqID=0x{sequence_id:04x}, IP={interface_position_index}, ReadyToLoad={ready_to_load}, ReturnReady={return_ready_count}")
             
         except Exception as e:
             self.logger.error(f"Error handling LAS transfer status request: {str(e)}")
@@ -2434,7 +2425,7 @@ class LASServer:
             unload_sample_id_len = len(unload_sample_id_bytes)
             
             body = struct.pack(
-                f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B B H H B H',
+                f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B H H H H H',
                 interface_position_index,
                 load_sample_id_len,
                 load_sample_id_bytes,
@@ -2442,11 +2433,11 @@ class LASServer:
                 unload_sample_id_len,
                 unload_sample_id_bytes,
                 unload_result.get('status', 1) if unload_result else 1,  # Unload Command Status
-                sample_status,  # Sample Processing Status
-                onboard_count,
-                completed_count,
-                ready_to_load,
-                return_ready_count
+                sample_status,  # Sample Processing Status (2 bytes)
+                onboard_count,   # Onboard Tube Count (2 bytes)
+                completed_count, # Completed Tube Count (2 bytes)
+                ready_to_load,   # Ready to Load (2 bytes)
+                return_ready_count  # Return Ready Count (2 bytes)
             )
             
             # 构建完整消息
@@ -2502,19 +2493,40 @@ class LASServer:
             status: 错误状态码（默认2=Error: Lock Carrier in place）
         """
         try:
-            # 构建错误响应体
+            # 获取仪器状态信息
+            health_status = self.core.get_instrument_health()
+            onboard_count = health_status.get('on_board_tube_count', 0)
+            completed_count = health_status.get('completed_tube_count', 0)
+            ready_to_load = self.core.get_ready_to_load()
+            return_ready_count = self.core.get_return_ready_count()
+            
+            # 确定 Load 和 Unload 状态
+            if interface_position_index == 0:
+                # IP0: Load 操作
+                load_status = status
+                unload_status = 1  # Unload 成功（未执行）
+            else:
+                # IP1: Unload 操作
+                load_status = 1  # Load 成功（未执行）
+                unload_status = status
+            
+            # 构建错误响应体（与正常响应格式一致，但没有 Sample ID）
+            # 格式：!B B B B B H H H H H
+            # Interface Position + Load Sample ID Len + Load Status + 
+            # Unload Sample ID Len + Unload Status + Sample Status + 
+            # Onboard Count + Completed Count + Ready to Load + Return Ready Count
             body = struct.pack(
-                '!B B B B B B B H H B H',
+                '!B B B B B H H H H H',
                 interface_position_index,
                 0,  # load_sample_id_len = 0
-                status if interface_position_index == 0 else 1,  # Load Status
+                load_status,
                 0,  # unload_sample_id_len = 0
-                status if interface_position_index == 1 else 1,  # Unload Status
-                0x00,  # Sample Status: No Tube Unloaded
-                self.core.get_instrument_health()['on_board_tube_count'],
-                self.core.get_instrument_health()['completed_tube_count'],
-                self.core.get_ready_to_load(),
-                self.core.get_return_ready_count()
+                unload_status,
+                0x0000,  # Sample Status: No Tube Unloaded (2 bytes)
+                onboard_count,
+                completed_count,
+                ready_to_load,
+                return_ready_count
             )
             
             # 构建完整消息
@@ -2853,9 +2865,10 @@ class LASServer:
             
             # 构建响应消息体
             body = struct.pack(
-                '!BBB B',
+                '!BBBB B',
                 health_status['automation_interface_status'],
                 health_status['instrument_process_status'],
+                0,
                 health_status['lis_connection_status'],
                 health_status['interface_positions']
             )
