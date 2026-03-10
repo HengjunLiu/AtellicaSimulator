@@ -11,7 +11,7 @@ import time
 
 from .lisui import LisUI
 
-APP_VERSION = "v1.6.8"
+APP_VERSION = "v1.7.0"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""

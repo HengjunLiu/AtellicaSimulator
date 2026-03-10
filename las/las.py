@@ -1704,13 +1704,16 @@ class LASServer:
             body = struct.pack('!H', test_count)
             
             # 添加每个测试项目
+            test_details = []
             for test in tests:
                 test_name = test['name'].encode('ascii')
-                body += struct.pack(f'!B {len(test_name)}s HH',
+                # 格式：Length(1B) + Name(变长) + Count(2B) + Status(1B)
+                body += struct.pack(f'!B {len(test_name)}s H B',
                                   len(test_name),
                                   test_name,
                                   test['count'],
                                   test['status'])
+                test_details.append(f"{test['name']}={test['count']}")
             
             # 构建完整消息
             message, sequence_id = self._build_message(
@@ -1731,8 +1734,10 @@ class LASServer:
             # 发送消息
             conn.sendall(message)
             
-            self.logger.info(f"LAS test inventory response sent, SeqID=0x{sequence_id:04x}, Tests={test_count}")
-            self.logger.log_las(f"Test inventory response sent, SeqID=0x{sequence_id:04x}, Tests={test_count}")
+            # 记录详细的测试库存信息
+            test_details_str = ', '.join(test_details)
+            self.logger.info(f"LAS test inventory response sent, SeqID=0x{sequence_id:04x}, Tests={test_count}, Details=[{test_details_str}]")
+            self.logger.log_las(f"Test inventory response sent, SeqID=0x{sequence_id:04x}, Tests={test_count}, Details=[{test_details_str}]")
             
         except Exception as e:
             self.logger.error(f"Error handling LAS test inventory request: {str(e)}")
@@ -1935,6 +1940,9 @@ class LASServer:
             # 构建响应消息体
             body = struct.pack('!B', module_count)
             
+            # 记录详细的耗材信息
+            module_details = []
+            
             # 添加每个模块的耗材信息
             for module in modules:
                 module_id = module['id'].encode('ascii')
@@ -1947,10 +1955,14 @@ class LASServer:
                                   consumable_count)
                 
                 # 添加每个耗材
+                consumable_details = []
                 for consumable in consumables:
                     body += struct.pack('!BB',
                                       consumable['id'],
                                       consumable['status'])
+                    consumable_details.append(f"ID{consumable['id']}=St{consumable['status']}")
+                
+                module_details.append(f"{module['id']}[{consumable_count}]:[{', '.join(consumable_details)}]")
             
             # 构建完整消息
             message, sequence_id = self._build_message(
@@ -1971,8 +1983,10 @@ class LASServer:
             # 发送消息
             conn.sendall(message)
             
-            self.logger.info(f"LAS consumable inventory response sent, SeqID=0x{sequence_id:04x}, Modules={module_count}")
-            self.logger.log_las(f"Consumable inventory response sent, SeqID=0x{sequence_id:04x}, Modules={module_count}")
+            # 记录详细的耗材信息
+            module_details_str = '; '.join(module_details)
+            self.logger.info(f"LAS consumable inventory response sent, SeqID=0x{sequence_id:04x}, Modules={module_count}, Details=[{module_details_str}]")
+            self.logger.log_las(f"Consumable inventory response sent, SeqID=0x{sequence_id:04x}, Modules={module_count}, Details=[{module_details_str}]")
             
         except Exception as e:
             self.logger.error(f"Error handling LAS consumable inventory request: {str(e)}")
@@ -2416,16 +2430,22 @@ class LASServer:
                 load_result['sample_id'] = sample_id
             
             # 构建响应消息体
-            # Load Sample ID
-            load_sample_id_bytes = load_result.get('sample_id', '').encode('ascii') if load_result else b''
+            # Load Sample ID (使用完整样本ID，与协议一致，最大24字节)
+            load_sample_id_full = load_result.get('sample_id', '') if load_result else ''
+            # 限制最大长度为24字节(协议规定)
+            load_sample_id_bytes = load_sample_id_full[:24].encode('ascii')
             load_sample_id_len = len(load_sample_id_bytes)
+            self.logger.info(f"DEBUG Load Sample ID: full={load_sample_id_full}, encoded={load_sample_id_bytes}, len={load_sample_id_len}")
             
-            # Unload Sample ID
-            unload_sample_id_bytes = unload_result.get('sample_id', '').encode('ascii') if unload_result else b''
+            # Unload Sample ID (使用完整样本ID，与协议一致，最大24字节)
+            unload_sample_id_full = unload_result.get('sample_id', '') if unload_result else ''
+            # 限制最大长度为24字节(协议规定)
+            unload_sample_id_bytes = unload_sample_id_full[:24].encode('ascii')
             unload_sample_id_len = len(unload_sample_id_bytes)
+            self.logger.info(f"DEBUG Unload Sample ID: full={unload_sample_id_full}, encoded={unload_sample_id_bytes}, len={unload_sample_id_len}")
             
             body = struct.pack(
-                f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B H H H H H',
+                f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B B H H B H',
                 interface_position_index,
                 load_sample_id_len,
                 load_sample_id_bytes,
@@ -2433,10 +2453,10 @@ class LASServer:
                 unload_sample_id_len,
                 unload_sample_id_bytes,
                 unload_result.get('status', 1) if unload_result else 1,  # Unload Command Status
-                sample_status,  # Sample Processing Status (2 bytes)
+                sample_status,  # Sample Processing Status (1 byte)
                 onboard_count,   # Onboard Tube Count (2 bytes)
                 completed_count, # Completed Tube Count (2 bytes)
-                ready_to_load,   # Ready to Load (2 bytes)
+                ready_to_load,   # Ready to Load (1 byte)
                 return_ready_count  # Return Ready Count (2 bytes)
             )
             
@@ -2511,18 +2531,18 @@ class LASServer:
                 unload_status = status
             
             # 构建错误响应体（与正常响应格式一致，但没有 Sample ID）
-            # 格式：!B B B B B H H H H H
+            # 格式：!B B B B B B H H B H
             # Interface Position + Load Sample ID Len + Load Status + 
-            # Unload Sample ID Len + Unload Status + Sample Status + 
-            # Onboard Count + Completed Count + Ready to Load + Return Ready Count
+            # Unload Sample ID Len + Unload Status + Sample Status (1 byte) + 
+            # Onboard Count (2 bytes) + Completed Count (2 bytes) + Ready to Load (1 byte) + Return Ready Count (2 bytes)
             body = struct.pack(
-                '!B B B B B H H H H H',
+                '!B B B B B B H H B H',
                 interface_position_index,
                 0,  # load_sample_id_len = 0
                 load_status,
                 0,  # unload_sample_id_len = 0
                 unload_status,
-                0x0000,  # Sample Status: No Tube Unloaded (2 bytes)
+                0x00,  # Sample Status: No Tube Unloaded (1 byte)
                 onboard_count,
                 completed_count,
                 ready_to_load,
