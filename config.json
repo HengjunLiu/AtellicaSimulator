@@ -65,13 +65,13 @@
         "threshold": 10,
         "tests": [
             {
-                "name": "X22",
-                "count": 100,
+                "name": "X23",
+                "count": 99,
                 "status": 1
             },
             {
-                "name": "X23",
-                "count": 99,
+                "name": "X22",
+                "count": 88,
                 "status": 1
             }
         ]

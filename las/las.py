@@ -155,10 +155,51 @@ class LASServer:
         self.MSG_TYPE_CLEAR_QUEUE_REQUEST = 0x0405
         self.MSG_TYPE_CLEAR_QUEUE_RESPONSE = 0x0406
         
-        # 状态常量
+        # 注意：以下消息类型在uRAP协议文档中不存在，已废弃
+        # 状态信息应通过 Instrument Health Response (0x0202) 传递
+        # self.MSG_TYPE_ANALYZER_READY_NOTIFICATION = 0x0002  # 已废弃
+        # self.MSG_TYPE_AUTOMATION_STATUS_UPDATE = 0x0003  # 已废弃
+        
+        # 状态常量（用于Instrument Health Response中的状态码）
+        # 根据uRAP协议文档，状态码定义如下：
+        # Automation Interface Status: 0x01=Green, 0x02=Yellow, 0x03=Red, 0x04=Critical
+        # Instrument Process Status: 0x01=Green, 0x02=Yellow, 0x03=Red
+        # LIS Connection Status: 0x01=Connected, 0x02=Disconnected
         self.STATUS_GREEN = 1
         self.STATUS_YELLOW = 2
         self.STATUS_RED = 3
+        # 注意：STATUS_CRITICAL(0x04)仅在Automation Interface Status中使用
+        
+        # Load/Unload Command Status错误码（根据uRAP协议文档第125-128页）
+        # 这些状态码用于Load/Unload Response (0x0304)消息
+        self.LOAD_STATUS_SUCCESS = 0x01  # 成功执行Load命令
+        self.LOAD_STATUS_LOCK_CARRIER = 0x02  # 错误：锁定Carrier（机械手挡轨，Automation Interface Status=Critical）
+        self.LOAD_STATUS_OK_TO_UNLOCK = 0x03  # 错误：可以解锁Carrier（机械手故障但不挡轨，Automation Interface Status=Red）
+        self.LOAD_STATUS_QUEUE_MISMATCH = 0x04  # 无法执行：队列不匹配
+        self.LOAD_STATUS_INTERFACE_OFFLINE = 0x05  # 无法执行：接口位置离线
+        self.LOAD_STATUS_SKIPPED = 0x06  # Load被跳过（接口为Unload Only模式）
+        self.LOAD_STATUS_INSTRUMENT_SKIPPED = 0x07  # 仪器跳过Load（内部问题）
+        self.LOAD_STATUS_UNSUPPORTED_SAMPLE_ID = 0x08  # 无法执行：不支持的Sample ID
+        
+        # 注意：PICKUP_ERROR_* 常量在uRAP协议文档中不存在
+        # 这些是模拟器内部使用的错误码，用于区分不同类型的抓取失败
+        # 在Load/Unload Response中，统一使用LOAD_STATUS_LOCK_CARRIER (0x02)
+        self.PICKUP_ERROR_PHYSICAL_FAILURE = 0x01  # 物理抓取失败（最常见）- 内部使用
+        self.PICKUP_ERROR_BARCODE_LOST = 0x02  # 载体条码丢失 - 内部使用
+        self.PICKUP_ERROR_TYPE_MISMATCH = 0x03  # 载体类型不匹配 - 内部使用
+        
+        # 注意：AUTOMATION_STATUS_* 常量对应的消息类型(0x0003)在uRAP协议中不存在
+        # 这些状态应通过Instrument Health Response (0x0202)中的Automation Interface Status传递
+        # 保留这些常量仅用于内部状态管理，不用于发送消息
+        self.AUTOMATION_STATUS_NORMAL = 0x00  # 正常 - 内部使用
+        self.AUTOMATION_STATUS_BUSY = 0x01  # 忙 - 内部使用
+        self.AUTOMATION_STATUS_ERROR = 0x02  # 异常 - 内部使用
+        
+        # 注意：ANALYZER_READY_* 常量对应的消息类型(0x0002)在uRAP协议中不存在
+        # 分析仪就绪状态应通过Instrument Health Response间接反映
+        # 保留这些常量仅用于内部状态管理
+        self.ANALYZER_READY = 0x01  # 就绪 - 内部使用
+        self.ANALYZER_NOT_READY = 0x00  # 不就绪 - 内部使用
         
         self.logger.info(f"LASServer initialized, listening on {self.host}:{self.port}")
     
@@ -215,17 +256,12 @@ class LASServer:
                 track_message=True  # 启用消息跟踪以检测Keep-Alive响应超时
             )
             
-            # 记录发送的原始数据
-            message_hex = binascii.hexlify(message).decode('ascii')
-            extra_info = {
-                'sequence_id': f"0x{sequence_id:04x}"}
-            self.logger.log_las_raw('SENT', message_hex, extra_info)
-        
             # 发送消息
             conn.sendall(message)
             
-            self.logger.info(f"LAS Keep-Alive message sent, SeqID=0x{sequence_id:04x}")
-            self.logger.log_las(f"Keep-Alive sent, SeqID=0x{sequence_id:04x}")
+            # Keep-Alive消息不记录到LAS日志（消息太多且无价值）
+            # 只在debug级别记录
+            self.logger.debug(f"LAS Keep-Alive message sent, SeqID=0x{sequence_id:04x}")
             
         except Exception as e:
             self.logger.error(f"Error sending LAS Keep-Alive: {str(e)}")
@@ -238,8 +274,9 @@ class LASServer:
             conn: 连接 socket
             header: 消息头
         """
-        self.logger.info(f"LAS Keep-Alive received, SeqID=0x{header['sequence_id']:04x}")
-        self.logger.log_las(f"Keep-Alive received, SeqID=0x{header['sequence_id']:04x}")
+        # Keep-Alive消息不记录到LAS日志（消息太多且无价值）
+        # 只在debug级别记录
+        self.logger.debug(f"LAS Keep-Alive received, SeqID=0x{header['sequence_id']:04x}")
     
     def start(self):
         """启动LAS服务器"""
@@ -527,18 +564,21 @@ class LASServer:
                 self._send_ack(conn, 0, 0x01)  # 0x01 = Message Not Understood
                 return
             
-            # 记录接收到的原始消息
-            extra_info = {
-                'sequence_id': f"0x{msg_header['sequence_id']:04x}",
-                'return_sequence_id': f"0x{msg_header['return_sequence_id']:04x}",
-            }
-            self.logger.log_las_raw('RECEIVED', message_hex, extra_info)
-            
-            # 记录接收到的消息
-            self.logger.log_las(f"Received message from {addr[0]}:{addr[1]}: Type=0x{msg_header['message_type']:04x}, SeqID=0x{msg_header['sequence_id']:04x}, Content={message_hex}")
-            
             # 处理ACK消息（任何状态下都必须能接收）
             message_type = msg_header['message_type']
+            
+            # 记录接收到的原始消息（Keep-Alive消息除外，因为太多且无价值）
+            if message_type != self.MSG_TYPE_KEEPALIVE:
+                extra_info = {
+                    'sequence_id': f"0x{msg_header['sequence_id']:04x}",
+                    'return_sequence_id': f"0x{msg_header['return_sequence_id']:04x}",
+                }
+                self.logger.log_las_raw('RECEIVED', message_hex, extra_info)
+                
+                # 记录接收到的消息
+                self.logger.log_las(f"Received message from {addr[0]}:{addr[1]}: Type=0x{message_type:04x}, SeqID=0x{msg_header['sequence_id']:04x}, Content={message_hex}")
+            
+            # 处理ACK消息（任何状态下都必须能接收）
             if message_type == self.MSG_TYPE_ACK:
                 self._handle_ack(conn, msg_header, msg_body)
                 return
@@ -1086,6 +1126,11 @@ class LASServer:
                 self._handle_transfer_status_request(conn, header, body)
             elif message_type == self.MSG_TYPE_CLEAR_QUEUE_REQUEST:
                 self._handle_clear_queue_request(conn, header, body)
+            # 注意：0x0002 和 0x0003 消息类型在uRAP协议中不存在，已移除
+            # elif message_type == self.MSG_TYPE_AUTOMATION_STATUS_UPDATE:
+            #     self._handle_automation_status_update(conn, header, body)
+            # elif message_type == self.MSG_TYPE_ANALYZER_READY_NOTIFICATION:
+            #     self._handle_analyzer_ready_notification(conn, header, body)
             
             # 记录已处理的请求
             if message_type == self.MSG_TYPE_CLEAR_QUEUE_REQUEST:
@@ -1154,6 +1199,11 @@ class LASServer:
                 self._handle_skip_queue_request(conn, header, body)
             elif message_type == self.MSG_TYPE_CLEAR_QUEUE_REQUEST:
                 self._handle_clear_queue_request(conn, header, body)
+            # 注意：0x0002 和 0x0003 消息类型在uRAP协议中不存在，已移除
+            # elif message_type == self.MSG_TYPE_AUTOMATION_STATUS_UPDATE:
+            #     self._handle_automation_status_update(conn, header, body)
+            # elif message_type == self.MSG_TYPE_ANALYZER_READY_NOTIFICATION:
+            #     self._handle_analyzer_ready_notification(conn, header, body)
         else:
             # 发送0x03 ACK，不处理其他消息
             self.logger.warning(f"Invalid message type {message_type} in connected state")
@@ -1162,36 +1212,24 @@ class LASServer:
     
     def _handle_initialization_complete(self, conn):
         """处理初始化完成逻辑
-        
+
+        根据uRAP协议，初始化序列只包含：
+        Clear Queue → Transfer Status → Instrument Health →
+        Test Inventory → Onboard Sample Info → Consumable Inventory →
+        Initialization Complete (0x020D)
+
+        0x0304 Load/Unload Response 仅在收到 LAS 的 0x0303 请求后才发送，
+        不应在初始化阶段主动推送。
+
         Args:
             conn: 连接 socket
         """
         try:
-            # 检查IP0和IP1的锁定状态
-            health_status = self.core.get_instrument_health()
-            
-            # 检查是否有IP处于locked状态
-            if health_status['lock_ownership']:
-                # 遍历所有接口位置，发送LOAD_UNLOAD_RESPONSE
-                for i in range(health_status['interface_positions']):
-                    lock_status = health_status['lock_ownership'][i] if i < len(health_status['lock_ownership']) else 2
-                    # lock_ownership为1表示Locked by Instrument，需要发送LOAD_UNLOAD_RESPONSE
-                    if lock_status == 1:
-                        # 获取该IP上实际的样本ID
-                        actual_sample_id = ""
-                        # 检查core模块中是否有锁定的carrier信息
-                        if hasattr(self.core, 'locked_carriers') and self.core.locked_carriers and i in self.core.locked_carriers:
-                            carrier_info = self.core.locked_carriers[i]
-                            if carrier_info and 'sample_id' in carrier_info:
-                                actual_sample_id = carrier_info['sample_id']
-                        # 发送响应消息，包含实际样本ID
-                        self._send_load_unload_response(conn, i, actual_sample_id)
-            
-            # 发送初始化完成消息
+            # 直接发送初始化完成消息
             self._send_initialization_complete(conn)
-            
+
             # 收到ACK后会切换到connected状态
-            
+
         except Exception as e:
             self.logger.error(f"Error handling initialization complete: {str(e)}")
             self.logger.log_las(f"Error handling initialization complete: {str(e)}")
@@ -1216,11 +1254,20 @@ class LASServer:
             
             load_sample_id_len = len(load_sample_id)
             load_sample_id_bytes = load_sample_id.encode('ascii')
-            load_status = 2  # 2=error performing Load command(Lock Carrier in place)
+            
+            # 根据分析仪就绪状态和Load失败原因设置load_status和unload_status
+            # 如果分析仪不就绪（analyzer_ready != 0x01），则Load/Unload命令失败
+            if self.core.analyzer_ready != 0x01:
+                # 分析仪不就绪，Load/Unload命令失败
+                load_status = 2  # Error performing Load/Unload command: Lock Carrier in place
+                unload_status = 2  # Error performing Load/Unload command: Lock Carrier in place
+            else:
+                # 分析仪就绪，Load/Unload命令成功
+                load_status = 1  # Success
+                unload_status = 1  # Success
             
             unload_sample_id_len = len(unload_sample_id)
             unload_sample_id_bytes = unload_sample_id.encode('ascii')
-            unload_status = 2  # 2=error performing Unload command(Lock Carrier in place)
             
             sample_status = 0  # 0=No Sample Present
             onboard_count = health_status['on_board_tube_count']
@@ -1274,6 +1321,103 @@ class LASServer:
         except Exception as e:
             self.logger.error(f"Error sending LAS load/unload response: {str(e)}")
             self.logger.log_las(f"Error sending load/unload response: {str(e)}")
+    
+    def _send_pickup_failure_response(self, conn, interface_position_index, sample_id, pickup_error_code):
+        """发送IP0抓取失败的Load/Unload响应
+        
+        根据Atellica SW 1.23规范，当IP0抓取失败时，需要发送特定的错误响应
+        LAS收到此响应后，必须发送Clear Queue命令来释放锁定的carrier
+        
+        Args:
+            conn: 连接 socket
+            interface_position_index: 接口位置索引（通常为0表示IP0）
+            sample_id: 失败的样本ID
+            pickup_error_code: 抓取失败错误码
+                - 0x01: 物理抓取失败（最常见）
+                - 0x02: 载体条码丢失
+                - 0x03: 载体类型不匹配
+        """
+        try:
+            # 获取相关状态
+            health_status = self.core.get_instrument_health()
+            ready_to_load = self.core.get_ready_to_load(interface_position_index)
+            return_ready_count = self.core.get_return_ready_count()
+            
+            # 构建响应消息体 - 抓取失败
+            load_sample_id = sample_id
+            load_sample_id_len = len(load_sample_id)
+            load_sample_id_bytes = load_sample_id.encode('ascii')
+            
+            # 根据抓取失败错误码设置Load Status
+            # 0x02 = Error performing Load command: Lock Carrier in place
+            # 这表示抓取失败，carrier被锁定，需要LAS发送Clear Queue来释放
+            load_status = self.LOAD_STATUS_LOCK_CARRIER
+            
+            unload_sample_id = ""
+            unload_sample_id_len = 0
+            unload_sample_id_bytes = b""
+            unload_status = 0  # Unload不适用
+            
+            sample_status = 0  # 0=No Sample Present
+            onboard_count = health_status['on_board_tube_count']
+            completed_count = health_status['completed_tube_count']
+            
+            body = struct.pack(
+                f'!B B {load_sample_id_len}s B B {unload_sample_id_len}s B B H H B H',
+                interface_position_index,
+                load_sample_id_len,
+                load_sample_id_bytes,
+                load_status,
+                unload_sample_id_len,
+                unload_sample_id_bytes,
+                unload_status,
+                sample_status,
+                onboard_count,
+                completed_count,
+                ready_to_load,
+                return_ready_count
+            )
+            
+            # 构建完整消息
+            message, sequence_id = self._build_message(
+                self.MSG_TYPE_LOAD_UNLOAD_RESPONSE,
+                body
+            )
+            
+            # 记录发送的原始数据
+            message_hex = binascii.hexlify(message).decode('ascii')
+            
+            # 错误码描述
+            error_desc = {
+                self.PICKUP_ERROR_PHYSICAL_FAILURE: "Physical pickup failure",
+                self.PICKUP_ERROR_BARCODE_LOST: "Carrier barcode lost",
+                self.PICKUP_ERROR_TYPE_MISMATCH: "Carrier type mismatch"
+            }.get(pickup_error_code, f"Unknown error (0x{pickup_error_code:02x})")
+            
+            extra_info = {
+                'sequence_id': f"0x{sequence_id:04x}",
+                'interface_position': interface_position_index,
+                'load_sample_id': load_sample_id,
+                'load_status': load_status,
+                'pickup_error_code': f"0x{pickup_error_code:02x}",
+                'pickup_error_description': error_desc,
+                'sample_status': sample_status,
+                'onboard_count': onboard_count,
+                'completed_count': completed_count,
+                'ready_to_load': ready_to_load,
+                'return_ready_count': return_ready_count
+            }
+            self.logger.log_las_raw('SENT', message_hex, extra_info)
+            
+            # 发送消息
+            conn.sendall(message)
+            
+            self.logger.warning(f"IP0 pickup failure response sent, SeqID=0x{sequence_id:04x}, SampleID={sample_id}, ErrorCode=0x{pickup_error_code:02x} ({error_desc})")
+            self.logger.log_las(f"Pickup failure response sent, SeqID=0x{sequence_id:04x}, Error=0x{pickup_error_code:02x}")
+            
+        except Exception as e:
+            self.logger.error(f"Error sending pickup failure response: {str(e)}")
+            self.logger.log_las(f"Error sending pickup failure response: {str(e)}")
     
     def _parse_message(self, message):
         """解析uRAP消息
@@ -1495,7 +1639,24 @@ class LASServer:
                 return
             
             instrument_serial = body[10:10+serial_len].decode('ascii')
-            
+
+            # 新握手到来时，清理所有旧连接，避免主动推送消息双发
+            with self.connection_lock:
+                stale_conns = [c for c in self.connections if c is not conn]
+                for stale_conn in stale_conns:
+                    try:
+                        stale_conn.close()
+                    except Exception:
+                        pass
+                    self.connections.remove(stale_conn)
+                # 清理对应的连接状态
+                stale_ids = [cid for cid, st in self.connection_states.items() if st['conn'] is not conn]
+                for stale_id in stale_ids:
+                    del self.connection_states[stale_id]
+
+                if conn not in self.connections:
+                    self.connections.append(conn)
+
             # 更新连接状态为handshake_received
             for conn_id, state in list(self.connection_states.items()):
                 if state['conn'] == conn:
@@ -1646,7 +1807,7 @@ class LASServer:
                 lock_ownership = health_status['lock_ownership'][i] if i < len(health_status['lock_ownership']) else 2
                 body += struct.pack('!BB', remote_status, lock_ownership)
             
-            # 添加处理积压、样本获取延迟、在线试管数量、已完成试管数量
+            # 添加处理积压、样本获取延迟、脱线试管数量、已完成试管数量
             body += struct.pack(
                 '!HHHH',
                 health_status['processing_backlog'],
@@ -2219,6 +2380,9 @@ class LASServer:
     def _handle_clear_queue_request(self, conn, header, body):
         """处理清除队列请求
         
+        根据Atellica SW 1.23规范，Clear Queue命令用于强制释放队列锁
+        特别是在IP0抓取失败时，必须发送此命令来释放锁定的carrier
+        
         Args:
             conn: 连接 socket
             header: 消息头
@@ -2228,8 +2392,9 @@ class LASServer:
             # 解析请求消息体中的Interface Position Index
             interface_position_index = body[0] if body else 0
             
-            # 清除队列
-            success = self.core.clear_queue(interface_position_index)
+            # 清除队列，使用force=True强制释放锁定的carrier
+            # 这对于IP0抓取失败恢复非常重要
+            success = self.core.clear_queue(interface_position_index, force=True)
             
             # 构建响应消息体
             body = struct.pack(
@@ -2259,12 +2424,82 @@ class LASServer:
             # 发送消息
             conn.sendall(message)
             
-            self.logger.info(f"LAS clear queue response sent, SeqID=0x{sequence_id:04x}, IP={interface_position_index}, Status={'Success' if success else 'Failed'}")
+            self.logger.info(f"LAS clear queue response sent, SeqID=0x{sequence_id:04x}, IP={interface_position_index}, Status={'Success' if success else 'Failed'}, Force=True")
             self.logger.log_las(f"Clear queue response sent, SeqID=0x{sequence_id:04x}")
             
         except Exception as e:
             self.logger.error(f"Error handling LAS clear queue request: {str(e)}")
             self.logger.log_las(f"Error handling clear queue request: {str(e)}")
+    
+    def _handle_automation_status_update(self, conn, header, body):
+        """处理自动化接口状态更新消息
+        
+        根据Atellica SW 1.23规范，分析仪发送此消息告知LAS自动化接口状态
+        LAS收到后需要更新状态并检查是否可以恢复标本投递
+        
+        Args:
+            conn: 连接 socket
+            header: 消息头
+            body: 消息体
+        """
+        try:
+            # 解析消息体中的状态码
+            status = body[0] if body else 0
+            
+            # 更新core中的自动化状态
+            self.core.update_automation_status(status)
+            
+            # 记录日志
+            status_desc = {
+                0x00: "Normal",
+                0x01: "Busy",
+                0x02: "Error"
+            }.get(status, f"Unknown (0x{status:02x})")
+            
+            self.logger.info(f"Received Automation Status Update: Status=0x{status:02x} ({status_desc})")
+            self.logger.log_las(f"Automation Status Update received, Status=0x{status:02x}")
+            
+            # 检查机械手是否已恢复
+            if self.core.is_robot_arm_recovered():
+                self.logger.info("Robot arm recovered! Resuming sample delivery to IP0")
+                self.logger.log_las("Robot arm recovered, resuming sample delivery")
+            
+        except Exception as e:
+            self.logger.error(f"Error handling automation status update: {str(e)}")
+            self.logger.log_las(f"Error handling automation status update: {str(e)}")
+    
+    def _handle_analyzer_ready_notification(self, conn, header, body):
+        """处理分析仪就绪通知消息
+        
+        根据Atellica SW 1.23规范，分析仪发送此消息告知LAS是否就绪
+        LAS收到后需要更新状态并检查是否可以恢复标本投递
+        
+        Args:
+            conn: 连接 socket
+            header: 消息头
+            body: 消息体
+        """
+        try:
+            # 解析消息体中的就绪标志
+            ready = body[0] if body else 0
+            
+            # 更新core中的就绪状态
+            self.core.update_analyzer_ready(ready)
+            
+            # 记录日志
+            ready_desc = "Ready" if ready == 0x01 else "Not Ready"
+            
+            self.logger.info(f"Received Analyzer Ready Notification: Ready=0x{ready:02x} ({ready_desc})")
+            self.logger.log_las(f"Analyzer Ready Notification received, Ready=0x{ready:02x}")
+            
+            # 检查机械手是否已恢复
+            if self.core.is_robot_arm_recovered():
+                self.logger.info("Robot arm recovered! Resuming sample delivery to IP0")
+                self.logger.log_las("Robot arm recovered, resuming sample delivery")
+            
+        except Exception as e:
+            self.logger.error(f"Error handling analyzer ready notification: {str(e)}")
+            self.logger.log_las(f"Error handling analyzer ready notification: {str(e)}")
     
     def _handle_load_unload_request(self, conn, header, body, manual_complete=False):
         """处理装载/卸载请求
@@ -2346,22 +2581,6 @@ class LASServer:
                     self.logger.warning(f"{request_type.upper()}请求重复：SeqID=0x{seq_id:04x}")
                     return
             
-            # UNLOAD请求验证：业务逻辑检查
-            # 检查是否有待卸载的样本（业务规则，非协议要求）
-            if request_type == 'unload':
-                # 验证：使用请求中的sample_id或获取下一个待卸载样本
-                # 优先使用请求中传递的sample_id（用户输入的）
-                target_sample_id = sample_id if sample_id else self.core.get_next_sample_to_unload()
-                if not target_sample_id:
-                    self.logger.warning(f"UNLOAD请求被拒绝：无待卸载样本")
-                    self.logger.log_las(f"UNLOAD request rejected: No sample ready for unload")
-                    # 发送拒绝响应
-                    self._send_load_unload_error_response(
-                        conn, header, interface_position_index,
-                        status=6  # Unload Skipped
-                    )
-                    return
-            
             # 获取要显示的样本ID
             display_sample_id = sample_id
             if request_type == 'unload':
@@ -2402,6 +2621,32 @@ class LASServer:
                 self.logger.log_las(f"Manual operation requested: {request_type} for IP{interface_position_index}, SampleID={display_sample_id}")
                 return
             
+            # UNLOAD请求验证：业务逻辑检查（无论manual_complete是否为True）
+            if request_type == 'unload':
+                # 验证：如果用户清空了标本ID，直接返回暂时无法卸载
+                if not sample_id:
+                    self.logger.warning(f"UNLOAD请求：用户清空了标本ID，暂时无法卸载")
+                    self.logger.log_las(f"UNLOAD request: Instrument Skipped Unloading")
+                    # 发送暂时无法卸载响应
+                    self._send_load_unload_error_response(
+                        conn, header, interface_position_index,
+                        status=7  # Instrument Skipped Unloading
+                    )
+                    return
+                
+                # 验证：使用请求中的sample_id或获取下一个待卸载样本
+                # 优先使用请求中传递的sample_id（用户输入的）
+                target_sample_id = sample_id if sample_id else self.core.get_next_sample_to_unload()
+                if not target_sample_id:
+                    self.logger.warning(f"UNLOAD请求：暂时无法卸载（无待卸载样本）")
+                    self.logger.log_las(f"UNLOAD request: Instrument Skipped Unloading")
+                    # 发送暂时无法卸载响应
+                    self._send_load_unload_error_response(
+                        conn, header, interface_position_index,
+                        status=7  # Instrument Skipped Unloading
+                    )
+                    return
+            
             # 处理装载/卸载请求
             self.logger.info(f"调用process_load_unload: IP={interface_position_index}, sample_id={sample_id}")
             load_result, unload_result, sample_status, onboard_count, completed_count, ready_to_load, return_ready_count = self.core.process_load_unload(
@@ -2414,6 +2659,13 @@ class LASServer:
             )
             self.logger.info(f"process_load_unload返回: load_result={load_result}, unload_result={unload_result}")
             
+            # UNLOAD成功后，从脱线标本库中移除标本
+            if request_type == 'unload' and unload_result and unload_result.get('status') in [1, 2, 3]:
+                unload_sample_id = unload_result.get('sample_id', '')
+                if unload_sample_id and unload_sample_id in self.core.offline_samples:
+                    del self.core.offline_samples[unload_sample_id]
+                    self.logger.info(f"Sample {unload_sample_id}: UNLOAD成功，已从脱线标本库移除")
+            
             # 确保load_result和unload_result被正确初始化
             if load_result is None:
                 load_result = {'sample_id': sample_id, 'status': 1}  # 默认使用请求中的样本ID
@@ -2424,6 +2676,11 @@ class LASServer:
             if isinstance(ready_to_load, dict):
                 # 如果 ready_to_load 是字典，则检查指定接口位置是否就绪（1 表示就绪，0 表示未就绪）
                 ready_to_load = 1 if ready_to_load[interface_position_index] else 0
+            
+            # 确保计数值不为负数（struct.pack的'H'格式要求0-65535）
+            onboard_count = max(0, onboard_count)
+            completed_count = max(0, completed_count)
+            return_ready_count = max(0, return_ready_count)
             
             # 确保load_result包含sample_id，如果没有则使用请求中的样本ID
             if 'sample_id' not in load_result or not load_result['sample_id']:
@@ -2796,12 +3053,46 @@ class LASServer:
                     self.removed_samples.append(sample_id)
                     self.logger.info(f"Sample {sample_id} added to removed samples list")
 
-            # 发送 Onboard Sample Info 消息通知 LAS 标本已被移除
-            notification_success = self.send_onboard_sample_info_message(include_removed=True, track_message=True)
+            # 发送 Operation Complete Notification (0x0004) 消息通知 LAS 标本已被人工移除
+            # 根据Atellica官方协议：
+            # - Operation Type: 0x02 (IP0 Load) 或 0x03 (IP1 Unload)
+            # - Result: 0x01 (Failure)
+            # - Error Code: 0x0D (Sample removed manually) 或 0x0E (Sample offline / discarded)
+            try:
+                # 确定Operation Type（根据interface_position）
+                operation_type = 0x02 if interface_position == 0 else 0x03  # 0x02=IP0 Load, 0x03=IP1 Unload
+                result = 0x01  # Failure
+                error_code = 0x0D  # Sample removed manually
+                
+                # 构建消息体
+                body = struct.pack('!BBB', operation_type, result, error_code)
+                
+                # 发送消息
+                message, sequence_id = self._build_message(
+                    0x0004,  # Operation Complete Notification
+                    body,
+                    track_message=True
+                )
+                
+                with self.connection_lock:
+                    for conn in self.connections:
+                        conn.sendall(message)
+                
+                self.logger.info(f"Sent Operation Complete Notification (0x0004) for sample {sample_id}: "
+                               f"OperationType=0x{operation_type:02x}, Result=0x{result:02x}, "
+                               f"ErrorCode=0x{error_code:02x} (Sample removed manually)")
+                notification_success = True
+            except Exception as e:
+                self.logger.error(f"Failed to send Operation Complete Notification for sample {sample_id}: {str(e)}")
+                notification_success = False
+            
+            # 同时发送Onboard Sample Info消息作为补充通知
             if notification_success:
-                self.logger.info(f"Sent Onboard Sample Info notification with removed sample {sample_id}")
-            else:
-                self.logger.warning(f"Failed to send Onboard Sample Info notification for removed sample {sample_id}")
+                onboard_success = self.send_onboard_sample_info_message(include_removed=True, track_message=True)
+                if onboard_success:
+                    self.logger.info(f"Sent Onboard Sample Info notification with removed sample {sample_id}")
+                else:
+                    self.logger.warning(f"Failed to send Onboard Sample Info notification for removed sample {sample_id}")
 
             # 4. 如果通知发送成功，执行更新核心样本状态
             if notification_success:
@@ -2817,6 +3108,10 @@ class LASServer:
             self.logger.error(f"Error in manual_eject_sample: {str(e)}")
             self.logger.log_las(f"Error in manual eject: {str(e)}")
             return False
+    
+    # 注意：0x0004 Sample Result 在 uRAP 协议中不存在
+    # 该方法已删除，样本结果通过 Load/Unload Response 中的 Sample Processing Status 传递
+    # 如需处理"离开轨道"的标本，请使用其他机制
     
     def send_transfer_status_response(self, interface_position_index=0, ready_to_load=0, return_ready_count=0):
         """发送传输状态响应消息
@@ -2899,7 +3194,7 @@ class LASServer:
                 lock_ownership = health_status['lock_ownership'][i] if i < len(health_status['lock_ownership']) else 2
                 body += struct.pack('!BB', remote_status, lock_ownership)
             
-            # 添加处理积压、样本获取延迟、在线试管数量、已完成试管数量
+            # 添加处理积压、样本获取延迟、脱线试管数量、已完成试管数量
             body += struct.pack(
                 '!HHHH',
                 health_status['processing_backlog'],

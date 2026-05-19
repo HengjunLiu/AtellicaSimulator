@@ -49,6 +49,9 @@ class AtellicaCore:
         self.samples = {}
         self.pending_results = {}
         
+        # 脱线标本库 - 存储离开轨道的标本
+        self.offline_samples = {}
+        
         # 队列管理
         self.queues = {
             0: [],  # IP0队列
@@ -63,6 +66,14 @@ class AtellicaCore:
             1: False   # IP1是否就绪装载（初始为False，与真实ATS一致）
         }
         self.return_ready_count = 0
+        
+        # 机械手异常恢复状态跟踪（根据Atellica SW 1.23规范）
+        self.automation_status = None  # 自动化接口状态：None=未知, 0x00=正常, 0x01=忙, 0x02=异常
+        self.analyzer_ready = None  # 分析仪就绪状态：None=未知, 0x00=不就绪, 0x01=就绪
+        
+        # Load/Unload命令状态（用于测试场景）
+        self.load_command_status = None  # None=使用默认逻辑, 1=Success, 2=Lock, 3=Unlock, etc.
+        self.unload_command_status = None  # None=使用默认逻辑, 1=Success, 2=Lock, 3=Unlock, etc.
         
         # 线程锁
         self.status_lock = threading.Lock()
@@ -89,13 +100,24 @@ class AtellicaCore:
         # 初始化SQLite数据库
         self._init_database()
         
+        # 重新初始化数据库（检查并修复表结构）
+        self.reinit_database()
+        
         # 从数据库初始化样本数据
         self._initialize_from_database()
+        
+        # 当前激活的场景（用于场景16自动适配）
+        self.active_scenario = None  # 可能的值: None, '9a', '9b', '10', '11'
+        self.active_scenario_data = {}  # 存储场景的额外数据
+        
+        # 当前激活的IP1场景（用于场景24自动适配）
+        self.active_scenario_ip1 = None  # 可能的值: None, '17', '18', '19', '20'
+        self.active_scenario_ip1_data = {}  # 存储IP1场景的额外数据
         
         self.logger.info("AtellicaCore initialized successfully")
     
     def _init_database(self):
-        """初始化SQLite数据库，创建on_board_samples表
+        """初始化SQLite数据库，创建脱线标本表(on_board_samples)
         """
         try:
             # 创建数据库目录（如果不存在）
@@ -115,7 +137,8 @@ class AtellicaCore:
                 CREATE TABLE IF NOT EXISTS on_board_samples (
                     sample_id TEXT PRIMARY KEY,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    load_time DATETIME NOT NULL
+                    load_time DATETIME NOT NULL,
+                    status TEXT DEFAULT 'loaded'
                 )
             ''')
             
@@ -139,10 +162,34 @@ class AtellicaCore:
         except Exception as e:
             self.logger.error(f"Unexpected error initializing database: {str(e)}")
     
+    def reinit_database(self):
+        """重新初始化数据库，添加status列（如果表已存在但没有status列）
+        """
+        try:
+            db_path = os.path.join('data', 'atellica.db')
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # 检查on_board_samples表是否存在status列
+            cursor.execute("PRAGMA table_info(on_board_samples)")
+            columns = [column[1] for column in cursor.fetchall()]
+            
+            if 'status' not in columns:
+                self.logger.info("Adding status column to on_board_samples table")
+                cursor.execute('ALTER TABLE on_board_samples ADD COLUMN status TEXT DEFAULT \'loaded\'')
+                conn.commit()
+                self.logger.info("Status column added successfully")
+            
+            conn.close()
+            return True
+        except Exception as e:
+            self.logger.error(f"Error reinitializing database: {str(e)}")
+            return False
+    
     def _initialize_from_database(self):
         """从数据库初始化样本数据
-        
-        应用启动时，查询on_board_samples表，初始化样本数据和相关变量
+
+        应用启动时，查询脱线标本表(on_board_samples)，初始化样本数据和相关变量
         """
         try:
             self.logger.info("开始从数据库初始化样本数据...")
@@ -388,6 +435,13 @@ class AtellicaCore:
                 self.logger.error(f"No valid tests for sample {sample_id}")
                 return False
             
+            # 处理条码带后缀的情况（如 202501230270^^）
+            original_sample_id = sample_id
+            # 取^符号左边的字符串作为标本号
+            if '^' in sample_id:
+                sample_id = sample_id.split('^')[0]
+                self.logger.info(f"Barcode parsed: {original_sample_id} -> {sample_id}")
+            
             if sample_id in self.samples:
                 # 样本已存在，更新测试项目（LIS提供工作单）
                 self.logger.info(f"Sample {sample_id} already exists, updating tests from LIS")
@@ -481,6 +535,16 @@ class AtellicaCore:
                 if sample.get('ready_for_unload', False):
                     self.return_ready_count -= 1
             
+            # 将样本加入脱线标本库（标记为离开轨道）
+            self.offline_samples[sample_id] = {
+                'sample_id': sample_id,
+                'status': 'left_track',
+                'original_status': sample['status'],
+                'timestamp': time.time(),
+                'load_time': sample.get('load_time', time.time())
+            }
+            self.logger.info(f"Sample {sample_id}: 已离开轨道，加入脱线标本库")
+            
             # 从self.samples列表中移除样本
             del self.samples[sample_id]
             
@@ -498,11 +562,12 @@ class AtellicaCore:
         with self.sample_lock:
             return self.samples.copy()
     
-    def update_automation_interface_status(self, status):
+    def update_automation_interface_status(self, status, auto_send_health=True):
         """更新自动化接口状态
         
         Args:
             status: 状态值（1: Green, 3: Red，4: Critical）
+            auto_send_health: 是否自动发送Instrument Health Response（默认True保持向后兼容）
         """
         with self.status_lock:
             if self.automation_interface_status == status:
@@ -511,7 +576,7 @@ class AtellicaCore:
             self.logger.info(f"Updated automation interface status to {status}")
         
         # 调用LAS服务器的send_instrument_health_response方法
-        if hasattr(self, 'las_server') and self.las_server:
+        if auto_send_health and hasattr(self, 'las_server') and self.las_server:
             self.las_server.send_instrument_health_response()
     
     def update_instrument_process_status(self, status):
@@ -582,14 +647,41 @@ class AtellicaCore:
             int: 命令状态码（1、2、3或5）
         """
         with self.status_lock:
-            if self.automation_interface_status == 4:
-                return 2
-            elif self.automation_interface_status == 3:
-                return 3
-            elif self.remote_control_status[interface_positions] == 1:
-                return 5
+            # 优先使用显式设置的load_command_status/unload_command_status（用于测试场景）
+            # IP0 (Load) 使用 load_command_status
+            if interface_positions == 0:
+                if hasattr(self, 'load_command_status') and self.load_command_status is not None:
+                    return self.load_command_status
+            # IP1 (Unload) 使用 unload_command_status
             else:
-                return 1
+                if hasattr(self, 'unload_command_status') and self.unload_command_status is not None:
+                    return self.unload_command_status
+            
+            # 检查分析仪就绪状态（对于IP0 Load操作）
+            if interface_positions == 0:
+                # 分析仪不就绪
+                if self.analyzer_ready == 0x00:
+                    return 2  # Lock Carrier in place
+                # 机械手异常
+                if self.automation_status == 0x02:
+                    return 2  # Lock Carrier in place
+            
+            # 自动化接口状态
+            if self.automation_interface_status == 4:
+                return 2  # Critical - Lock Carrier
+            elif self.automation_interface_status == 3:
+                return 3  # Red - OK to Unlock
+            
+            # 远程控制状态
+            if self.remote_control_status[interface_positions] == 1:
+                return 5  # Interface Offline
+            
+            # 仪器处理状态（如果是Red，也应该拒绝Load）
+            if interface_positions == 0 and self.instrument_process_status == 3:
+                return 2  # Lock Carrier in place
+            
+            # 其他情况视为成功
+            return 1
     
     def get_instrument_health(self):
         """获取仪器健康状态
@@ -826,6 +918,17 @@ class AtellicaCore:
             if interface_position_index not in self.queues:
                 return False
             
+            """
+            # 检查IP0的LAS接口状态
+            if interface_position_index == 0:
+                with self.status_lock:
+                    automation_status = self.automation_interface_status
+                
+                # 如果LAS接口状态不正常（不是1/Green），则不允许添加到队列
+                if automation_status != 1:
+                    self.logger.warning(f"IP0抓取被拒绝: 样本ID={sample_id}, LAS接口状态={automation_status} (非Green状态)")
+                    return False
+            """
             carrier_info = {
                 'carrier_occupancy': carrier_occupancy,
                 'sample_id': sample_id,
@@ -839,7 +942,23 @@ class AtellicaCore:
             # 设置 ready_to_load 为 True，表示可以接收标本
             self.ready_to_load[interface_position_index] = True
             
-            self.logger.info(f"Added to queue IP{interface_position_index}: SampleID={sample_id}, Occupancy={carrier_occupancy}, ReadyToLoad=True")
+            # 主动发送Transfer Status Response通知LAS
+            if hasattr(self, 'las_server') and self.las_server:
+                try:
+                    # 发送当前接口的状态
+                    self.las_server.send_transfer_status_response(
+                        interface_position_index=interface_position_index,
+                        ready_to_load=1,  # 设置为1表示可以接收标本
+                        return_ready_count=self.return_ready_count
+                    )
+                    self.logger.info(f"Added to queue IP{interface_position_index}: SampleID={sample_id}, Occupancy={carrier_occupancy}, ReadyToLoad=True, Transfer Status Response sent")
+                except Exception as e:
+                    self.logger.error(f"Added to queue IP{interface_position_index}: 发送Transfer Status Response失败: {str(e)}")
+            else:
+                self.logger.info(f"Added to queue IP{interface_position_index}: SampleID={sample_id}, Occupancy={carrier_occupancy}, ReadyToLoad=True (las_server not available)")
+                # 稍后重试发送Transfer Status Response
+                self._schedule_transfer_status_retry(interface_position_index)
+            
             return True
     
     def skip_from_queue(self, interface_position_index, carrier_occupancy, sample_id, in_queue):
@@ -868,11 +987,12 @@ class AtellicaCore:
             
             return False
     
-    def clear_queue(self, interface_position_index):
+    def clear_queue(self, interface_position_index, force=False):
         """清除队列
         
         Args:
             interface_position_index: 接口位置索引
+            force: 是否强制清除（包括锁定的carrier）
             
         Returns:
             bool: 是否成功清除
@@ -881,16 +1001,76 @@ class AtellicaCore:
             if interface_position_index not in self.queues:
                 return False
             
-            # 不清除锁定的carrier
-            if self.locked_carriers[interface_position_index] is not None:
-                self.logger.warning(f"Cannot clear queue IP{interface_position_index}: carrier is locked")
+            # 如果不是强制清除，则不允许清除锁定的carrier
+            if not force and self.locked_carriers[interface_position_index] is not None:
+                self.logger.warning(f"Cannot clear queue IP{interface_position_index}: carrier is locked (use force=True to override)")
                 return False
             
-            count = len(self.queues[interface_position_index])
+            # 如果是强制清除，释放锁定的carrier
+            if force and self.locked_carriers[interface_position_index] is not None:
+                self.logger.info(f"Force clearing queue IP{interface_position_index}: releasing locked carrier")
+                
+                # 从数据库中删除锁定状态记录
+                interface_positions = f"IP{interface_position_index}"
+                self._delete_locked_carrier(interface_positions)
+                
+                # 释放锁定
+                self.locked_carriers[interface_position_index] = None
+                
+                # 更新锁状态为Not Locked（符合西门子Atellica官方协议）
+                if interface_position_index < len(self.lock_ownership):
+                    self.lock_ownership[interface_position_index] = 2  # 0x02: Not Locked by Instrument
+                    self.logger.info(f"Updated lock ownership for IP{interface_position_index} to 0x02 (Not Locked)")
+            
+            # 统计并减少在机试管计数
+            count = 0
+            for carrier in self.queues[interface_position_index]:
+                if carrier.get('status') == 'load_failed':
+                    self.on_board_tube_count = max(0, self.on_board_tube_count - 1)
+                    self.logger.info(f"Removed load_failed carrier from IP{interface_position_index}, on_board_tube_count={self.on_board_tube_count}")
+                count += 1
+            
             self.queues[interface_position_index] = []
             
-            self.logger.info(f"Cleared queue IP{interface_position_index}: {count} carriers removed")
+            self.logger.info(f"Cleared queue IP{interface_position_index}: {count} carriers removed (force={force})")
             return True
+    
+    def clear_all_samples(self):
+        """清除所有样本数据（数据库和内存）
+        
+        场景8使用：彻底清理所有样本记录，防止LAS重新添加
+        """
+        with self.sample_lock:
+            try:
+                # 1. 清理内存中的样本数据
+                sample_count = len(self.samples)
+                self.samples.clear()
+                self.logger.info(f"Cleared {sample_count} samples from memory")
+                
+                # 2. 清理脱线标本库
+                offline_count = len(self.offline_samples)
+                self.offline_samples.clear()
+                self.logger.info(f"Cleared {offline_count} offline samples")
+                
+                # 3. 重置计数器
+                self.on_board_tube_count = 0
+                self.completed_tube_count = 0
+                self.return_ready_count = 0
+                self.logger.info("Reset counters: on_board_tube_count=0, completed_tube_count=0, return_ready_count=0")
+                
+                # 4. 清理数据库中的样本记录
+                conn = self._get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM on_board_samples")
+                conn.commit()
+                deleted_count = cursor.rowcount
+                conn.close()
+                self.logger.info(f"Deleted {deleted_count} samples from database")
+                
+                return True
+            except Exception as e:
+                self.logger.error(f"Error clearing all samples: {str(e)}")
+                return False
     
     def get_queue_info(self, interface_position_index):
         """获取队列信息
@@ -903,7 +1083,94 @@ class AtellicaCore:
         """
         with self.sample_lock:
             return self.queues.get(interface_position_index, []).copy()
-
+    
+    def update_automation_status(self, status):
+        """更新自动化接口状态
+        
+        根据Atellica SW 1.23规范，分析仪发送Automation Status Update消息
+        LAS收到后需要记录状态
+        
+        Args:
+            status: 状态码
+                - 0x00: 正常
+                - 0x01: 忙
+                - 0x02: 异常
+        """
+        with self.status_lock:
+            self.automation_status = status
+            self.logger.info(f"Automation status updated: {status} ({'Normal' if status == 0x00 else 'Busy' if status == 0x01 else 'Error'})")
+    
+    def update_analyzer_ready(self, ready):
+        """更新分析仪就绪状态
+        
+        根据Atellica SW 1.23规范，分析仪发送Analyzer Ready Notification消息
+        LAS收到后需要记录状态
+        
+        Args:
+            ready: 就绪状态
+                - 0x00: 不就绪
+                - 0x01: 就绪
+        """
+        with self.status_lock:
+            self.analyzer_ready = ready
+            self.logger.info(f"Analyzer ready status updated: {ready} ({'Ready' if ready == 0x01 else 'Not Ready'})")
+    
+    def update_load_failure_reason(self, reason):
+        """更新Load失败原因
+        
+        根据uRAP协议，Load Status的含义：
+        - 1: Success
+        - 2: Error: Lock Carrier in place
+        - 3: Error: OK to Unlock Carrier
+        - 4: Queue Flush
+        - 5: Queue Rebuild
+        - 7: Skipped
+        - 8: Release Next
+        
+        Args:
+            reason: 失败原因
+                - 1: Success
+                - 2: Lock Carrier
+                - 3: OK to Unlock Carrier
+                - 4: Queue Flush
+                - 5: Queue Rebuild
+                - 7: Skipped
+                - 8: Release Next
+        """
+        with self.status_lock:
+            self.load_failure_reason = reason
+            reason_desc = {
+                1: 'Success',
+                2: 'Lock Carrier',
+                3: 'OK to Unlock Carrier',
+                4: 'Queue Flush',
+                5: 'Queue Rebuild',
+                7: 'Skipped',
+                8: 'Release Next'
+            }.get(reason, 'Unknown')
+            self.logger.info(f"Load failure reason updated: {reason} ({reason_desc})")
+    
+    def is_robot_arm_recovered(self):
+        """检查机械手是否已恢复
+        
+        根据Atellica SW 1.23规范，机械手恢复需要同时满足：
+        1. Automation Status = 0x00 (正常)
+        2. Analyzer Ready = 0x01 (就绪)
+        
+        Returns:
+            bool: 机械手是否已恢复
+        """
+        with self.status_lock:
+            automation_ok = self.automation_status == 0x00
+            analyzer_ok = self.analyzer_ready == 0x01
+            
+            if automation_ok and analyzer_ok:
+                self.logger.info("Robot arm recovered: Automation=Normal, Analyzer=Ready")
+                return True
+            else:
+                self.logger.debug(f"Robot arm not recovered: Automation={self.automation_status}, Analyzer={self.analyzer_ready}")
+                return False
+    
     def remove_sample_from_queue(self, sample_id, interface_position_index=None):
         """从队列中删除样本信息
 
@@ -926,10 +1193,19 @@ class AtellicaCore:
 
                     queue = self.queues[interface_position_index]
                     for i, carrier in enumerate(queue):
+                        # 处理空样本ID的情况
                         if carrier.get('sample_id') == sample_id:
                             queue.pop(i)
                             self.logger.info(f"Sample {sample_id}: 已从IP{interface_position_index}队列中删除")
                             return True
+
+                    # 如果样本ID为空且未找到，尝试删除队列中的第一个空项目
+                    if not sample_id:
+                        for i, carrier in enumerate(queue):
+                            if not carrier.get('sample_id'):
+                                queue.pop(i)
+                                self.logger.info(f"Empty sample: 已从IP{interface_position_index}队列中删除第一个空项目")
+                                return True
 
                     self.logger.warning(f"Sample {sample_id}: 在IP{interface_position_index}队列中未找到")
                     return False
@@ -941,6 +1217,15 @@ class AtellicaCore:
                             queue.pop(i)
                             self.logger.info(f"Sample {sample_id}: 已从IP{ip_index}队列中删除")
                             return True
+
+                # 如果样本ID为空且未找到，尝试删除所有队列中的空项目
+                if not sample_id:
+                    for ip_index, queue in self.queues.items():
+                        for i, carrier in enumerate(queue):
+                            if not carrier.get('sample_id'):
+                                queue.pop(i)
+                                self.logger.info(f"Empty sample: 已从IP{ip_index}队列中删除空项目")
+                                return True
 
                 self.logger.warning(f"Sample {sample_id}: 在任何队列中都未找到")
                 return False
@@ -1037,6 +1322,33 @@ class AtellicaCore:
                 self.logger.info(f"样本 {sample_id} 已添加到工作流队列，当前队列长度: {len(self.sample_workflow_queue)}")
             else:
                 self.logger.warning(f"样本 {sample_id} 已在工作流队列中，跳过")
+    
+    def _schedule_transfer_status_retry(self, interface_position_index, delay_seconds=5):
+        """调度重试发送Transfer Status Response
+        
+        Args:
+            interface_position_index: 接口位置索引
+            delay_seconds: 延迟秒数（默认5秒）
+        """
+        def retry_callback():
+            try:
+                if hasattr(self, 'las_server') and self.las_server:
+                    self.las_server.send_transfer_status_response(
+                        interface_position_index=interface_position_index,
+                        ready_to_load=1,
+                        return_ready_count=self.return_ready_count
+                    )
+                    self.logger.info(f"Transfer Status Response retry sent for IP{interface_position_index}")
+                else:
+                    self.logger.warning(f"Transfer Status Response retry failed: las_server still not available for IP{interface_position_index}")
+            except Exception as e:
+                self.logger.error(f"Transfer Status Response retry error for IP{interface_position_index}: {str(e)}")
+        
+        # 创建定时器
+        timer = threading.Timer(delay_seconds, retry_callback)
+        timer.daemon = True
+        timer.start()
+        self.logger.info(f"Scheduled Transfer Status Response retry for IP{interface_position_index} in {delay_seconds} seconds")
     
     def _schedule_workflow_step(self, sample_id, step_name, delay_seconds, step_func):
         """调度工作流步骤 - 使用定时器替代time.sleep
@@ -1432,12 +1744,13 @@ class AtellicaCore:
         db_path = os.path.join(db_dir, 'atellica.db')
         return sqlite3.connect(db_path)
     
-    def _insert_sample_to_db(self, sample_id, load_time):
+    def _insert_sample_to_db(self, sample_id, load_time, status='loaded'):
         """将样本插入数据库
         
         Args:
             sample_id: 样本ID
             load_time: 装载时间
+            status: 样本状态，默认为'loaded'，可以是'load_failed'等
         """
         try:
             conn = self._get_db_connection()
@@ -1449,14 +1762,14 @@ class AtellicaCore:
             # 插入样本记录
             cursor.execute('''
                 INSERT OR REPLACE INTO on_board_samples 
-                (sample_id, load_time)
-                VALUES (?, ?)
-            ''', (sample_id, load_time_str))
+                (sample_id, load_time, status)
+                VALUES (?, ?, ?)
+            ''', (sample_id, load_time_str, status))
             
             conn.commit()
             conn.close()
             
-            self.logger.info(f"Inserted sample {sample_id} into database")
+            self.logger.info(f"Inserted sample {sample_id} into database with status={status}")
             
         except sqlite3.Error as e:
             self.logger.error(f"Error inserting sample {sample_id} into database: {str(e)}")
@@ -1604,16 +1917,17 @@ class AtellicaCore:
                         # 检查样本是否存在
                         if sample_id in self.samples:
                             sample = self.samples[sample_id]
+                            # 优先使用显式设置的load_command_status（用于测试场景）
+                            load_result_status = self.get_load_unload_command_status(interface_position_index)
+                            
                             if sample['status'] == 'received':
                                 sample['status'] = 'processing'
-                                sample_status = 0x01  # Sample Processed successfully
+                                # IP0加载时Sample Processing Status填00（无效），IP1卸载时填真实结果
+                                sample_status = 0x00 if interface_position_index == 0 else 0x01
                                 
-                                # 确定load_result['status']的值
-                                load_result_status = self.get_load_unload_command_status(interface_position_index)
+                                # 检查queue_sample_id是否匹配
                                 if queue_sample_id and queue_sample_id != sample_id:
                                     load_result_status = 4
-                                
-                                load_result = {'sample_id': sample_id, 'status': load_result_status}
                                 
                                 # 根据status执行相应操作
                                 if load_result_status == 1:
@@ -1623,11 +1937,13 @@ class AtellicaCore:
                                 load_time = sample.get('load_time', time.time())
                                 self._insert_sample_to_db(sample_id, load_time)
                             else:
-                                load_result = {'sample_id': sample_id, 'status': 7}  # Instrument Skipped Loading
-                                
-                                # 确保其他状态值也有处理逻辑
-                                if load_result['status'] == 7:
-                                    self.logger.info(f"Instrument skipped loading for sample {sample_id}")
+                                # 样本状态不是'received'，但优先使用load_command_status
+                                # 如果load_command_status未设置，则使用默认逻辑
+                                if load_result_status is None or (hasattr(self, 'load_command_status') and self.load_command_status is None):
+                                    load_result_status = 7  # Instrument Skipped Loading
+                                    self.logger.info(f"Instrument skipped loading for sample {sample_id} (status={sample['status']})")
+                            
+                            load_result = {'sample_id': sample_id, 'status': load_result_status}
                         else:
                             # 样本不存在，创建新样本记录
                             current_time = time.time()
@@ -1647,17 +1963,60 @@ class AtellicaCore:
                                 load_result_status = 4
                             
                             load_result = {'sample_id': sample_id, 'status': load_result_status}
-                            sample_status = 0x01  # Sample Processed successfully
+                            # IP0加载时Sample Processing Status填00（无效），IP1卸载时填真实结果
+                            sample_status = 0x00 if interface_position_index == 0 else 0x01
                             
                             # 根据status执行相应操作
                             if load_result_status == 1:
                                 self.on_board_tube_count += 1
-                            
-                            # 将样本信息插入数据库
-                            self._insert_sample_to_db(sample_id, current_time)
-                            
-                            # 将样本添加到工作流队列（使用单个工作线程处理，避免创建大量线程）
-                            self._add_sample_to_workflow_queue(sample_id)
+                                # 将样本信息插入数据库
+                                self._insert_sample_to_db(sample_id, current_time)
+                                # 将样本添加到工作流队列（使用单个工作线程处理，避免创建大量线程）
+                                self._add_sample_to_workflow_queue(sample_id)
+                            elif load_result_status in [4, 5]:
+                                # 0x04 (Queue Flush) 和 0x05 (Queue Rebuild) 不是真正的抓取失败
+                                # 标本根本没有被抓取，只是队列需要刷新或重建
+                                self.logger.info(f"Sample {sample_id}: Load状态码={load_result_status} (Queue Flush/Rebuild)，标本未抓取，不加入失败列表")
+                                # 不将样本加入samples字典，不增加on_board_tube_count
+                                # 样本会保留在LAS侧，等待重新发送Load请求
+                            else:
+                                # Load失败，将样本保留在内存中供手工处理
+                                self.logger.info(f"Sample {sample_id}: Load失败（状态码={load_result_status}），保留在脱线标本列表供手工处理")
+                                # 将样本添加到samples字典中，但不启动工作流
+                                if sample_id not in self.samples:
+                                    self.samples[sample_id] = {
+                                        'sample_id': sample_id,
+                                        'status': 'load_failed',
+                                        'load_failed_status': load_result_status,
+                                        'timestamp': current_time,
+                                        'interface_position': f'IP{interface_position_index}',
+                                        'carrier_occupancy': carrier_occupancy,
+                                        'tests': []
+                                    }
+                                else:
+                                    # 更新现有样本状态
+                                    self.samples[sample_id]['status'] = 'load_failed'
+                                    self.samples[sample_id]['load_failed_status'] = load_result_status
+                                    self.samples[sample_id]['interface_position'] = f'IP{interface_position_index}'
+                                
+                                # 将样本信息插入数据库，标记为Load失败
+                                self._insert_sample_to_db(sample_id, current_time, status='load_failed')
+                                
+                                # 增加在机试管计数
+                                self.on_board_tube_count += 1
+                                
+                                # 将carrier添加到队列中，以便后续可以通过clear_queue释放
+                                if interface_position_index not in self.queues:
+                                    self.queues[interface_position_index] = []
+                                    self.logger.info(f"Created new queue for IP{interface_position_index}")
+                                
+                                carrier_info = {
+                                    'sample_id': sample_id,
+                                    'carrier_occupancy': carrier_occupancy,
+                                    'status': 'load_failed'
+                                }
+                                self.queues[interface_position_index].append(carrier_info)
+                                self.logger.info(f"Sample {sample_id}: Load失败，已将carrier添加到IP{interface_position_index}队列，当前队列长度={len(self.queues[interface_position_index])}")
                     else:
                         # carrier已被锁定
                         load_result = {'sample_id': sample_id, 'status': 2}  # Error: Lock Carrier in place
@@ -1669,6 +2028,7 @@ class AtellicaCore:
                 load_result = {'sample_id': '', 'status': 1}  # Success
                 
                 # 处理Unload操作
+                self.logger.info(f"UNLOAD处理: IP={interface_position_index}, remote_status={remote_status}, carrier_occupancy={carrier_occupancy}")
                 if remote_status in [5, 3]:  # Unloading Only or Exchange mode
                     # 执行卸载操作
                     if self.locked_carriers[interface_position_index] is None:
@@ -1683,10 +2043,12 @@ class AtellicaCore:
                         self._save_locked_carrier(interface_positions, '', carrier_occupancy)
                         
                         # 检查是否有样本需要卸载到空carrier
+                        self.logger.info(f"UNLOAD检查: return_ready_count={self.return_ready_count}, sample_id={sample_id}")
                         if self.return_ready_count > 0:
                             # 优先使用传入的sample_id查找样本
                             if sample_id and sample_id in self.samples:
                                 sample = self.samples[sample_id]
+                                self.logger.info(f"UNLOAD样本检查: sample_id={sample_id}, status={sample.get('status')}, unloaded={'unloaded' in sample}, ready_for_unload={sample.get('ready_for_unload', False)}")
                                 if sample['status'] == 'completed' and 'unloaded' not in sample and sample.get('ready_for_unload', False):
                                     # 确定unload_result['status']的值
                                     unload_result_status = self.get_load_unload_command_status(interface_position_index)
@@ -1696,6 +2058,7 @@ class AtellicaCore:
                                     sample_status = 0x01  # Sample Processed successfully
                                     
                                     unload_result = {'sample_id': sample_id, 'status': unload_result_status}
+                                    self.logger.info(f"UNLOAD成功: sample_id={sample_id}, status={unload_result_status}")
                                     
                                     # 根据status执行相应操作
                                     if unload_result_status in [1, 2, 3]:
@@ -1716,39 +2079,10 @@ class AtellicaCore:
 
                                     self.logger.info(f"Sample {sample_id}: 已成功UNLOAD")
                                 else:
-                                    # 样本不存在或不符合条件，遍历查找
-                                    for sid, sample in self.samples.items():
-                                        if sample['status'] == 'completed' and 'unloaded' not in sample and sample.get('ready_for_unload', False):
-                                            # 确定unload_result['status']的值
-                                            unload_result_status = self.get_load_unload_command_status(interface_position_index)
-                                            
-                                            # 标记样本为已卸载
-                                            sample['unloaded'] = True
-                                            sample_status = 0x01  # Sample Processed successfully
-                                            
-                                            unload_result = {'sample_id': sid, 'status': unload_result_status}
-                                            
-                                            # 根据status执行相应操作
-                                            if unload_result_status in [1, 2, 3]:
-                                                self.return_ready_count -= 1
-                                                self.completed_tube_count -= 1
-                                                self.on_board_tube_count -= 1
-                                                
-                                                # 从内存中删除样本信息
-                                                if sid in self.samples:
-                                                    del self.samples[sid]
-                                                    self.logger.info(f"Sample {sid}: 已从内存中删除")
-                                                
-                                                # 从数据库中删除样本
-                                                self._delete_sample_from_db(sid)
-
-                                                # 从IP1队列中删除样本（如果存在）
-                                                self.remove_sample_from_queue(sid, interface_position_index=1)
-
-                                            self.logger.info(f"Sample {sid}: 已成功UNLOAD")
-                                            break
+                                    self.logger.warning(f"UNLOAD样本条件不满足: sample_id={sample_id}, status={sample.get('status')}, unloaded={'unloaded' in sample}, ready_for_unload={sample.get('ready_for_unload', False)}")
                             else:
-                                # 没有传入sample_id或样本不存在，遍历查找
+                                # 样本不存在或不符合条件，遍历查找
+                                found_sample = False
                                 for sid, sample in self.samples.items():
                                     if sample['status'] == 'completed' and 'unloaded' not in sample and sample.get('ready_for_unload', False):
                                         # 确定unload_result['status']的值
@@ -1778,24 +2112,78 @@ class AtellicaCore:
                                             self.remove_sample_from_queue(sid, interface_position_index=1)
 
                                         self.logger.info(f"Sample {sid}: 已成功UNLOAD")
+                                        found_sample = True
                                         break
+                                
+                                if not found_sample:
+                                    self.logger.warning(f"UNLOAD失败: 遍历所有样本，没有找到符合条件的样本")
+                                    # 即使没有找到特定样本，如果return_ready_count > 0，也认为是成功的UNLOAD
+                                    if self.return_ready_count > 0:
+                                        sample_status = 0x01  # Sample Processed successfully
+                                        unload_result = {'sample_id': '', 'status': 1}  # Success
+                                        self.logger.info(f"UNLOAD成功: 未找到特定样本，但return_ready_count > 0，视为成功")
                         else:
                             # 没有样本需要卸载
+                            self.logger.warning(f"UNLOAD失败: 没有样本需要卸载, return_ready_count={self.return_ready_count}")
                             unload_result = {'sample_id': '', 'status': 6}  # Unload Skipped
                     else:
                         # carrier已被锁定
+                        self.logger.warning(f"UNLOAD失败: carrier已被锁定, locked_carriers={self.locked_carriers}")
                         unload_result = {'sample_id': '', 'status': 2}  # Error: Lock Carrier in place
                 else:
                     # 远程控制状态不允许卸载
+                    self.logger.warning(f"UNLOAD失败: 远程控制状态不允许卸载, remote_status={remote_status}")
                     unload_result = {'sample_id': '', 'status': 6}  # Unload Skipped
             
             # 释放锁定的carrier
+            # 根据uRAP协议，只有在Status = 1 (Success) 或 Status = 3 (OK to Unlock Carrier) 时才释放carrier
+            # Status = 2 (Lock Carrier in place) 时，carrier应该被锁定在原位，不应该释放
+            should_release_carrier = False
+            status_value = 0
+            
             if self.locked_carriers[interface_position_index] is not None:
+                # 检查相应的result状态值
+                if carrier_occupancy in [2, 3]:  # Load操作
+                    status_value = load_result.get('status', 0) if load_result else 0
+                    if status_value in [1, 3]:  # Success 或 OK to Unlock Carrier
+                        should_release_carrier = True
+                        self.logger.info(f"Releasing carrier IP{interface_position_index}: Load Status = {status_value}")
+                    else:
+                        # Load Status = 2 (Lock Carrier in place)，不应该释放carrier
+                        self.logger.warning(f"NOT releasing carrier IP{interface_position_index}: Load Status = {status_value} (Lock Carrier in place)")
+                else:  # Unload操作
+                    status_value = unload_result.get('status', 0) if unload_result else 0
+                    if status_value in [1, 3]:  # Success 或 OK to Unlock Carrier
+                        should_release_carrier = True
+                        self.logger.info(f"Releasing carrier IP{interface_position_index}: Unload Status = {status_value}")
+                    else:
+                        # Unload Status = 2 (Lock Carrier in place)，不应该释放carrier
+                        self.logger.warning(f"NOT releasing carrier IP{interface_position_index}: Unload Status = {status_value} (Lock Carrier in place)")
+            
+            if should_release_carrier:
                 # 从数据库中删除锁定状态记录
                 interface_positions = f"IP{interface_position_index}"
                 self._delete_locked_carrier(interface_positions)
                 # 释放锁定
                 self.locked_carriers[interface_position_index] = None
+                # 更新锁状态为Not Locked（符合西门子Atellica官方协议）
+                if interface_position_index < len(self.lock_ownership):
+                    self.lock_ownership[interface_position_index] = 2  # 0x02: Not Locked by Instrument
+                    self.logger.info(f"Updated lock ownership for IP{interface_position_index} to 0x02 (Not Locked)")
+            else:
+                if carrier_occupancy in [2, 3]:  # Load操作
+                    self.logger.info(f"Carrier IP{interface_position_index} remains locked: Load Status = {status_value}")
+                else:  # Unload操作
+                    self.logger.info(f"Carrier IP{interface_position_index} remains locked: Unload Status = {status_value}")
+                
+                # 当Status = 2时，设置锁状态为Locked by Instrument（符合西门子Atellica官方协议）
+                if status_value == 2 and interface_position_index < len(self.lock_ownership):
+                    self.lock_ownership[interface_position_index] = 1  # 0x01: Locked by Instrument
+                    if carrier_occupancy in [2, 3]:  # Load操作
+                        self.logger.info(f"Updated lock ownership for IP{interface_position_index} to 0x01 (Locked by Instrument) due to Load Status = 2")
+                    else:  # Unload操作
+                        self.logger.info(f"Updated lock ownership for IP{interface_position_index} to 0x01 (Locked by Instrument) due to Unload Status = 2")
+
             
             # 在锁内部直接获取ready_to_load值，避免调用get_ready_to_load导致死锁
             ready_to_load_value = 1 if self.ready_to_load.get(interface_position_index, False) else 0
