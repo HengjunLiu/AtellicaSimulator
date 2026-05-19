@@ -12,7 +12,7 @@ import struct
 
 from .lisui import LisUI
 
-APP_VERSION = "v1.8.0"
+APP_VERSION = "v1.9.0"
 
 class AtellicaUI:
     """Atellica模拟器图形用户界面"""
